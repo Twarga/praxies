@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
 import { chooseDirectory, openDesktopPath } from "./lib/desktop.js";
+import { requestRecordingStream, stopMediaStream } from "./lib/media.js";
 import {
   formatBooleanToggle,
   formatLanguageValue,
@@ -44,7 +45,7 @@ function LeftRail({ activePage, onNavigate }) {
       <div className="rail-divider" />
 
       <div className="record-slot" aria-label="Record slot">
-        <button type="button" className="record-button">
+        <button type="button" className="record-button" onClick={() => onNavigate("record")}>
           <span className="record-dot" aria-hidden="true" />
           <span>record</span>
         </button>
@@ -467,13 +468,90 @@ function SettingsPage() {
   );
 }
 
+function RecordPage({ onBack }) {
+  const [permissionState, setPermissionState] = useState("requesting");
+  const [stream, setStream] = useState(null);
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    let isActive = true;
+    let activeStream = null;
+
+    async function setupStream() {
+      try {
+        const nextStream = await requestRecordingStream();
+        if (!isActive) {
+          stopMediaStream(nextStream);
+          return;
+        }
+        activeStream = nextStream;
+        setStream(nextStream);
+        setPermissionState("granted");
+      } catch {
+        if (isActive) {
+          setPermissionState("denied");
+        }
+      }
+    }
+
+    void setupStream();
+
+    return () => {
+      isActive = false;
+      stopMediaStream(activeStream);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!videoRef.current || !stream) {
+      return;
+    }
+
+    videoRef.current.srcObject = stream;
+
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
+  }, [stream]);
+
+  return (
+    <main className="main record-page">
+      <div className="record-shell">
+        <div className="record-shell-header">
+          <div className="record-shell-meta">new session</div>
+          <button type="button" className="record-back" onClick={onBack}>
+            ← today
+          </button>
+        </div>
+
+        <div className="record-preview-frame">
+          {permissionState === "granted" ? (
+            <video ref={videoRef} className="record-preview-video" autoPlay muted playsInline />
+          ) : (
+            <div className="record-preview-placeholder">
+              {permissionState === "requesting"
+                ? "requesting camera and mic access…"
+                : "camera access not allowed. enable it in system settings."}
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default function App() {
   const [activePage, setActivePage] = useState("today");
 
   return (
     <div className="app-shell">
-      <LeftRail activePage={activePage} onNavigate={setActivePage} />
-      {activePage === "settings" ? <SettingsPage /> : <TodayPage />}
+      {activePage === "record" ? null : <LeftRail activePage={activePage} onNavigate={setActivePage} />}
+      {activePage === "settings" ? <SettingsPage /> : null}
+      {activePage === "record" ? <RecordPage onBack={() => setActivePage("today")} /> : null}
+      {activePage === "today" ? <TodayPage /> : null}
+      {activePage === "gallery" || activePage === "trends" ? <TodayPage /> : null}
     </div>
   );
 }

@@ -1,5 +1,7 @@
+const API_BASE_URL = "http://127.0.0.1:8000";
+
 export async function apiFetchJson(path, options = {}) {
-  const response = await fetch(path, {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       Accept: "application/json",
       ...(options.body ? { "Content-Type": "application/json" } : {}),

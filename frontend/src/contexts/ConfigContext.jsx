@@ -55,6 +55,8 @@ export function ConfigProvider({ children }) {
   }
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     refreshConfig().catch(() => {
       // Error state is stored in context for future UI handling.
     });

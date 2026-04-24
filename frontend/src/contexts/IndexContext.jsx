@@ -32,6 +32,8 @@ export function IndexProvider({ children }) {
   }
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     refreshIndex().catch(() => {
       // Error state is stored in context for future UI handling.
     });

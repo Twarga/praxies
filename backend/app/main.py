@@ -1,6 +1,7 @@
 from typing import Any, Literal
 
 from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.core.settings import APP_VERSION
@@ -16,6 +17,13 @@ from app.services.sessions import (
 
 
 app = FastAPI(title="Praxies Backend", version=APP_VERSION)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173", "null"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class CreateSessionPayload(BaseModel):
