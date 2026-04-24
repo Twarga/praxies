@@ -1,0 +1,25 @@
+# Local planning docs
+IMPLEMENTATION_PLAN.md
+TASKS.md
+PLAN.md
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Backend logs and local runtime files
+*.log
+*.sock
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+npm-debug.log*
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
