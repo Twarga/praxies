@@ -337,6 +337,19 @@ def get_session_video_path(config: ConfigModel, session_id: str) -> Path | None:
     return video_path
 
 
+def get_session_thumbnail_path(config: ConfigModel, session_id: str) -> Path | None:
+    try:
+        load_session_meta(config, session_id)
+    except FileNotFoundError:
+        return None
+
+    thumbnail_path = get_session_dir(config, session_id) / "thumbnail.jpg"
+    if not thumbnail_path.exists():
+        return None
+
+    return thumbnail_path
+
+
 def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, object] | None:
     session_dir = get_session_dir(config, session_id)
     try:
