@@ -469,6 +469,32 @@ function SettingsPage() {
   );
 }
 
+function RecordPreview({ permissionState, recorderState, videoRef }) {
+  const isLivePreview = permissionState === "granted";
+  const isActivePreview =
+    recorderState === "recording" || recorderState === "paused" || recorderState === "stopping";
+
+  return (
+    <div className={`record-preview-frame ${isActivePreview ? "is-active" : "is-idle"}`}>
+      {isLivePreview ? (
+        <video
+          ref={videoRef}
+          className={`record-preview-video ${isActivePreview ? "is-active" : "is-idle"} is-live`}
+          autoPlay
+          muted
+          playsInline
+        />
+      ) : (
+        <div className="record-preview-placeholder">
+          {permissionState === "requesting"
+            ? "requesting camera and mic access…"
+            : "camera access not allowed. enable it in system settings."}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RecordPage({ onBack }) {
   const { config } = useConfig();
   const [permissionState, setPermissionState] = useState("requesting");
@@ -560,17 +586,7 @@ function RecordPage({ onBack }) {
           </div>
         </div>
 
-        <div className="record-preview-frame">
-          {permissionState === "granted" ? (
-            <video ref={videoRef} className="record-preview-video" autoPlay muted playsInline />
-          ) : (
-            <div className="record-preview-placeholder">
-              {permissionState === "requesting"
-                ? "requesting camera and mic access…"
-                : "camera access not allowed. enable it in system settings."}
-            </div>
-          )}
-        </div>
+        <RecordPreview permissionState={permissionState} recorderState={recorder.state} videoRef={videoRef} />
 
         <div className="record-shell-footer">
           <div className="record-footer-status">
