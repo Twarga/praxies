@@ -1,34 +1,53 @@
+import { useIndex } from "./hooks/useIndex.js";
+
 const navItems = ["today", "gallery", "trends", "settings"];
 
 function LeftRail() {
+  const { index, isLoading } = useIndex();
+  const currentStreak = index?.streak?.current ?? 0;
+  const totalSessions = index?.totals?.sessions ?? 0;
+
   return (
     <aside className="rail">
-      <div>
+      <div className="rail-brand">
         <div className="wordmark">TWARGA</div>
         <div className="wordmark-sub">journal</div>
       </div>
 
       <nav className="nav-list" aria-label="Primary">
         {navItems.map((item, index) => (
-          <button key={item} type="button" className={`nav-item ${index === 0 ? "active" : ""}`}>
+          <button
+            key={item}
+            type="button"
+            className={`nav-item ${index === 0 ? "active" : ""}`}
+            aria-current={index === 0 ? "page" : undefined}
+          >
             <span className="nav-dot" aria-hidden="true" />
-            <span>{item}</span>
+            <span className="nav-label">{item}</span>
           </button>
         ))}
       </nav>
 
       <div className="rail-divider" />
 
-      <button type="button" className="record-button">
-        <span className="record-dot" aria-hidden="true" />
-        <span>record</span>
-      </button>
+      <div className="record-slot" aria-label="Record slot">
+        <button type="button" className="record-button">
+          <span className="record-dot" aria-hidden="true" />
+          <span>record</span>
+        </button>
+      </div>
 
       <div className="rail-spacer" />
 
       <div className="rail-stats">
-        <div>streak&nbsp;&nbsp;0d</div>
-        <div>total&nbsp;&nbsp;0</div>
+        <div>
+          streak&nbsp;&nbsp;
+          {isLoading ? "—" : `${currentStreak}d`}
+        </div>
+        <div>
+          total&nbsp;&nbsp;
+          {isLoading ? "—" : totalSessions}
+        </div>
       </div>
     </aside>
   );
