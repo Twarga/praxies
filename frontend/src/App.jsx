@@ -6,6 +6,7 @@ import { useRecorder } from "./hooks/useRecorder.js";
 import { chooseDirectory, openDesktopPath } from "./lib/desktop.js";
 import { requestRecordingStream, stopMediaStream } from "./lib/media.js";
 import { createBeforeUnloadHandler } from "./lib/recording.js";
+import { getRecordShortcutAction } from "./lib/recordShortcuts.js";
 import {
   formatBooleanToggle,
   formatLanguageValue,
@@ -774,6 +775,68 @@ function RecordPage({ onBack }) {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [isActiveRecording, recorder.state]);
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      const action = getRecordShortcutAction({
+        event,
+        permissionState,
+        recorderState: recorder.state,
+        showDiscardConfirm,
+      });
+
+      if (!action) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (action === "start") {
+        void handleStartRecording();
+        return;
+      }
+
+      if (action === "pause") {
+        recorder.pauseRecording();
+        return;
+      }
+
+      if (action === "resume") {
+        recorder.resumeRecording();
+        return;
+      }
+
+      if (action === "stop") {
+        void recorder.stopRecording();
+        return;
+      }
+
+      if (action === "save-full") {
+        void handleFinalize("full");
+        return;
+      }
+
+      if (action === "discard") {
+        void handleDiscard();
+        return;
+      }
+
+      if (action === "cancel-discard") {
+        handleCancelDiscard();
+        return;
+      }
+
+      if (action === "back") {
+        onBack();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onBack, permissionState, recorder, showDiscardConfirm]);
 
   async function handleStartRecording() {
     try {
