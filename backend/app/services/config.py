@@ -87,3 +87,13 @@ def load_config(paths: AppPaths = PATHS) -> ConfigModel:
 
     raw = paths.config_file.read_text(encoding="utf-8")
     return ConfigModel.model_validate_json(raw)
+
+
+def resolve_journal_dir(config: ConfigModel) -> Path:
+    return Path(config.journal_folder).expanduser().resolve()
+
+
+def ensure_journal_dir(config: ConfigModel) -> Path:
+    journal_dir = resolve_journal_dir(config)
+    journal_dir.mkdir(parents=True, exist_ok=True)
+    return journal_dir
