@@ -570,8 +570,11 @@ function ReviewState({
   actionState,
   language,
   onBack,
+  onCancelDiscard,
+  onConfirmDiscard,
   onDiscard,
   onFinalize,
+  showDiscardConfirm,
   title,
   onTitleChange,
   videoUrl,
@@ -598,9 +601,30 @@ function ReviewState({
 
       <div className="record-review-actions">
         <div className="record-review-left">
-          <button type="button" className="record-discard" disabled={actionState !== "idle"} onClick={onDiscard}>
-            discard
-          </button>
+          {showDiscardConfirm ? (
+            <div className="record-discard-confirm" aria-label="Discard confirmation">
+              <button
+                type="button"
+                className="record-discard-action"
+                disabled={actionState !== "idle"}
+                onClick={onCancelDiscard}
+              >
+                cancel
+              </button>
+              <button
+                type="button"
+                className="record-discard-action record-discard-danger"
+                disabled={actionState !== "idle"}
+                onClick={onConfirmDiscard}
+              >
+                yes, discard
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="record-discard" disabled={actionState !== "idle"} onClick={onDiscard}>
+              discard
+            </button>
+          )}
         </div>
         <div className="record-review-right">
           <button
@@ -646,6 +670,7 @@ function RecordPage({ onBack }) {
   const [actionState, setActionState] = useState("idle");
   const [permissionState, setPermissionState] = useState("requesting");
   const [reviewTitle, setReviewTitle] = useState("");
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [stream, setStream] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState(config?.language_default ?? "en");
   const videoRef = useRef(null);
@@ -718,8 +743,23 @@ function RecordPage({ onBack }) {
       setReviewTitle("");
       setActionState("idle");
       setActionError(null);
+      setShowDiscardConfirm(false);
     }
   }, [recorder.sessionId, recorder.state]);
+
+  useEffect(() => {
+    if (!showDiscardConfirm) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setShowDiscardConfirm(false);
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [showDiscardConfirm]);
 
   async function handleStartRecording() {
     try {
@@ -752,6 +792,14 @@ function RecordPage({ onBack }) {
   }
 
   async function handleDiscard() {
+    setShowDiscardConfirm(true);
+  }
+
+  function handleCancelDiscard() {
+    setShowDiscardConfirm(false);
+  }
+
+  async function handleConfirmDiscard() {
     if (!recorder.sessionId) {
       onBack();
       return;
@@ -803,9 +851,12 @@ function RecordPage({ onBack }) {
             actionState={actionState}
             language={selectedLanguage}
             onBack={onBack}
+            onCancelDiscard={handleCancelDiscard}
+            onConfirmDiscard={handleConfirmDiscard}
             onDiscard={handleDiscard}
             onFinalize={handleFinalize}
             onTitleChange={setReviewTitle}
+            showDiscardConfirm={showDiscardConfirm}
             title={reviewTitle}
             videoStats={reviewStats}
             videoUrl={recorder.recordedBlobUrl}

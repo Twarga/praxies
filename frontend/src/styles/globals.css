@@ -649,6 +649,25 @@ select {
   line-height: 1.6;
 }
 
+.record-discard-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.record-discard-action {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.record-discard-danger {
+  color: var(--color-accent);
+}
+
 .record-review-error {
   color: #8a6666;
   font-size: 13px;
