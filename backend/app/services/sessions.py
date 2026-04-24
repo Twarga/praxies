@@ -7,8 +7,8 @@ import shutil
 import unicodedata
 
 from app.models import ConfigModel, MetaModel
-from app.services.config import resolve_journal_dir
-from app.services.json_io import read_json_file
+from app.services.config import ensure_journal_dir, resolve_journal_dir
+from app.services.json_io import read_json_file, write_json_file
 
 
 def generate_session_slug(title: str | None, existing_slugs: set[str] | None = None) -> str:
@@ -55,6 +55,53 @@ def discover_session_dirs(config: ConfigModel) -> list[Path]:
             if entry.is_dir() and not entry.name.startswith("_")
         ]
     )
+
+
+def create_session(
+    config: ConfigModel,
+    language: str,
+    title: str | None = None,
+    save_mode: str | None = None,
+    created_at: datetime | None = None,
+) -> MetaModel:
+    journal_dir = ensure_journal_dir(config)
+    created_at_value = created_at or datetime.now().astimezone()
+    date_prefix = created_at_value.date().isoformat()
+    session_prefix = f"{date_prefix}_{language}_"
+    existing_slugs = {
+        session_dir.name[len(session_prefix) :]
+        for session_dir in discover_session_dirs(config)
+        if session_dir.name.startswith(session_prefix)
+    }
+
+    slug = generate_session_slug(title, existing_slugs=existing_slugs)
+    session_id = generate_session_id(created_at_value, language, slug)
+    session_dir = journal_dir / session_id
+    session_dir.mkdir(parents=True, exist_ok=False)
+
+    normalized_title = (title or "").strip()
+    meta = MetaModel(
+        id=session_id,
+        created_at=created_at_value.isoformat(),
+        language=language,
+        title=normalized_title or "untitled",
+        title_source="user" if normalized_title else "default",
+        duration_seconds=0,
+        file_size_bytes=0,
+        status="recording",
+        save_mode=save_mode or "full",
+        source="webcam",
+        video_filename="video.webm",
+        error=None,
+        read=False,
+        processing={},
+        retention={
+            "video_kept_until": None,
+            "compressed": False,
+        },
+    )
+    write_json_file(session_dir / "meta.json", meta.model_dump(mode="json"))
+    return meta
 
 
 def get_session_dir(config: ConfigModel, session_id: str) -> Path:

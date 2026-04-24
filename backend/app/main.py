@@ -1,14 +1,21 @@
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Query
+from pydantic import BaseModel
 
 from app.core.settings import APP_VERSION
 from app.services.config import dump_config_for_api, load_config, update_config
 from app.services.index import list_sessions, load_or_rebuild_index, rebuild_index
-from app.services.sessions import delete_session_dir, load_session_bundle
+from app.services.sessions import create_session, delete_session_dir, load_session_bundle
 
 
 app = FastAPI(title="Praxies Backend", version=APP_VERSION)
+
+
+class CreateSessionPayload(BaseModel):
+    language: Literal["en", "fr", "es", "tmz"]
+    title: str | None = None
+    save_mode: Literal["full", "transcribe_only", "video_only"] | None = None
 
 
 @app.get("/health")
@@ -25,6 +32,17 @@ async def get_config() -> dict[str, object]:
 async def patch_config(payload: dict[str, Any]) -> dict[str, object]:
     updated = update_config(payload)
     return dump_config_for_api(updated)
+
+
+@app.post("/api/sessions")
+async def post_session(payload: CreateSessionPayload) -> dict[str, str]:
+    meta = create_session(
+        load_config(),
+        language=payload.language,
+        title=payload.title,
+        save_mode=payload.save_mode,
+    )
+    return {"session_id": meta.id}
 
 
 @app.get("/api/index")

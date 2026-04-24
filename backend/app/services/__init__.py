@@ -10,6 +10,7 @@ from app.services.index import (
 )
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
 from app.services.sessions import (
+    create_session,
     delete_session_dir,
     discover_session_dirs,
     generate_session_id,
@@ -19,6 +20,7 @@ from app.services.sessions import (
 )
 
 __all__ = [
+    "create_session",
     "delete_session_dir",
     "discover_session_dirs",
     "ensure_journal_dir",
