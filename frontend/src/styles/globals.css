@@ -400,6 +400,39 @@ select {
   line-height: 1.6;
 }
 
+.record-language-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.record-language-group {
+  display: flex;
+  align-items: center;
+}
+
+.record-language-separator {
+  margin: 0 8px;
+  color: var(--color-border-tertiary);
+}
+
+.record-language-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.record-language-button.active {
+  color: var(--color-accent);
+}
+
 .record-back {
   padding: 0;
   border: 0;
@@ -434,4 +467,29 @@ select {
   font-size: 13px;
   line-height: 1.6;
   text-align: center;
+}
+
+.record-shell-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.record-action-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.record-start-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-accent-border);
+  border-radius: 2px;
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+  font-size: 13px;
+  line-height: 1.4;
 }

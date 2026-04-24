@@ -469,9 +469,17 @@ function SettingsPage() {
 }
 
 function RecordPage({ onBack }) {
+  const { config } = useConfig();
   const [permissionState, setPermissionState] = useState("requesting");
   const [stream, setStream] = useState(null);
+  const [selectedLanguage, setSelectedLanguage] = useState(config?.language_default ?? "en");
   const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (config?.language_default) {
+      setSelectedLanguage(config.language_default);
+    }
+  }, [config?.language_default]);
 
   useEffect(() => {
     let isActive = true;
@@ -521,9 +529,25 @@ function RecordPage({ onBack }) {
       <div className="record-shell">
         <div className="record-shell-header">
           <div className="record-shell-meta">new session</div>
-          <button type="button" className="record-back" onClick={onBack}>
-            ← today
-          </button>
+          <div className="record-language-row" aria-label="Session language">
+            {[
+              ["en", "en"],
+              ["fr", "fr"],
+              ["es", "es"],
+              ["tmz", "tamazight"],
+            ].map(([code, label], index) => (
+              <div key={code} className="record-language-group">
+                {index > 0 ? <span className="record-language-separator">·</span> : null}
+                <button
+                  type="button"
+                  className={`record-language-button ${selectedLanguage === code ? "active" : ""}`}
+                  onClick={() => setSelectedLanguage(code)}
+                >
+                  {label}
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="record-preview-frame">
@@ -536,6 +560,19 @@ function RecordPage({ onBack }) {
                 : "camera access not allowed. enable it in system settings."}
             </div>
           )}
+        </div>
+
+        <div className="record-shell-footer">
+          <div />
+          <div className="record-action-group">
+            <button type="button" className="record-start-button">
+              <span className="record-dot" aria-hidden="true" />
+              <span>start</span>
+            </button>
+            <button type="button" className="record-back" onClick={onBack}>
+              ← today
+            </button>
+          </div>
         </div>
       </div>
     </main>
