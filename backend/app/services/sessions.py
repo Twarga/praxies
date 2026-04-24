@@ -323,6 +323,20 @@ def get_session_dir(config: ConfigModel, session_id: str) -> Path:
     return resolve_journal_dir(config) / session_id
 
 
+def get_session_video_path(config: ConfigModel, session_id: str) -> Path | None:
+    try:
+        meta = load_session_meta(config, session_id)
+    except FileNotFoundError:
+        return None
+
+    video_filename = meta.video_filename or "video.webm"
+    video_path = get_session_dir(config, session_id) / video_filename
+    if not video_path.exists():
+        return None
+
+    return video_path
+
+
 def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, object] | None:
     session_dir = get_session_dir(config, session_id)
     try:

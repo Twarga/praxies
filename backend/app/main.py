@@ -2,6 +2,7 @@ from typing import Any, Literal
 
 from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from app.core.settings import APP_VERSION
@@ -13,6 +14,7 @@ from app.services.sessions import (
     finalize_session,
     load_session_bundle,
     store_session_chunk,
+    get_session_video_path,
 )
 
 
@@ -124,6 +126,15 @@ async def get_session(session_id: str) -> dict[str, object]:
         raise HTTPException(status_code=404, detail="Session not found.")
 
     return session
+
+
+@app.get("/api/sessions/{session_id}/video")
+async def get_session_video(session_id: str) -> FileResponse:
+    video_path = get_session_video_path(load_config(), session_id)
+    if video_path is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    return FileResponse(video_path, media_type="video/webm", filename=video_path.name)
 
 
 @app.delete("/api/sessions/{session_id}")
