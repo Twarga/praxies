@@ -4,8 +4,8 @@ from fastapi import FastAPI, HTTPException, Query
 
 from app.core.settings import APP_VERSION
 from app.services.config import dump_config_for_api, load_config, update_config
-from app.services.index import list_sessions, load_or_rebuild_index
-from app.services.sessions import load_session_bundle
+from app.services.index import list_sessions, load_or_rebuild_index, rebuild_index
+from app.services.sessions import delete_session_dir, load_session_bundle
 
 
 app = FastAPI(title="Praxies Backend", version=APP_VERSION)
@@ -49,3 +49,14 @@ async def get_session(session_id: str) -> dict[str, object]:
         raise HTTPException(status_code=404, detail="Session not found.")
 
     return session
+
+
+@app.delete("/api/sessions/{session_id}")
+async def delete_session(session_id: str) -> dict[str, object]:
+    config = load_config()
+    deleted = delete_session_dir(config, session_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    rebuild_index(config)
+    return {"deleted": True, "id": session_id}

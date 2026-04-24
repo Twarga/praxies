@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
 import re
+import shutil
 import unicodedata
 
 from app.models import ConfigModel, MetaModel
@@ -90,3 +91,12 @@ def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, objec
         "transcript": transcript,
         "analysis": analysis,
     }
+
+
+def delete_session_dir(config: ConfigModel, session_id: str) -> bool:
+    session_dir = get_session_dir(config, session_id)
+    if not session_dir.exists():
+        return False
+
+    shutil.rmtree(session_dir)
+    return True
