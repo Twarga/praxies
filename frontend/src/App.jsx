@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
+import { useRecorder } from "./hooks/useRecorder.js";
 import { chooseDirectory, openDesktopPath } from "./lib/desktop.js";
 import { requestRecordingStream, stopMediaStream } from "./lib/media.js";
 import {
@@ -474,6 +475,7 @@ function RecordPage({ onBack }) {
   const [stream, setStream] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState(config?.language_default ?? "en");
   const videoRef = useRef(null);
+  const recorder = useRecorder({ language: selectedLanguage, stream });
 
   useEffect(() => {
     if (config?.language_default) {
@@ -524,6 +526,14 @@ function RecordPage({ onBack }) {
     };
   }, [stream]);
 
+  async function handleStartRecording() {
+    try {
+      await recorder.startRecording();
+    } catch (caughtError) {
+      setPermissionState("denied");
+    }
+  }
+
   return (
     <main className="main record-page">
       <div className="record-shell">
@@ -563,11 +573,24 @@ function RecordPage({ onBack }) {
         </div>
 
         <div className="record-shell-footer">
-          <div />
+          <div className="record-footer-status">
+            {recorder.state === "recording" || recorder.state === "paused" || recorder.state === "stopping"
+              ? `session ${recorder.sessionId ?? "starting"} · ${recorder.state}`
+              : permissionState === "granted"
+                ? "camera ready"
+                : permissionState === "requesting"
+                  ? "waiting for permission"
+                  : "camera unavailable"}
+          </div>
           <div className="record-action-group">
-            <button type="button" className="record-start-button">
+            <button
+              type="button"
+              className="record-start-button"
+              disabled={permissionState !== "granted" || recorder.state !== "idle"}
+              onClick={handleStartRecording}
+            >
               <span className="record-dot" aria-hidden="true" />
-              <span>start</span>
+              <span>{recorder.state === "idle" ? "start" : recorder.state}</span>
             </button>
             <button type="button" className="record-back" onClick={onBack}>
               ← today

@@ -475,6 +475,13 @@ select {
   justify-content: space-between;
 }
 
+.record-footer-status {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
 .record-action-group {
   display: flex;
   align-items: center;
@@ -492,4 +499,8 @@ select {
   color: var(--color-accent);
   font-size: 13px;
   line-height: 1.4;
+}
+
+.record-start-button:disabled {
+  opacity: 0.5;
 }
