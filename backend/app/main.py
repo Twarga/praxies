@@ -52,11 +52,16 @@ async def post_session_chunk(
     x_chunk_index: int = Header(..., alias="X-Chunk-Index"),
 ) -> dict[str, object]:
     try:
-        chunk_path = await store_session_chunk(load_config(), session_id, x_chunk_index, file)
+        chunk_path, manifest = await store_session_chunk(load_config(), session_id, x_chunk_index, file)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Session not found.") from None
 
-    return {"ok": True, "chunk_index": x_chunk_index, "path": str(chunk_path)}
+    return {
+        "ok": True,
+        "chunk_index": x_chunk_index,
+        "path": str(chunk_path),
+        "chunks_received": len(manifest["chunks"]),
+    }
 
 
 @app.get("/api/index")

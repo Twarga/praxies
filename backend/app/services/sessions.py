@@ -110,12 +110,63 @@ def get_session_chunks_dir(config: ConfigModel, session_id: str) -> Path:
     return get_session_dir(config, session_id) / "_chunks"
 
 
+def get_session_chunk_manifest_path(config: ConfigModel, session_id: str) -> Path:
+    return get_session_dir(config, session_id) / "chunk_manifest.json"
+
+
+def load_session_chunk_manifest(config: ConfigModel, session_id: str) -> dict[str, object]:
+    manifest_path = get_session_chunk_manifest_path(config, session_id)
+    if not manifest_path.exists():
+        return {
+            "session_id": session_id,
+            "created_at": None,
+            "updated_at": None,
+            "chunks": [],
+        }
+
+    return read_json_file(manifest_path)
+
+
+def write_session_chunk_manifest(
+    config: ConfigModel,
+    session_id: str,
+    *,
+    chunk_index: int,
+    chunk_path: Path,
+    chunk_size_bytes: int,
+    recorded_at: datetime | None = None,
+) -> dict[str, object]:
+    now = (recorded_at or datetime.now().astimezone()).isoformat()
+    manifest = load_session_chunk_manifest(config, session_id)
+    chunks = [entry for entry in manifest["chunks"] if entry["chunk_index"] != chunk_index]
+    chunks.append(
+        {
+            "chunk_index": chunk_index,
+            "filename": chunk_path.name,
+            "path": str(chunk_path),
+            "size_bytes": chunk_size_bytes,
+            "uploaded_at": now,
+        }
+    )
+    chunks.sort(key=lambda entry: entry["chunk_index"])
+
+    created_at = manifest["created_at"] or now
+    next_manifest = {
+        "session_id": session_id,
+        "created_at": created_at,
+        "updated_at": now,
+        "chunks": chunks,
+    }
+    write_json_file(get_session_chunk_manifest_path(config, session_id), next_manifest)
+    return next_manifest
+
+
 async def store_session_chunk(
     config: ConfigModel,
     session_id: str,
     chunk_index: int,
     upload: UploadFile,
-) -> Path:
+) -> tuple[Path, dict[str, object]]:
     session_dir = get_session_dir(config, session_id)
     meta_path = session_dir / "meta.json"
     if not meta_path.exists():
@@ -133,7 +184,14 @@ async def store_session_chunk(
             chunk_file.write(chunk)
 
     await upload.close()
-    return chunk_path
+    manifest = write_session_chunk_manifest(
+        config,
+        session_id,
+        chunk_index=chunk_index,
+        chunk_path=chunk_path,
+        chunk_size_bytes=chunk_path.stat().st_size,
+    )
+    return chunk_path, manifest
 
 
 def get_session_dir(config: ConfigModel, session_id: str) -> Path:
