@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
 import { chooseDirectory } from "./lib/desktop.js";
@@ -246,6 +246,50 @@ function ToggleRow({ label, onToggle, value }) {
   );
 }
 
+function PersonalContextEditor({ value, onSave }) {
+  const [draftValue, setDraftValue] = useState(value);
+  const [saveError, setSaveError] = useState(null);
+  const latestSavedValueRef = useRef(value);
+
+  useEffect(() => {
+    latestSavedValueRef.current = value;
+    setDraftValue((currentDraft) => (currentDraft === latestSavedValueRef.current ? value : currentDraft));
+  }, [value]);
+
+  useEffect(() => {
+    if (draftValue === latestSavedValueRef.current) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        await onSave(draftValue);
+        latestSavedValueRef.current = draftValue;
+        setSaveError(null);
+      } catch (caughtError) {
+        setSaveError(caughtError);
+      }
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [draftValue, onSave]);
+
+  return (
+    <div className="personal-context-editor">
+      <textarea
+        className="personal-context-textarea"
+        value={draftValue}
+        onChange={(event) => setDraftValue(event.target.value)}
+        spellCheck={false}
+      />
+      <div className="settings-inline-note">used in every llm prompt. edit freely.</div>
+      {saveError ? <div className="settings-error">{saveError.message}</div> : null}
+    </div>
+  );
+}
+
 function SettingsSection({ title, children, note = null, dimmed = false }) {
   return (
     <section className={`settings-section ${dimmed ? "is-dimmed" : ""}`}>
@@ -367,7 +411,10 @@ function SettingsPage() {
       </SettingsSection>
 
       <SettingsSection title="personal context">
-        <div className="settings-placeholder-block" />
+        <PersonalContextEditor
+          value={config.personal_context}
+          onSave={(nextValue) => patchConfig({ personal_context: nextValue })}
+        />
       </SettingsSection>
 
       <SettingsSection title="telegram bot" note="phase 2 — not yet active" dimmed>
