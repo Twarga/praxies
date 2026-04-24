@@ -84,6 +84,22 @@ def load_config(paths: AppPaths = PATHS) -> ConfigModel:
     return ConfigModel.model_validate(read_json_file(paths.config_file))
 
 
+def mask_api_key(api_key: str) -> str:
+    if not api_key:
+        return ""
+
+    if len(api_key) <= 6:
+        return "•" * len(api_key)
+
+    return f"{api_key[:6]}{'•' * 12}"
+
+
+def dump_config_for_api(config: ConfigModel) -> dict[str, object]:
+    payload = config.model_dump(mode="json")
+    payload["openrouter"]["api_key"] = mask_api_key(config.openrouter.api_key)
+    return payload
+
+
 def resolve_journal_dir(config: ConfigModel) -> Path:
     return Path(config.journal_folder).expanduser().resolve()
 
