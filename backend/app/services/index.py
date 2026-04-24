@@ -13,6 +13,10 @@ def get_index_file_path(config) -> Path:
     return ensure_journal_dir(config) / "_index.json"
 
 
+def get_index_backup_file_path(config) -> Path:
+    return ensure_journal_dir(config) / "_index.json.bak"
+
+
 def load_meta(session_dir: Path) -> MetaModel | None:
     meta_path = session_dir / "meta.json"
     if not meta_path.exists():
@@ -100,3 +104,18 @@ def rebuild_index(config, now: datetime | None = None) -> IndexModel:
 
     write_json_file(get_index_file_path(config), index.model_dump(mode="json"))
     return index
+
+
+def load_or_rebuild_index(config, now: datetime | None = None) -> IndexModel:
+    index_path = get_index_file_path(config)
+    if not index_path.exists():
+        return rebuild_index(config, now=now)
+
+    try:
+        return IndexModel.model_validate(read_json_file(index_path))
+    except Exception:
+        backup_path = get_index_backup_file_path(config)
+        if backup_path.exists():
+            backup_path.unlink()
+        index_path.rename(backup_path)
+        return rebuild_index(config, now=now)
