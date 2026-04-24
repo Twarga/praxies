@@ -251,6 +251,30 @@ def assemble_session_video(config: ConfigModel, session_id: str) -> Path:
     return output_path
 
 
+def validate_session_video(video_path: Path) -> None:
+    command = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        str(video_path),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "ffprobe validation failed.")
+
+    try:
+        duration_seconds = float(result.stdout.strip())
+    except ValueError as error:
+        raise RuntimeError("ffprobe did not return a valid duration.") from error
+
+    if duration_seconds <= 0:
+        raise RuntimeError("Assembled video is not playable.")
+
+
 def finalize_session(
     config: ConfigModel,
     session_id: str,
@@ -259,7 +283,8 @@ def finalize_session(
     save_mode: str | None = None,
 ) -> MetaModel:
     meta = load_session_meta(config, session_id)
-    assemble_session_video(config, session_id)
+    video_path = assemble_session_video(config, session_id)
+    validate_session_video(video_path)
 
     normalized_title = (title or "").strip()
     next_title = normalized_title or meta.title or "untitled"

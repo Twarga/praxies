@@ -10,10 +10,10 @@ from app.services.index import (
 )
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
 from app.services.sessions import (
+    assemble_session_video,
     create_session,
     delete_session_dir,
     discover_session_dirs,
-    assemble_session_video,
     finalize_session,
     generate_session_id,
     generate_session_slug,
@@ -24,6 +24,7 @@ from app.services.sessions import (
     load_session_bundle,
     load_session_meta,
     store_session_chunk,
+    validate_session_video,
     write_session_chunk_manifest,
 )
 
@@ -52,6 +53,7 @@ __all__ = [
     "rebuild_index",
     "resolve_journal_dir",
     "store_session_chunk",
+    "validate_session_video",
     "write_session_chunk_manifest",
     "write_json_file",
 ]
