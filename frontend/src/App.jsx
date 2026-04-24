@@ -5,6 +5,7 @@ import { useIndex } from "./hooks/useIndex.js";
 import { useRecorder } from "./hooks/useRecorder.js";
 import { chooseDirectory, openDesktopPath } from "./lib/desktop.js";
 import { requestRecordingStream, stopMediaStream } from "./lib/media.js";
+import { createBeforeUnloadHandler } from "./lib/recording.js";
 import {
   formatBooleanToggle,
   formatLanguageValue,
@@ -760,6 +761,19 @@ function RecordPage({ onBack }) {
       window.clearTimeout(timeoutId);
     };
   }, [showDiscardConfirm]);
+
+  useEffect(() => {
+    if (!isActiveRecording) {
+      return undefined;
+    }
+
+    const handleBeforeUnload = createBeforeUnloadHandler(recorder.state);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isActiveRecording, recorder.state]);
 
   async function handleStartRecording() {
     try {
