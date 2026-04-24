@@ -85,9 +85,10 @@ async def post_session_chunk(
 
 @app.post("/api/sessions/{session_id}/finalize")
 async def post_session_finalize(session_id: str, payload: FinalizeSessionPayload) -> dict[str, object]:
+    config = load_config()
     try:
         meta = finalize_session(
-            load_config(),
+            config,
             session_id,
             title=payload.title,
             save_mode=payload.save_mode,
@@ -97,6 +98,7 @@ async def post_session_finalize(session_id: str, payload: FinalizeSessionPayload
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
 
+    rebuild_index(config)
     return {"session_id": meta.id, "status": meta.status, "save_mode": meta.save_mode}
 
 
