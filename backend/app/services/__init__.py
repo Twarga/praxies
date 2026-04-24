@@ -9,17 +9,25 @@ from app.services.index import (
     rebuild_index,
 )
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
-from app.services.sessions import discover_session_dirs, generate_session_id, generate_session_slug
+from app.services.sessions import (
+    discover_session_dirs,
+    generate_session_id,
+    generate_session_slug,
+    get_session_dir,
+    load_session_bundle,
+)
 
 __all__ = [
     "discover_session_dirs",
     "ensure_journal_dir",
     "generate_session_id",
     "generate_session_slug",
+    "get_session_dir",
     "get_index_backup_file_path",
     "get_index_file_path",
     "list_sessions",
     "load_config",
+    "load_session_bundle",
     "load_or_rebuild_index",
     "overwrite_json_file",
     "read_json_file",

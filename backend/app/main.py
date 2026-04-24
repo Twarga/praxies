@@ -1,10 +1,11 @@
 from typing import Any
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 
 from app.core.settings import APP_VERSION
 from app.services.config import dump_config_for_api, load_config, update_config
 from app.services.index import list_sessions, load_or_rebuild_index
+from app.services.sessions import load_session_bundle
 
 
 app = FastAPI(title="Praxies Backend", version=APP_VERSION)
@@ -39,3 +40,12 @@ async def get_sessions(
     limit: int | None = Query(default=None, ge=1),
 ) -> list[dict[str, object]]:
     return list_sessions(load_config(), lang=lang, date_from=from_date, date_to=to_date, limit=limit)
+
+
+@app.get("/api/sessions/{session_id}")
+async def get_session(session_id: str) -> dict[str, object]:
+    session = load_session_bundle(load_config(), session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    return session

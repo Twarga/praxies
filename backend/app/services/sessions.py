@@ -5,8 +5,9 @@ from pathlib import Path
 import re
 import unicodedata
 
-from app.models import ConfigModel
+from app.models import ConfigModel, MetaModel
 from app.services.config import resolve_journal_dir
+from app.services.json_io import read_json_file
 
 
 def generate_session_slug(title: str | None, existing_slugs: set[str] | None = None) -> str:
@@ -53,3 +54,39 @@ def discover_session_dirs(config: ConfigModel) -> list[Path]:
             if entry.is_dir() and not entry.name.startswith("_")
         ]
     )
+
+
+def get_session_dir(config: ConfigModel, session_id: str) -> Path:
+    return resolve_journal_dir(config) / session_id
+
+
+def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, object] | None:
+    session_dir = get_session_dir(config, session_id)
+    meta_path = session_dir / "meta.json"
+
+    if not meta_path.exists():
+        return None
+
+    meta = MetaModel.model_validate(read_json_file(meta_path))
+    transcript_text_path = session_dir / "transcript.txt"
+    transcript_json_path = session_dir / "transcript.json"
+    analysis_path = session_dir / "analysis.json"
+
+    transcript_text = None
+    if transcript_text_path.exists():
+        transcript_text = transcript_text_path.read_text(encoding="utf-8")
+
+    transcript = None
+    if transcript_json_path.exists():
+        transcript = read_json_file(transcript_json_path)
+
+    analysis = None
+    if analysis_path.exists():
+        analysis = read_json_file(analysis_path)
+
+    return {
+        "meta": meta.model_dump(mode="json"),
+        "transcript_text": transcript_text,
+        "transcript": transcript,
+        "analysis": analysis,
+    }
