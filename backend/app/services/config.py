@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
+from typing import Any
 
 from app.core.settings import PATHS, AppPaths
 from app.models import ConfigModel
@@ -98,6 +100,24 @@ def dump_config_for_api(config: ConfigModel) -> dict[str, object]:
     payload = config.model_dump(mode="json")
     payload["openrouter"]["api_key"] = mask_api_key(config.openrouter.api_key)
     return payload
+
+
+def _deep_merge(base: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
+    merged = deepcopy(base)
+    for key, value in patch.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def update_config(patch: dict[str, Any], paths: AppPaths = PATHS) -> ConfigModel:
+    current = load_config(paths)
+    merged_payload = _deep_merge(current.model_dump(mode="json"), patch)
+    updated = ConfigModel.model_validate(merged_payload)
+    write_config(updated, paths.config_file)
+    return updated
 
 
 def resolve_journal_dir(config: ConfigModel) -> Path:
