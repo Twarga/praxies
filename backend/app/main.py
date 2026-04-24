@@ -6,7 +6,13 @@ from pydantic import BaseModel
 from app.core.settings import APP_VERSION
 from app.services.config import dump_config_for_api, load_config, update_config
 from app.services.index import list_sessions, load_or_rebuild_index, rebuild_index
-from app.services.sessions import create_session, delete_session_dir, load_session_bundle, store_session_chunk
+from app.services.sessions import (
+    create_session,
+    delete_session_dir,
+    finalize_session,
+    load_session_bundle,
+    store_session_chunk,
+)
 
 
 app = FastAPI(title="Praxies Backend", version=APP_VERSION)
@@ -16,6 +22,11 @@ class CreateSessionPayload(BaseModel):
     language: Literal["en", "fr", "es", "tmz"]
     title: str | None = None
     save_mode: Literal["full", "transcribe_only", "video_only"] | None = None
+
+
+class FinalizeSessionPayload(BaseModel):
+    title: str | None = None
+    save_mode: Literal["full", "transcribe_only", "video_only"]
 
 
 @app.get("/health")
@@ -62,6 +73,23 @@ async def post_session_chunk(
         "path": str(chunk_path),
         "chunks_received": len(manifest["chunks"]),
     }
+
+
+@app.post("/api/sessions/{session_id}/finalize")
+async def post_session_finalize(session_id: str, payload: FinalizeSessionPayload) -> dict[str, object]:
+    try:
+        meta = finalize_session(
+            load_config(),
+            session_id,
+            title=payload.title,
+            save_mode=payload.save_mode,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found.") from None
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from None
+
+    return {"session_id": meta.id, "status": meta.status, "save_mode": meta.save_mode}
 
 
 @app.get("/api/index")

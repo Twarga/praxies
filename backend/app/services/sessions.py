@@ -127,6 +127,14 @@ def load_session_chunk_manifest(config: ConfigModel, session_id: str) -> dict[st
     return read_json_file(manifest_path)
 
 
+def load_session_meta(config: ConfigModel, session_id: str) -> MetaModel:
+    meta_path = get_session_dir(config, session_id) / "meta.json"
+    if not meta_path.exists():
+        raise FileNotFoundError(session_id)
+
+    return MetaModel.model_validate(read_json_file(meta_path))
+
+
 def write_session_chunk_manifest(
     config: ConfigModel,
     session_id: str,
@@ -194,18 +202,43 @@ async def store_session_chunk(
     return chunk_path, manifest
 
 
+def finalize_session(
+    config: ConfigModel,
+    session_id: str,
+    *,
+    title: str | None = None,
+    save_mode: str | None = None,
+) -> MetaModel:
+    meta = load_session_meta(config, session_id)
+    manifest = load_session_chunk_manifest(config, session_id)
+    if not manifest["chunks"]:
+        raise ValueError("No uploaded chunks found.")
+
+    normalized_title = (title or "").strip()
+    next_title = normalized_title or meta.title or "untitled"
+    next_title_source = "user" if normalized_title else meta.title_source
+    updated_meta = meta.model_copy(
+        update={
+            "title": next_title,
+            "title_source": next_title_source,
+            "save_mode": save_mode or meta.save_mode,
+            "status": "saved",
+        }
+    )
+    write_json_file(get_session_dir(config, session_id) / "meta.json", updated_meta.model_dump(mode="json"))
+    return updated_meta
+
+
 def get_session_dir(config: ConfigModel, session_id: str) -> Path:
     return resolve_journal_dir(config) / session_id
 
 
 def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, object] | None:
     session_dir = get_session_dir(config, session_id)
-    meta_path = session_dir / "meta.json"
-
-    if not meta_path.exists():
+    try:
+        meta = load_session_meta(config, session_id)
+    except FileNotFoundError:
         return None
-
-    meta = MetaModel.model_validate(read_json_file(meta_path))
     transcript_text_path = session_dir / "transcript.txt"
     transcript_json_path = session_dir / "transcript.json"
     analysis_path = session_dir / "analysis.json"
