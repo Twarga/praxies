@@ -4,7 +4,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from app.core.settings import PATHS, AppPaths
+from app.core.settings import APP_VERSION, PATHS, AppPaths
 from app.models import ConfigModel
 from app.services.json_io import read_json_file, write_json_file
 
@@ -96,9 +96,12 @@ def mask_api_key(api_key: str) -> str:
     return f"{api_key[:6]}{'•' * 12}"
 
 
-def dump_config_for_api(config: ConfigModel) -> dict[str, object]:
+def dump_config_for_api(config: ConfigModel, paths: AppPaths = PATHS) -> dict[str, object]:
     payload = config.model_dump(mode="json")
     payload["openrouter"]["api_key"] = mask_api_key(config.openrouter.api_key)
+    payload["app_version"] = APP_VERSION
+    payload["config_path"] = str(paths.config_file)
+    payload["logs_path"] = str(paths.backend_log_file)
     return payload
 
 

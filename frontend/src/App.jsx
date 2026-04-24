@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
-import { chooseDirectory } from "./lib/desktop.js";
+import { chooseDirectory, openDesktopPath } from "./lib/desktop.js";
 import {
   formatBooleanToggle,
   formatLanguageValue,
@@ -114,6 +114,22 @@ function DisabledSettingsRow({ label, value = "—" }) {
       <div className="settings-label">{label}</div>
       <div className="settings-value">{value}</div>
       <div className="settings-action-slot" />
+    </div>
+  );
+}
+
+function ActionSettingsRow({ action = "open", label, onAction, value = "—" }) {
+  return (
+    <div className="settings-row">
+      <div className="settings-label">{label}</div>
+      <div className="settings-value">{value}</div>
+      <div className="settings-action-slot">
+        {action ? (
+          <button type="button" className="settings-action" onClick={onAction}>
+            {action}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -435,9 +451,17 @@ function SettingsPage() {
       </SettingsSection>
 
       <SettingsSection title="about">
-        <SettingsRow label="version" action="" />
-        <SettingsRow label="config" />
-        <SettingsRow label="logs" />
+        <SettingsRow label="version" value={config.app_version ?? "0.1.0"} action="" />
+        <ActionSettingsRow
+          label="config"
+          value={config.config_path ?? "—"}
+          onAction={() => openDesktopPath(config.config_path)}
+        />
+        <ActionSettingsRow
+          label="logs"
+          value={config.logs_path ?? "—"}
+          onAction={() => openDesktopPath(config.logs_path)}
+        />
       </SettingsSection>
     </main>
   );
