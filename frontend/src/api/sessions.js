@@ -26,3 +26,9 @@ export function finalizeSession(sessionId, payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export function deleteSession(sessionId) {
+  return apiFetchJson(`/api/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+}

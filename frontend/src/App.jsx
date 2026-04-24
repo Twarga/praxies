@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { deleteSession, finalizeSession } from "./api/sessions.js";
 import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
 import { useRecorder } from "./hooks/useRecorder.js";
@@ -23,6 +24,26 @@ function formatRecordingTimer(totalSeconds) {
   const minutes = String(Math.floor((safeSeconds % 3600) / 60)).padStart(2, "0");
   const seconds = String(safeSeconds % 60).padStart(2, "0");
   return `${hours}:${minutes}:${seconds}`;
+}
+
+function formatRecordingDurationLabel(totalSeconds) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60);
+
+  if (minutes >= 1) {
+    return `${minutes} min`;
+  }
+
+  return `${safeSeconds}s`;
+}
+
+function formatRecordingFileSize(bytes) {
+  if (!bytes || bytes <= 0) {
+    return "0 mb";
+  }
+
+  const megabytes = Math.max(1, Math.round(bytes / (1024 * 1024)));
+  return `${megabytes} mb`;
 }
 
 function LeftRail({ activePage, onNavigate }) {
@@ -544,14 +565,97 @@ function RecordPreview({ permissionState, recorder, videoRef }) {
   );
 }
 
+function ReviewState({
+  actionError,
+  actionState,
+  language,
+  onBack,
+  onDiscard,
+  onFinalize,
+  title,
+  onTitleChange,
+  videoUrl,
+  videoStats,
+}) {
+  return (
+    <>
+      <div className="record-review-frame">
+        <video className="record-review-video" src={videoUrl} controls autoPlay playsInline />
+        <div className="record-review-meta">
+          {videoStats.durationLabel} · {language} · {videoStats.fileSizeLabel}
+        </div>
+      </div>
+
+      <input
+        className="record-title-input"
+        type="text"
+        value={title}
+        onChange={(event) => onTitleChange(event.target.value)}
+        placeholder="title (optional) — what was this about?"
+      />
+
+      {actionError ? <div className="record-review-error">{actionError}</div> : null}
+
+      <div className="record-review-actions">
+        <div className="record-review-left">
+          <button type="button" className="record-discard" disabled={actionState !== "idle"} onClick={onDiscard}>
+            discard
+          </button>
+        </div>
+        <div className="record-review-right">
+          <button
+            type="button"
+            className="record-secondary-button"
+            disabled={actionState !== "idle"}
+            onClick={() => void onFinalize("video_only")}
+          >
+            video only
+          </button>
+          <button
+            type="button"
+            className="record-secondary-button"
+            disabled={actionState !== "idle"}
+            onClick={() => void onFinalize("transcribe_only")}
+          >
+            transcribe only
+          </button>
+          <button
+            type="button"
+            className="record-start-button"
+            disabled={actionState !== "idle"}
+            onClick={() => void onFinalize("full")}
+          >
+            {actionState === "saving" ? "saving…" : "save & process"}
+          </button>
+        </div>
+      </div>
+
+      <div className="record-review-footer">
+        <button type="button" className="record-back" onClick={onBack}>
+          ← today
+        </button>
+      </div>
+    </>
+  );
+}
+
 function RecordPage({ onBack }) {
   const { config } = useConfig();
+  const { refreshIndex } = useIndex();
+  const [actionError, setActionError] = useState(null);
+  const [actionState, setActionState] = useState("idle");
   const [permissionState, setPermissionState] = useState("requesting");
+  const [reviewTitle, setReviewTitle] = useState("");
   const [stream, setStream] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState(config?.language_default ?? "en");
   const videoRef = useRef(null);
   const recorder = useRecorder({ language: selectedLanguage, stream });
   const isActiveRecording = ACTIVE_RECORDER_STATES.has(recorder.state);
+  const isReviewState = recorder.state === "stopped" && recorder.recordedBlobUrl;
+  const reviewStats = {
+    durationLabel: formatRecordingDurationLabel(recorder.elapsedSeconds),
+    fileSizeLabel: formatRecordingFileSize(recorder.recordedBlob?.size ?? 0),
+  };
 
   useEffect(() => {
     if (config?.language_default) {
@@ -602,11 +706,67 @@ function RecordPage({ onBack }) {
     };
   }, [stream]);
 
+  useEffect(() => {
+    if (recorder.state === "stopped" && stream) {
+      stopMediaStream(stream);
+      setStream(null);
+    }
+  }, [recorder.state, stream]);
+
+  useEffect(() => {
+    if (recorder.state === "stopped") {
+      setReviewTitle("");
+      setActionState("idle");
+      setActionError(null);
+    }
+  }, [recorder.sessionId, recorder.state]);
+
   async function handleStartRecording() {
     try {
+      setActionError(null);
       await recorder.startRecording();
     } catch (caughtError) {
       setPermissionState("denied");
+    }
+  }
+
+  async function handleFinalize(saveMode) {
+    if (!recorder.sessionId) {
+      return;
+    }
+
+    setActionState("saving");
+    setActionError(null);
+
+    try {
+      await finalizeSession(recorder.sessionId, {
+        title: reviewTitle.trim() || null,
+        save_mode: saveMode,
+      });
+      await refreshIndex();
+      onBack();
+    } catch (caughtError) {
+      setActionState("idle");
+      setActionError(caughtError instanceof Error ? caughtError.message : "Failed to finalize recording.");
+    }
+  }
+
+  async function handleDiscard() {
+    if (!recorder.sessionId) {
+      onBack();
+      return;
+    }
+
+    setActionState("saving");
+    setActionError(null);
+
+    try {
+      await deleteSession(recorder.sessionId);
+      await refreshIndex();
+      onBack();
+    } catch (caughtError) {
+      setActionState("idle");
+      setActionError(caughtError instanceof Error ? caughtError.message : "Failed to discard recording.");
     }
   }
 
@@ -627,7 +787,7 @@ function RecordPage({ onBack }) {
                 <button
                   type="button"
                   className={`record-language-button ${selectedLanguage === code ? "active" : ""}`}
-                  disabled={isActiveRecording}
+                  disabled={isActiveRecording || isReviewState}
                   onClick={() => setSelectedLanguage(code)}
                 >
                   {label}
@@ -637,34 +797,53 @@ function RecordPage({ onBack }) {
           </div>
         </div>
 
-        <RecordPreview permissionState={permissionState} recorder={recorder} videoRef={videoRef} />
-
-        {isActiveRecording ? (
-          <RecordingControls recorder={recorder} />
+        {isReviewState ? (
+          <ReviewState
+            actionError={actionError}
+            actionState={actionState}
+            language={selectedLanguage}
+            onBack={onBack}
+            onDiscard={handleDiscard}
+            onFinalize={handleFinalize}
+            onTitleChange={setReviewTitle}
+            title={reviewTitle}
+            videoStats={reviewStats}
+            videoUrl={recorder.recordedBlobUrl}
+          />
+        ) : isActiveRecording ? (
+          <>
+            <RecordPreview permissionState={permissionState} recorder={recorder} videoRef={videoRef} />
+            {recorder.error ? <div className="record-review-error">{recorder.error.message}</div> : null}
+            <RecordingControls recorder={recorder} />
+          </>
         ) : (
-          <div className="record-shell-footer">
-            <div className="record-footer-status">
-              {permissionState === "granted"
-                ? "camera ready"
-                : permissionState === "requesting"
-                  ? "waiting for permission"
-                  : "camera unavailable"}
+          <>
+            <RecordPreview permissionState={permissionState} recorder={recorder} videoRef={videoRef} />
+            {recorder.error ? <div className="record-review-error">{recorder.error.message}</div> : null}
+            <div className="record-shell-footer">
+              <div className="record-footer-status">
+                {permissionState === "granted"
+                  ? "camera ready"
+                  : permissionState === "requesting"
+                    ? "waiting for permission"
+                    : "camera unavailable"}
+              </div>
+              <div className="record-action-group">
+                <button
+                  type="button"
+                  className="record-start-button"
+                  disabled={permissionState !== "granted" || recorder.state !== "idle"}
+                  onClick={handleStartRecording}
+                >
+                  <span className="record-dot" aria-hidden="true" />
+                  <span>start</span>
+                </button>
+                <button type="button" className="record-back" onClick={onBack}>
+                  ← today
+                </button>
+              </div>
             </div>
-            <div className="record-action-group">
-              <button
-                type="button"
-                className="record-start-button"
-                disabled={permissionState !== "granted" || recorder.state !== "idle"}
-                onClick={handleStartRecording}
-              >
-                <span className="record-dot" aria-hidden="true" />
-                <span>start</span>
-              </button>
-              <button type="button" className="record-back" onClick={onBack}>
-                ← today
-              </button>
-            </div>
-          </div>
+          </>
         )}
       </div>
     </main>
