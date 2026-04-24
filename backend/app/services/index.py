@@ -119,3 +119,31 @@ def load_or_rebuild_index(config, now: datetime | None = None) -> IndexModel:
             backup_path.unlink()
         index_path.rename(backup_path)
         return rebuild_index(config, now=now)
+
+
+def list_sessions(
+    config,
+    *,
+    lang: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    limit: int | None = None,
+) -> list[dict[str, object]]:
+    index = load_or_rebuild_index(config)
+    sessions = index.sessions
+
+    if lang:
+        sessions = [session for session in sessions if session.language == lang]
+
+    if date_from:
+        start = date.fromisoformat(date_from)
+        sessions = [session for session in sessions if _date_from_created_at(session.created_at) >= start]
+
+    if date_to:
+        end = date.fromisoformat(date_to)
+        sessions = [session for session in sessions if _date_from_created_at(session.created_at) <= end]
+
+    if limit is not None:
+        sessions = sessions[:limit]
+
+    return [session.model_dump(mode="json") for session in sessions]
