@@ -108,6 +108,16 @@ function SettingsRow({ label, value = "—", action = "change" }) {
   );
 }
 
+function DisabledSettingsRow({ label, value = "—" }) {
+  return (
+    <div className="settings-row settings-row-disabled" aria-disabled="true">
+      <div className="settings-label">{label}</div>
+      <div className="settings-value">{value}</div>
+      <div className="settings-action-slot" />
+    </div>
+  );
+}
+
 function InlineSelectRow({
   actionLabel = "change",
   label,
@@ -418,10 +428,10 @@ function SettingsPage() {
       </SettingsSection>
 
       <SettingsSection title="telegram bot" note="phase 2 — not yet active" dimmed>
-        <SettingsRow label="bot token" action="" />
-        <SettingsRow label="chat id" action="" />
-        <SettingsRow label="daily digest" action="" />
-        <SettingsRow label="weekly rollup" action="" />
+        <DisabledSettingsRow label="bot token" value="—" />
+        <DisabledSettingsRow label="chat id" value="—" />
+        <DisabledSettingsRow label="daily digest" value="08:00" />
+        <DisabledSettingsRow label="weekly rollup" value="sunday 20:00" />
       </SettingsSection>
 
       <SettingsSection title="about">

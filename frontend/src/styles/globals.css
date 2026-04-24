@@ -267,6 +267,10 @@ select {
   padding: 10px 0;
 }
 
+.settings-row-disabled {
+  pointer-events: none;
+}
+
 .settings-label {
   color: var(--color-text-secondary);
   font-size: 13px;
