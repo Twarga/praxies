@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
+import { chooseDirectory } from "./lib/desktop.js";
+import {
+  formatBooleanToggle,
+  formatLanguageValue,
+  formatRetentionValue,
+  LANGUAGE_OPTIONS,
+  RETENTION_OPTIONS,
+  VIDEO_QUALITY_OPTIONS,
+  WHISPER_MODEL_OPTIONS,
+} from "./lib/settings.js";
 
 const navItems = ["today", "gallery", "trends", "settings"];
 
@@ -87,9 +97,151 @@ function SettingsRow({ label, value = "—", action = "change" }) {
     <div className="settings-row">
       <div className="settings-label">{label}</div>
       <div className="settings-value">{value}</div>
-      <button type="button" className="settings-action">
-        {action}
-      </button>
+      <div className="settings-action-slot">
+        {action ? (
+          <button type="button" className="settings-action">
+            {action}
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function InlineSelectRow({
+  actionLabel = "change",
+  label,
+  onSave,
+  options,
+  value,
+  valueLabel = value,
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftValue, setDraftValue] = useState(value);
+
+  function handleStartEdit() {
+    setDraftValue(value);
+    setIsEditing(true);
+  }
+
+  async function handleSave() {
+    await onSave(draftValue);
+    setIsEditing(false);
+  }
+
+  function handleCancel() {
+    setDraftValue(value);
+    setIsEditing(false);
+  }
+
+  if (isEditing) {
+    return (
+      <div className="settings-row">
+        <div className="settings-label">{label}</div>
+        <div className="settings-field-wrap">
+          <select
+            className="settings-control"
+            value={draftValue}
+            onChange={(event) => setDraftValue(event.target.value)}
+          >
+            {options.map((option) => (
+              <option key={option.value} value={option.value} disabled={option.disabled}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="settings-action-group">
+          <button type="button" className="settings-action" onClick={handleSave}>
+            save
+          </button>
+          <button type="button" className="settings-action settings-action-muted" onClick={handleCancel}>
+            cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-row">
+      <div className="settings-label">{label}</div>
+      <div className="settings-value">{valueLabel}</div>
+      <div className="settings-action-slot">
+        <button type="button" className="settings-action" onClick={handleStartEdit}>
+          {actionLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function InlineTextRow({ label, onSave, value }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftValue, setDraftValue] = useState(value);
+
+  function handleStartEdit() {
+    setDraftValue(value);
+    setIsEditing(true);
+  }
+
+  async function handleSave() {
+    await onSave(draftValue.trim());
+    setIsEditing(false);
+  }
+
+  function handleCancel() {
+    setDraftValue(value);
+    setIsEditing(false);
+  }
+
+  if (isEditing) {
+    return (
+      <div className="settings-row">
+        <div className="settings-label">{label}</div>
+        <div className="settings-field-wrap">
+          <input
+            className="settings-control"
+            type="text"
+            value={draftValue}
+            onChange={(event) => setDraftValue(event.target.value)}
+          />
+        </div>
+        <div className="settings-action-group">
+          <button type="button" className="settings-action" onClick={handleSave}>
+            save
+          </button>
+          <button type="button" className="settings-action settings-action-muted" onClick={handleCancel}>
+            cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-row">
+      <div className="settings-label">{label}</div>
+      <div className="settings-value">{value}</div>
+      <div className="settings-action-slot">
+        <button type="button" className="settings-action" onClick={handleStartEdit}>
+          change
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ToggleRow({ label, onToggle, value }) {
+  return (
+    <div className="settings-row">
+      <div className="settings-label">{label}</div>
+      <div className="settings-value settings-value-sans">{formatBooleanToggle(value)}</div>
+      <div className="settings-action-slot">
+        <button type="button" className="settings-action" onClick={() => onToggle(!value)}>
+          {formatBooleanToggle(value)}
+        </button>
+      </div>
     </div>
   );
 }
@@ -105,31 +257,113 @@ function SettingsSection({ title, children, note = null, dimmed = false }) {
 }
 
 function SettingsPage() {
-  const { config } = useConfig();
+  const { config, error, isLoading, isPatching, patchConfig } = useConfig();
+
+  async function handleChooseJournalFolder() {
+    const selectedDirectory = await chooseDirectory();
+    if (!selectedDirectory) {
+      return;
+    }
+
+    await patchConfig({ journal_folder: selectedDirectory });
+  }
+
+  if (isLoading || !config) {
+    return (
+      <main className="main settings-page">
+        <h1 className="page-title">settings</h1>
+        <div className="settings-note">loading config…</div>
+      </main>
+    );
+  }
+
   const journalFolder = config?.journal_folder ?? "—";
 
   return (
     <main className="main settings-page">
       <h1 className="page-title">settings</h1>
+      {isPatching ? <div className="settings-note">saving changes…</div> : null}
+      {error ? <div className="settings-error">{error.message}</div> : null}
 
       <SettingsSection title="storage">
-        <SettingsRow label="journal folder" value={journalFolder} />
+        <div className="settings-row">
+          <div className="settings-label">journal folder</div>
+          <div className="settings-value">{journalFolder}</div>
+          <div className="settings-action-slot">
+            <button type="button" className="settings-action" onClick={handleChooseJournalFolder}>
+              change
+            </button>
+          </div>
+        </div>
         <div className="settings-inline-note">applies to future sessions only</div>
-        <SettingsRow label="retention" action="change" />
+        <InlineSelectRow
+          label="retention"
+          value={String(config.retention_days)}
+          valueLabel={formatRetentionValue(config.retention_days)}
+          options={RETENTION_OPTIONS.map((days) => ({
+            value: String(days),
+            label: formatRetentionValue(days),
+          }))}
+          onSave={(nextValue) => patchConfig({ retention_days: Number(nextValue) })}
+        />
         <SettingsRow label="disk used" action="" />
       </SettingsSection>
 
       <SettingsSection title="recording">
-        <SettingsRow label="video quality" />
-        <SettingsRow label="default language" />
-        <SettingsRow label="phone upload" action="off" />
+        <InlineSelectRow
+          label="video quality"
+          value={config.video_quality}
+          options={VIDEO_QUALITY_OPTIONS.map((quality) => ({ value: quality, label: quality }))}
+          onSave={(nextValue) => patchConfig({ video_quality: nextValue })}
+        />
+        <InlineSelectRow
+          label="default language"
+          value={config.language_default}
+          valueLabel={formatLanguageValue(config.language_default)}
+          options={LANGUAGE_OPTIONS.map((languageCode) => ({
+            value: languageCode,
+            label: formatLanguageValue(languageCode),
+          }))}
+          onSave={(nextValue) => patchConfig({ language_default: nextValue })}
+        />
+        <ToggleRow
+          label="phone upload"
+          value={config.phone_upload_enabled}
+          onToggle={(nextValue) => patchConfig({ phone_upload_enabled: nextValue })}
+        />
+        <ToggleRow
+          label="ready sound"
+          value={config.ready_sound_enabled}
+          onToggle={(nextValue) => patchConfig({ ready_sound_enabled: nextValue })}
+        />
       </SettingsSection>
 
       <SettingsSection title="ai">
-        <SettingsRow label="openrouter api key" />
-        <SettingsRow label="model" />
-        <SettingsRow label="directness" />
-        <SettingsRow label="whisper model" />
+        <SettingsRow label="openrouter api key" value={config.openrouter.api_key || "—"} />
+        <InlineTextRow
+          label="model"
+          value={config.openrouter.default_model}
+          onSave={(nextValue) => patchConfig({ openrouter: { default_model: nextValue } })}
+        />
+        <InlineSelectRow
+          label="directness"
+          value={config.directness}
+          options={[
+            { value: "direct", label: "direct" },
+            { value: "gentle", label: "gentle (v2)", disabled: true },
+            { value: "brutal", label: "brutal (v2)", disabled: true },
+          ]}
+          onSave={(nextValue) => patchConfig({ directness: nextValue })}
+        />
+        <div className="settings-inline-note settings-inline-note-offset">
+          gentle and brutal are reserved for v2.
+        </div>
+        <InlineSelectRow
+          label="whisper model"
+          value={config.whisper.model}
+          options={WHISPER_MODEL_OPTIONS.map((modelName) => ({ value: modelName, label: modelName }))}
+          onSave={(nextValue) => patchConfig({ whisper: { model: nextValue } })}
+        />
       </SettingsSection>
 
       <SettingsSection title="personal context">

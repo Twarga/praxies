@@ -247,6 +247,13 @@ select {
   line-height: 1.6;
 }
 
+.settings-error {
+  margin-bottom: 10px;
+  color: #8a6666;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .settings-section-body {
   display: flex;
   flex-direction: column;
@@ -276,6 +283,40 @@ select {
   word-break: break-word;
 }
 
+.settings-value-sans {
+  font-family: var(--font-sans);
+}
+
+.settings-field-wrap {
+  min-width: 0;
+}
+
+.settings-control {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border-visible);
+  border-radius: 2px;
+  background: var(--color-bg);
+  color: #d8d4c8;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.settings-control::placeholder {
+  color: var(--color-text-muted);
+}
+
+.settings-action-slot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-action-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .settings-action {
   justify-self: end;
   padding: 0;
@@ -288,6 +329,10 @@ select {
   text-align: right;
 }
 
+.settings-action-muted {
+  color: var(--color-text-muted);
+}
+
 .settings-inline-note {
   margin-top: -4px;
   margin-bottom: 4px;
@@ -295,6 +340,11 @@ select {
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.6;
+}
+
+.settings-inline-note-offset {
+  margin-top: -2px;
+  margin-left: 192px;
 }
 
 .settings-placeholder-block {
