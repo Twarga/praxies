@@ -482,6 +482,10 @@ select {
   text-align: center;
 }
 
+.record-preview-placeholder.is-denied {
+  color: #d8d4c8;
+}
+
 .record-review-frame {
   position: relative;
   aspect-ratio: 16 / 9;

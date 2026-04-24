@@ -7,6 +7,24 @@ export const DEFAULT_RECORDING_CONSTRAINTS = {
   audio: true,
 };
 
+export const RECORDING_PERMISSION_COPY = {
+  denied: "camera access not allowed. enable it in system settings.",
+  requesting: "requesting camera and mic access…",
+};
+
+export function getRecordingPermissionMessage(permissionState) {
+  if (permissionState === "requesting") {
+    return RECORDING_PERMISSION_COPY.requesting;
+  }
+
+  return RECORDING_PERMISSION_COPY.denied;
+}
+
+export function isPermissionDeniedError(error) {
+  const errorName = error?.name ?? "";
+  return errorName === "NotAllowedError" || errorName === "SecurityError";
+}
+
 export async function requestRecordingStream(
   mediaDevices = globalThis.navigator?.mediaDevices,
   constraints = DEFAULT_RECORDING_CONSTRAINTS,

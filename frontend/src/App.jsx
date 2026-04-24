@@ -4,7 +4,12 @@ import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
 import { useRecorder } from "./hooks/useRecorder.js";
 import { chooseDirectory, openDesktopPath } from "./lib/desktop.js";
-import { requestRecordingStream, stopMediaStream } from "./lib/media.js";
+import {
+  getRecordingPermissionMessage,
+  isPermissionDeniedError,
+  requestRecordingStream,
+  stopMediaStream,
+} from "./lib/media.js";
 import { createBeforeUnloadHandler } from "./lib/recording.js";
 import { getRecordShortcutAction } from "./lib/recordShortcuts.js";
 import {
@@ -537,6 +542,7 @@ function RecordPreview({ permissionState, recorder, videoRef }) {
   const isLivePreview = permissionState === "granted";
   const isActivePreview = ACTIVE_RECORDER_STATES.has(recorder.state);
   const isPaused = recorder.state === "paused";
+  const placeholderMessage = getRecordingPermissionMessage(permissionState);
 
   return (
     <div className={`record-preview-frame ${isActivePreview ? "is-active" : "is-idle"}`}>
@@ -557,10 +563,11 @@ function RecordPreview({ permissionState, recorder, videoRef }) {
           ) : null}
         </>
       ) : (
-        <div className="record-preview-placeholder">
-          {permissionState === "requesting"
-            ? "requesting camera and mic access…"
-            : "camera access not allowed. enable it in system settings."}
+        <div
+          className={`record-preview-placeholder ${permissionState === "denied" ? "is-denied" : "is-requesting"}`}
+          aria-live="polite"
+        >
+          {placeholderMessage}
         </div>
       )}
     </div>
@@ -704,9 +711,12 @@ function RecordPage({ onBack }) {
         activeStream = nextStream;
         setStream(nextStream);
         setPermissionState("granted");
-      } catch {
+      } catch (caughtError) {
         if (isActive) {
           setPermissionState("denied");
+          if (!isPermissionDeniedError(caughtError)) {
+            setActionError(caughtError instanceof Error ? caughtError.message : "Camera access not available.");
+          }
         }
       }
     }
@@ -843,7 +853,7 @@ function RecordPage({ onBack }) {
       setActionError(null);
       await recorder.startRecording();
     } catch (caughtError) {
-      setPermissionState("denied");
+      setActionError(caughtError instanceof Error ? caughtError.message : "Failed to start recording.");
     }
   }
 
