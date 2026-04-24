@@ -4,6 +4,7 @@ from datetime import date, datetime
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import unicodedata
 
 from fastapi import UploadFile
@@ -169,6 +170,15 @@ def write_session_chunk_manifest(
     return next_manifest
 
 
+def get_session_concat_list_path(config: ConfigModel, session_id: str) -> Path:
+    return get_session_chunks_dir(config, session_id) / "concat-list.txt"
+
+
+def _ffmpeg_concat_line(path: Path) -> str:
+    escaped = str(path.resolve()).replace("'", "'\\''")
+    return f"file '{escaped}'\n"
+
+
 async def store_session_chunk(
     config: ConfigModel,
     session_id: str,
@@ -202,6 +212,45 @@ async def store_session_chunk(
     return chunk_path, manifest
 
 
+def assemble_session_video(config: ConfigModel, session_id: str) -> Path:
+    manifest = load_session_chunk_manifest(config, session_id)
+    if not manifest["chunks"]:
+        raise ValueError("No uploaded chunks found.")
+
+    chunk_paths: list[Path] = []
+    for entry in manifest["chunks"]:
+        chunk_path = Path(entry["path"])
+        if not chunk_path.exists():
+            raise FileNotFoundError(f"Missing chunk file: {chunk_path}")
+        chunk_paths.append(chunk_path)
+
+    concat_list_path = get_session_concat_list_path(config, session_id)
+    concat_list_path.write_text(
+        "".join(_ffmpeg_concat_line(chunk_path) for chunk_path in chunk_paths),
+        encoding="utf-8",
+    )
+
+    output_path = get_session_dir(config, session_id) / "video.webm"
+    command = [
+        "ffmpeg",
+        "-f",
+        "concat",
+        "-safe",
+        "0",
+        "-i",
+        str(concat_list_path),
+        "-c",
+        "copy",
+        "-y",
+        str(output_path),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "ffmpeg concat failed.")
+
+    return output_path
+
+
 def finalize_session(
     config: ConfigModel,
     session_id: str,
@@ -210,9 +259,7 @@ def finalize_session(
     save_mode: str | None = None,
 ) -> MetaModel:
     meta = load_session_meta(config, session_id)
-    manifest = load_session_chunk_manifest(config, session_id)
-    if not manifest["chunks"]:
-        raise ValueError("No uploaded chunks found.")
+    assemble_session_video(config, session_id)
 
     normalized_title = (title or "").strip()
     next_title = normalized_title or meta.title or "untitled"
