@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 from pathlib import Path
 import re
 import unicodedata
@@ -27,6 +28,17 @@ def generate_session_slug(title: str | None, existing_slugs: set[str] | None = N
         suffix += 1
 
     return f"{slug}-{suffix}"
+
+
+def generate_session_id(session_date: date | datetime | str, language: str, slug: str) -> str:
+    if isinstance(session_date, datetime):
+        date_part = session_date.date().isoformat()
+    elif isinstance(session_date, date):
+        date_part = session_date.isoformat()
+    else:
+        date_part = session_date
+
+    return f"{date_part}_{language}_{slug}"
 
 
 def discover_session_dirs(config: ConfigModel) -> list[Path]:
