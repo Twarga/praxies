@@ -433,6 +433,11 @@ select {
   color: var(--color-accent);
 }
 
+.record-language-button:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .record-back {
   padding: 0;
   border: 0;
@@ -455,6 +460,7 @@ select {
 
 .record-preview-frame.is-active {
   background: #0e0e0e;
+  position: relative;
 }
 
 .record-preview-video {
@@ -474,6 +480,37 @@ select {
   font-size: 13px;
   line-height: 1.6;
   text-align: center;
+}
+
+.record-timer-overlay {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.record-timer-overlay.is-paused {
+  color: var(--color-text-muted);
+}
+
+.record-timer-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  animation: record-timer-pulse 1.5s ease-in-out infinite;
+}
+
+.record-timer-overlay.is-paused .record-timer-dot {
+  background: var(--color-text-muted);
+  animation: none;
+  opacity: 0.7;
 }
 
 .record-shell-footer {
@@ -510,4 +547,51 @@ select {
 
 .record-start-button:disabled {
   opacity: 0.5;
+}
+
+.record-live-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.record-secondary-button,
+.record-stop-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.record-secondary-button {
+  border: 1px solid var(--color-border-visible);
+  background: #111111;
+  color: var(--color-text-secondary);
+}
+
+.record-stop-button {
+  border: 1px solid var(--color-accent-border);
+  background: var(--color-accent-bg);
+  color: var(--color-accent);
+}
+
+.record-secondary-button:disabled,
+.record-stop-button:disabled {
+  opacity: 0.5;
+}
+
+@keyframes record-timer-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.35;
+  }
 }

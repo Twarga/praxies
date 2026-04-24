@@ -15,6 +15,15 @@ import {
 } from "./lib/settings.js";
 
 const navItems = ["today", "gallery", "trends", "settings"];
+const ACTIVE_RECORDER_STATES = new Set(["recording", "paused", "stopping"]);
+
+function formatRecordingTimer(totalSeconds) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = String(Math.floor(safeSeconds / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((safeSeconds % 3600) / 60)).padStart(2, "0");
+  const seconds = String(safeSeconds % 60).padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
+}
 
 function LeftRail({ activePage, onNavigate }) {
   const { index, isLoading } = useIndex();
@@ -469,21 +478,61 @@ function SettingsPage() {
   );
 }
 
-function RecordPreview({ permissionState, recorderState, videoRef }) {
+function RecordingControls({ recorder }) {
+  if (!ACTIVE_RECORDER_STATES.has(recorder.state)) {
+    return null;
+  }
+
+  const isPaused = recorder.state === "paused";
+  const isStopping = recorder.state === "stopping";
+
+  return (
+    <div className="record-live-controls" aria-label="Recording controls">
+      <button
+        type="button"
+        className="record-secondary-button"
+        disabled={isStopping}
+        onClick={isPaused ? recorder.resumeRecording : recorder.pauseRecording}
+      >
+        <span aria-hidden="true">{isPaused ? "▶" : "‖"}</span>
+        <span>{isPaused ? "resume" : "pause"}</span>
+      </button>
+      <button
+        type="button"
+        className="record-stop-button"
+        disabled={isStopping}
+        onClick={() => void recorder.stopRecording()}
+      >
+        <span aria-hidden="true">■</span>
+        <span>{isStopping ? "stopping…" : "stop"}</span>
+      </button>
+    </div>
+  );
+}
+
+function RecordPreview({ permissionState, recorder, videoRef }) {
   const isLivePreview = permissionState === "granted";
-  const isActivePreview =
-    recorderState === "recording" || recorderState === "paused" || recorderState === "stopping";
+  const isActivePreview = ACTIVE_RECORDER_STATES.has(recorder.state);
+  const isPaused = recorder.state === "paused";
 
   return (
     <div className={`record-preview-frame ${isActivePreview ? "is-active" : "is-idle"}`}>
       {isLivePreview ? (
-        <video
-          ref={videoRef}
-          className={`record-preview-video ${isActivePreview ? "is-active" : "is-idle"} is-live`}
-          autoPlay
-          muted
-          playsInline
-        />
+        <>
+          <video
+            ref={videoRef}
+            className={`record-preview-video ${isActivePreview ? "is-active" : "is-idle"} is-live`}
+            autoPlay
+            muted
+            playsInline
+          />
+          {isActivePreview ? (
+            <div className={`record-timer-overlay ${isPaused ? "is-paused" : ""}`}>
+              <span className="record-timer-dot" aria-hidden="true" />
+              <span>{formatRecordingTimer(recorder.elapsedSeconds)}</span>
+            </div>
+          ) : null}
+        </>
       ) : (
         <div className="record-preview-placeholder">
           {permissionState === "requesting"
@@ -502,6 +551,7 @@ function RecordPage({ onBack }) {
   const [selectedLanguage, setSelectedLanguage] = useState(config?.language_default ?? "en");
   const videoRef = useRef(null);
   const recorder = useRecorder({ language: selectedLanguage, stream });
+  const isActiveRecording = ACTIVE_RECORDER_STATES.has(recorder.state);
 
   useEffect(() => {
     if (config?.language_default) {
@@ -577,6 +627,7 @@ function RecordPage({ onBack }) {
                 <button
                   type="button"
                   className={`record-language-button ${selectedLanguage === code ? "active" : ""}`}
+                  disabled={isActiveRecording}
                   onClick={() => setSelectedLanguage(code)}
                 >
                   {label}
@@ -586,33 +637,35 @@ function RecordPage({ onBack }) {
           </div>
         </div>
 
-        <RecordPreview permissionState={permissionState} recorderState={recorder.state} videoRef={videoRef} />
+        <RecordPreview permissionState={permissionState} recorder={recorder} videoRef={videoRef} />
 
-        <div className="record-shell-footer">
-          <div className="record-footer-status">
-            {recorder.state === "recording" || recorder.state === "paused" || recorder.state === "stopping"
-              ? `session ${recorder.sessionId ?? "starting"} · ${recorder.state}`
-              : permissionState === "granted"
+        {isActiveRecording ? (
+          <RecordingControls recorder={recorder} />
+        ) : (
+          <div className="record-shell-footer">
+            <div className="record-footer-status">
+              {permissionState === "granted"
                 ? "camera ready"
                 : permissionState === "requesting"
                   ? "waiting for permission"
                   : "camera unavailable"}
+            </div>
+            <div className="record-action-group">
+              <button
+                type="button"
+                className="record-start-button"
+                disabled={permissionState !== "granted" || recorder.state !== "idle"}
+                onClick={handleStartRecording}
+              >
+                <span className="record-dot" aria-hidden="true" />
+                <span>start</span>
+              </button>
+              <button type="button" className="record-back" onClick={onBack}>
+                ← today
+              </button>
+            </div>
           </div>
-          <div className="record-action-group">
-            <button
-              type="button"
-              className="record-start-button"
-              disabled={permissionState !== "granted" || recorder.state !== "idle"}
-              onClick={handleStartRecording}
-            >
-              <span className="record-dot" aria-hidden="true" />
-              <span>{recorder.state === "idle" ? "start" : recorder.state}</span>
-            </button>
-            <button type="button" className="record-back" onClick={onBack}>
-              ← today
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </main>
   );
