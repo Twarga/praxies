@@ -6,6 +6,8 @@ import re
 import shutil
 import unicodedata
 
+from fastapi import UploadFile
+
 from app.models import ConfigModel, MetaModel
 from app.services.config import ensure_journal_dir, resolve_journal_dir
 from app.services.json_io import read_json_file, write_json_file
@@ -102,6 +104,36 @@ def create_session(
     )
     write_json_file(session_dir / "meta.json", meta.model_dump(mode="json"))
     return meta
+
+
+def get_session_chunks_dir(config: ConfigModel, session_id: str) -> Path:
+    return get_session_dir(config, session_id) / "_chunks"
+
+
+async def store_session_chunk(
+    config: ConfigModel,
+    session_id: str,
+    chunk_index: int,
+    upload: UploadFile,
+) -> Path:
+    session_dir = get_session_dir(config, session_id)
+    meta_path = session_dir / "meta.json"
+    if not meta_path.exists():
+        raise FileNotFoundError(session_id)
+
+    chunks_dir = get_session_chunks_dir(config, session_id)
+    chunks_dir.mkdir(parents=True, exist_ok=True)
+
+    chunk_path = chunks_dir / f"chunk-{chunk_index:06d}.webm"
+    with chunk_path.open("wb") as chunk_file:
+        while True:
+            chunk = await upload.read(1024 * 1024)
+            if not chunk:
+                break
+            chunk_file.write(chunk)
+
+    await upload.close()
+    return chunk_path
 
 
 def get_session_dir(config: ConfigModel, session_id: str) -> Path:

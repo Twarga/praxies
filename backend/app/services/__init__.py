@@ -15,8 +15,10 @@ from app.services.sessions import (
     discover_session_dirs,
     generate_session_id,
     generate_session_slug,
+    get_session_chunks_dir,
     get_session_dir,
     load_session_bundle,
+    store_session_chunk,
 )
 
 __all__ = [
@@ -26,6 +28,7 @@ __all__ = [
     "ensure_journal_dir",
     "generate_session_id",
     "generate_session_slug",
+    "get_session_chunks_dir",
     "get_session_dir",
     "get_index_backup_file_path",
     "get_index_file_path",
@@ -37,5 +40,6 @@ __all__ = [
     "read_json_file",
     "rebuild_index",
     "resolve_journal_dir",
+    "store_session_chunk",
     "write_json_file",
 ]

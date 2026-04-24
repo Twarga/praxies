@@ -1,12 +1,12 @@
 from typing import Any, Literal
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from app.core.settings import APP_VERSION
 from app.services.config import dump_config_for_api, load_config, update_config
 from app.services.index import list_sessions, load_or_rebuild_index, rebuild_index
-from app.services.sessions import create_session, delete_session_dir, load_session_bundle
+from app.services.sessions import create_session, delete_session_dir, load_session_bundle, store_session_chunk
 
 
 app = FastAPI(title="Praxies Backend", version=APP_VERSION)
@@ -43,6 +43,20 @@ async def post_session(payload: CreateSessionPayload) -> dict[str, str]:
         save_mode=payload.save_mode,
     )
     return {"session_id": meta.id}
+
+
+@app.post("/api/sessions/{session_id}/chunk")
+async def post_session_chunk(
+    session_id: str,
+    file: UploadFile = File(...),
+    x_chunk_index: int = Header(..., alias="X-Chunk-Index"),
+) -> dict[str, object]:
+    try:
+        chunk_path = await store_session_chunk(load_config(), session_id, x_chunk_index, file)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found.") from None
+
+    return {"ok": True, "chunk_index": x_chunk_index, "path": str(chunk_path)}
 
 
 @app.get("/api/index")
