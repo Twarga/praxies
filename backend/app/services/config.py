@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from app.core.settings import PATHS, AppPaths
 from app.models import ConfigModel
+from app.services.json_io import read_json_file, write_json_file
 
 
 DEFAULT_PERSONAL_CONTEXT = """You are giving feedback to Twarga, a 22-year-old solo founder from Morocco.
@@ -72,11 +72,7 @@ def build_default_config(paths: AppPaths = PATHS) -> ConfigModel:
 
 
 def write_config(config: ConfigModel, config_file: Path) -> None:
-    config_file.parent.mkdir(parents=True, exist_ok=True)
-    config_file.write_text(
-        json.dumps(config.model_dump(mode="json"), indent=2) + "\n",
-        encoding="utf-8",
-    )
+    write_json_file(config_file, config.model_dump(mode="json"))
 
 
 def load_config(paths: AppPaths = PATHS) -> ConfigModel:
@@ -85,8 +81,7 @@ def load_config(paths: AppPaths = PATHS) -> ConfigModel:
         write_config(default_config, paths.config_file)
         return default_config
 
-    raw = paths.config_file.read_text(encoding="utf-8")
-    return ConfigModel.model_validate_json(raw)
+    return ConfigModel.model_validate(read_json_file(paths.config_file))
 
 
 def resolve_journal_dir(config: ConfigModel) -> Path:
