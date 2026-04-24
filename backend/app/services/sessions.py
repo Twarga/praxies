@@ -251,7 +251,7 @@ def assemble_session_video(config: ConfigModel, session_id: str) -> Path:
     return output_path
 
 
-def validate_session_video(video_path: Path) -> None:
+def probe_session_video(video_path: Path) -> float:
     command = [
         "ffprobe",
         "-v",
@@ -274,6 +274,12 @@ def validate_session_video(video_path: Path) -> None:
     if duration_seconds <= 0:
         raise RuntimeError("Assembled video is not playable.")
 
+    return duration_seconds
+
+
+def validate_session_video(video_path: Path) -> None:
+    probe_session_video(video_path)
+
 
 def finalize_session(
     config: ConfigModel,
@@ -284,13 +290,16 @@ def finalize_session(
 ) -> MetaModel:
     meta = load_session_meta(config, session_id)
     video_path = assemble_session_video(config, session_id)
-    validate_session_video(video_path)
+    duration_seconds = probe_session_video(video_path)
+    file_size_bytes = video_path.stat().st_size
 
     normalized_title = (title or "").strip()
     next_title = normalized_title or meta.title or "untitled"
     next_title_source = "user" if normalized_title else meta.title_source
     updated_meta = meta.model_copy(
         update={
+            "duration_seconds": duration_seconds,
+            "file_size_bytes": file_size_bytes,
             "title": next_title,
             "title_source": next_title_source,
             "save_mode": save_mode or meta.save_mode,
