@@ -281,6 +281,13 @@ def validate_session_video(video_path: Path) -> None:
     probe_session_video(video_path)
 
 
+def resolve_final_save_mode(meta: MetaModel, requested_save_mode: str | None = None) -> str:
+    if meta.language == "tmz":
+        return "video_only"
+
+    return requested_save_mode or meta.save_mode
+
+
 def finalize_session(
     config: ConfigModel,
     session_id: str,
@@ -292,6 +299,8 @@ def finalize_session(
     video_path = assemble_session_video(config, session_id)
     duration_seconds = probe_session_video(video_path)
     file_size_bytes = video_path.stat().st_size
+    final_save_mode = resolve_final_save_mode(meta, save_mode)
+    final_status = "video_only" if final_save_mode == "video_only" else "saved"
 
     normalized_title = (title or "").strip()
     next_title = normalized_title or meta.title or "untitled"
@@ -302,8 +311,8 @@ def finalize_session(
             "file_size_bytes": file_size_bytes,
             "title": next_title,
             "title_source": next_title_source,
-            "save_mode": save_mode or meta.save_mode,
-            "status": "saved",
+            "save_mode": final_save_mode,
+            "status": final_status,
         }
     )
     write_json_file(get_session_dir(config, session_id) / "meta.json", updated_meta.model_dump(mode="json"))
