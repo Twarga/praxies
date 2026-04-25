@@ -261,6 +261,14 @@ select {
   margin-top: 16px;
 }
 
+.gallery-empty-state {
+  color: var(--color-text-tertiary);
+  font-family: var(--font-serif);
+  font-size: 14px;
+  line-height: 1.75;
+  text-align: center;
+}
+
 .gallery-month-label {
   margin-bottom: 16px;
   color: var(--color-text-tertiary);

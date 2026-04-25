@@ -7,6 +7,7 @@ import { chooseDirectory, openDesktopPath } from "./lib/desktop.js";
 import {
   filterGallerySessions,
   formatGalleryDurationPill,
+  getGalleryEmptyState,
   formatGallerySessionMeta,
   getGallerySessionStatus,
   groupGallerySessionsByMonth,
@@ -152,6 +153,7 @@ function GalleryPage() {
   const sessions = index?.sessions ?? [];
   const filteredSessions = filterGallerySessions(sessions, languageFilter);
   const monthGroups = groupGallerySessionsByMonth(filteredSessions);
+  const emptyStateText = getGalleryEmptyState(languageFilter, sessions.length > 0);
 
   return (
     <main className="main gallery-page">
@@ -173,11 +175,11 @@ function GalleryPage() {
         </div>
       </div>
 
-      <div className="settings-note">
-        {isLoading
-          ? "loading sessions…"
-          : `${filteredSessions.length} session${filteredSessions.length === 1 ? "" : "s"} in view.`}
-      </div>
+      {isLoading ? <div className="settings-note">loading sessions…</div> : null}
+
+      {!isLoading && filteredSessions.length === 0 ? (
+        <div className="gallery-empty-state">{emptyStateText}</div>
+      ) : null}
 
       {monthGroups.map((group) => (
         <section key={group.label} className="gallery-month-section">

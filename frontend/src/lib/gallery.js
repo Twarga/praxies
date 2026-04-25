@@ -99,3 +99,22 @@ export function getGallerySessionStatus(session) {
 
   return null;
 }
+
+export function getGalleryEmptyState(languageFilter, hasAnySessions) {
+  if (hasAnySessions) {
+    if (!languageFilter || languageFilter === "all") {
+      return null;
+    }
+
+    const languageNames = {
+      en: "english",
+      fr: "french",
+      es: "spanish",
+      tmz: "tamazight",
+    };
+
+    return `no ${languageNames[languageFilter] ?? languageFilter} sessions yet.`;
+  }
+
+  return "no sessions yet. go record one.";
+}
