@@ -14,6 +14,7 @@ from app.services.index import (
     rebuild_index,
 )
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
+from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
 from app.services.processing_queue import SessionProcessingQueue
 from app.services.prompt_builder import (
     build_analysis_system_prompt,
@@ -53,6 +54,8 @@ from app.services.whisper_service import WhisperRuntimeConfig, WhisperService, b
 
 __all__ = [
     "AnalysisValidationError",
+    "LiteLLMOpenRouterClient",
+    "OpenRouterClientError",
     "build_analysis_system_prompt",
     "build_recurring_patterns_prompt_block",
     "build_transcript_user_message",
