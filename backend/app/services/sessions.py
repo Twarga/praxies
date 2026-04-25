@@ -206,8 +206,25 @@ def get_session_audio_path(config: ConfigModel, session_id: str) -> Path:
     return get_session_dir(config, session_id) / "audio.wav"
 
 
+def get_session_transcript_text_path(config: ConfigModel, session_id: str) -> Path:
+    return get_session_dir(config, session_id) / "transcript.txt"
+
+
 def get_session_thumbnail_output_path(config: ConfigModel, session_id: str) -> Path:
     return get_session_dir(config, session_id) / "thumbnail.jpg"
+
+
+def write_session_transcript_text(config: ConfigModel, session_id: str, segments: list[Any]) -> Path:
+    transcript_path = get_session_transcript_text_path(config, session_id)
+    lines = [
+        text
+        for segment in segments
+        for text in [str(getattr(segment, "text", "")).strip()]
+        if text
+    ]
+    transcript_text = "\n".join(lines)
+    transcript_path.write_text(f"{transcript_text}\n" if transcript_text else "", encoding="utf-8")
+    return transcript_path
 
 
 async def store_session_chunk(

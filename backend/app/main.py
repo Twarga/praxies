@@ -24,6 +24,7 @@ from app.services.sessions import (
     get_session_thumbnail_path,
     update_session_meta,
     get_session_video_path,
+    write_session_transcript_text,
 )
 from app.services.whisper_service import WhisperService
 
@@ -49,7 +50,8 @@ async def process_session(session_id: str) -> None:
 
     audio_path = extract_session_audio(config, session_id)
     extract_session_thumbnail(config, session_id)
-    whisper_service.transcribe(str(audio_path), config, language=session_meta.language)
+    segments, _info = whisper_service.transcribe(str(audio_path), config, language=session_meta.language)
+    write_session_transcript_text(config, session_id, list(segments))
 
     finished_at = datetime_now_iso()
     update_session_meta(
