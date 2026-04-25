@@ -202,6 +202,10 @@ def _ffmpeg_concat_line(path: Path) -> str:
     return f"file '{escaped}'\n"
 
 
+def get_session_audio_path(config: ConfigModel, session_id: str) -> Path:
+    return get_session_dir(config, session_id) / "audio.wav"
+
+
 async def store_session_chunk(
     config: ConfigModel,
     session_id: str,
@@ -272,6 +276,30 @@ def assemble_session_video(config: ConfigModel, session_id: str) -> Path:
         raise RuntimeError(result.stderr.strip() or "ffmpeg concat failed.")
 
     return output_path
+
+
+def extract_session_audio(config: ConfigModel, session_id: str) -> Path:
+    video_path = get_session_video_path(config, session_id)
+    if video_path is None:
+        raise FileNotFoundError(session_id)
+
+    audio_path = get_session_audio_path(config, session_id)
+    command = [
+        "ffmpeg",
+        "-i",
+        str(video_path),
+        "-ar",
+        "16000",
+        "-ac",
+        "1",
+        "-y",
+        str(audio_path),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "ffmpeg audio extraction failed.")
+
+    return audio_path
 
 
 def probe_session_video(video_path: Path) -> float:

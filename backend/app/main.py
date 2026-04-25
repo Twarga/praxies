@@ -14,6 +14,7 @@ from app.services.processing_queue import SessionProcessingQueue
 from app.services.sessions import (
     create_session,
     delete_session_dir,
+    extract_session_audio,
     finalize_session,
     load_session_bundle,
     mark_session_read,
@@ -35,7 +36,7 @@ async def process_session(session_id: str) -> None:
     )
     rebuild_index(config)
 
-    await asyncio.sleep(0)
+    extract_session_audio(config, session_id)
 
     finished_at = datetime_now_iso()
     update_session_meta(
