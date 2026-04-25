@@ -11,6 +11,7 @@ import unicodedata
 from fastapi import UploadFile
 
 from app.models import ConfigModel, MetaModel
+from app.services.analysis_service import validate_analysis_payload
 from app.services.config import ensure_journal_dir, resolve_journal_dir
 from app.services.json_io import read_json_file, write_json_file
 
@@ -214,6 +215,10 @@ def get_session_transcript_json_path(config: ConfigModel, session_id: str) -> Pa
     return get_session_dir(config, session_id) / "transcript.json"
 
 
+def get_session_analysis_path(config: ConfigModel, session_id: str) -> Path:
+    return get_session_dir(config, session_id) / "analysis.json"
+
+
 def get_session_thumbnail_output_path(config: ConfigModel, session_id: str) -> Path:
     return get_session_dir(config, session_id) / "thumbnail.jpg"
 
@@ -245,6 +250,13 @@ def write_session_transcript_json(config: ConfigModel, session_id: str, segments
     ]
     write_json_file(transcript_path, payload)
     return transcript_path
+
+
+def write_session_analysis(config: ConfigModel, session_id: str, payload: dict[str, Any]) -> Path:
+    analysis = validate_analysis_payload(payload)
+    analysis_path = get_session_analysis_path(config, session_id)
+    write_json_file(analysis_path, analysis.model_dump(mode="json"))
+    return analysis_path
 
 
 def load_session_transcript_payload(config: ConfigModel, session_id: str) -> dict[str, object | None]:
