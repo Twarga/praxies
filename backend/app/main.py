@@ -24,16 +24,24 @@ from app.services.sessions import (
     update_session_meta,
     get_session_video_path,
 )
+from app.services.whisper_service import WhisperService
+
+
+whisper_service = WhisperService()
 
 
 async def process_session(session_id: str) -> None:
     config = load_config()
+    whisper_service.get_model(config)
     started_at = datetime_now_iso()
     update_session_meta(
         config,
         session_id,
         updates={"status": "transcribing", "error": None},
-        processing_updates={"transcribe_started_at": started_at},
+        processing_updates={
+            "transcribe_started_at": started_at,
+            "model_used": config.whisper.model,
+        },
     )
     rebuild_index(config)
 
