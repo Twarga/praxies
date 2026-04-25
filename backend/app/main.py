@@ -17,6 +17,7 @@ from app.services.sessions import (
     extract_session_audio,
     extract_session_thumbnail,
     finalize_session,
+    load_session_meta,
     load_session_bundle,
     mark_session_read,
     store_session_chunk,
@@ -32,6 +33,7 @@ whisper_service = WhisperService()
 
 async def process_session(session_id: str) -> None:
     config = load_config()
+    session_meta = load_session_meta(config, session_id)
     whisper_service.get_model(config)
     started_at = datetime_now_iso()
     update_session_meta(
@@ -45,8 +47,9 @@ async def process_session(session_id: str) -> None:
     )
     rebuild_index(config)
 
-    extract_session_audio(config, session_id)
+    audio_path = extract_session_audio(config, session_id)
     extract_session_thumbnail(config, session_id)
+    whisper_service.transcribe(str(audio_path), config, language=session_meta.language)
 
     finished_at = datetime_now_iso()
     update_session_meta(
