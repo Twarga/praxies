@@ -39,6 +39,19 @@ export function formatTranscriptSegmentTimestamp(totalSeconds) {
   return `[${formatSessionDetailTimestamp(totalSeconds)}]`;
 }
 
+export function isTranscriptSegmentActive(segment, currentPlaybackTime) {
+  if (!segment) {
+    return false;
+  }
+
+  const startSeconds = Number(segment.start_seconds ?? 0);
+  const endSeconds = Number(segment.end_seconds ?? startSeconds);
+  const playbackTime = Number(currentPlaybackTime ?? 0);
+  const upperBound = endSeconds > startSeconds ? endSeconds : Number.POSITIVE_INFINITY;
+
+  return playbackTime >= startSeconds && playbackTime < upperBound;
+}
+
 export function formatSessionDetailLanguage(language) {
   return SESSION_LANGUAGE_NAMES[language] ?? language;
 }

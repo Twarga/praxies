@@ -40,6 +40,7 @@ import {
   formatSessionDetailLanguage,
   formatSessionDetailTimestamp,
   formatTranscriptSegmentTimestamp,
+  isTranscriptSegmentActive,
   getSessionDetailStatusTone,
   shouldMarkSessionRead,
 } from "./lib/sessionDetail.js";
@@ -411,7 +412,12 @@ function SessionDetailPage({ sessionId, onBack }) {
                     transcriptSegments.length > 0 ? (
                       <div className="session-detail-transcript-list">
                         {transcriptSegments.map((segment, index) => (
-                          <div key={`${segment.start_seconds}-${index}`} className="session-detail-transcript-segment">
+                          <div
+                            key={`${segment.start_seconds}-${index}`}
+                            className={`session-detail-transcript-segment ${
+                              isTranscriptSegmentActive(segment, currentPlaybackTime) ? "active" : ""
+                            }`}
+                          >
                             <button
                               type="button"
                               className="session-detail-transcript-timestamp"

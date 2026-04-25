@@ -498,6 +498,13 @@ select {
   display: flex;
   align-items: flex-start;
   gap: 8px;
+  margin: 0 -8px;
+  padding: 2px 8px;
+  border-radius: 2px;
+}
+
+.session-detail-transcript-segment.active {
+  background: #141414;
 }
 
 .session-detail-transcript-timestamp {
