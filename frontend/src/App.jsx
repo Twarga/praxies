@@ -11,6 +11,12 @@ import {
   stopMediaStream,
 } from "./lib/media.js";
 import { createBeforeUnloadHandler } from "./lib/recording.js";
+import {
+  createPageRoute,
+  createSessionRoute,
+  getActiveNavKey,
+  isRecordRoute,
+} from "./lib/routes.js";
 import { getRecordShortcutAction } from "./lib/recordShortcuts.js";
 import {
   formatBooleanToggle,
@@ -127,6 +133,36 @@ function TodayPage() {
           </p>
         </section>
       )}
+    </main>
+  );
+}
+
+function GalleryPage() {
+  return (
+    <main className="main">
+      <h1 className="page-title">gallery</h1>
+      <div className="settings-note">gallery route ready. session grid comes next.</div>
+    </main>
+  );
+}
+
+function TrendsPage() {
+  return (
+    <main className="main">
+      <h1 className="page-title">trends</h1>
+      <div className="settings-note">trends route ready. charts come later.</div>
+    </main>
+  );
+}
+
+function SessionDetailPlaceholder({ sessionId, onBack }) {
+  return (
+    <main className="main">
+      <button type="button" className="record-back" onClick={onBack}>
+        ← gallery
+      </button>
+      <h1 className="page-title">session</h1>
+      <div className="settings-note">{sessionId}</div>
     </main>
   );
 }
@@ -989,15 +1025,27 @@ function RecordPage({ onBack }) {
 }
 
 export default function App() {
-  const [activePage, setActivePage] = useState("today");
+  const [route, setRoute] = useState(createPageRoute("today"));
+  const activePage = getActiveNavKey(route);
+
+  function handleNavigate(nextPage) {
+    setRoute(createPageRoute(nextPage));
+  }
 
   return (
     <div className="app-shell">
-      {activePage === "record" ? null : <LeftRail activePage={activePage} onNavigate={setActivePage} />}
-      {activePage === "settings" ? <SettingsPage /> : null}
-      {activePage === "record" ? <RecordPage onBack={() => setActivePage("today")} /> : null}
-      {activePage === "today" ? <TodayPage /> : null}
-      {activePage === "gallery" || activePage === "trends" ? <TodayPage /> : null}
+      {isRecordRoute(route) ? null : <LeftRail activePage={activePage} onNavigate={handleNavigate} />}
+      {route.name === "settings" ? <SettingsPage /> : null}
+      {route.name === "record" ? <RecordPage onBack={() => setRoute(createPageRoute("today"))} /> : null}
+      {route.name === "today" ? <TodayPage /> : null}
+      {route.name === "gallery" ? <GalleryPage /> : null}
+      {route.name === "trends" ? <TrendsPage /> : null}
+      {route.name === "session" ? (
+        <SessionDetailPlaceholder
+          sessionId={route.params.sessionId}
+          onBack={() => setRoute(createPageRoute("gallery"))}
+        />
+      ) : null}
     </div>
   );
 }
