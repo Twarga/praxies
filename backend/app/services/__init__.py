@@ -2,7 +2,9 @@
 
 from app.services.analysis_service import (
     AnalysisValidationError,
+    AnalysisRetryExhaustedError,
     parse_and_validate_analysis_response,
+    run_analysis_with_retries,
     validate_analysis_payload,
 )
 from app.services.config import ensure_journal_dir, load_config, resolve_journal_dir
@@ -54,12 +56,14 @@ from app.services.whisper_service import WhisperRuntimeConfig, WhisperService, b
 
 __all__ = [
     "AnalysisValidationError",
+    "AnalysisRetryExhaustedError",
     "LiteLLMOpenRouterClient",
     "OpenRouterClientError",
     "build_analysis_system_prompt",
     "build_recurring_patterns_prompt_block",
     "build_transcript_user_message",
     "parse_and_validate_analysis_response",
+    "run_analysis_with_retries",
     "validate_analysis_payload",
     "create_session",
     "delete_session_dir",
