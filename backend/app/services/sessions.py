@@ -401,6 +401,10 @@ def validate_session_video(video_path: Path) -> None:
     probe_session_video(video_path)
 
 
+def should_skip_processing_pipeline(meta: MetaModel) -> bool:
+    return meta.save_mode == "video_only" or meta.status == "video_only"
+
+
 def resolve_final_save_mode(meta: MetaModel, requested_save_mode: str | None = None) -> str:
     return requested_save_mode or meta.save_mode
 

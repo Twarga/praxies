@@ -24,6 +24,7 @@ from app.services.sessions import (
     get_session_thumbnail_path,
     update_session_meta,
     get_session_video_path,
+    should_skip_processing_pipeline,
     write_session_transcript_json,
     write_session_transcript_text,
 )
@@ -36,6 +37,10 @@ whisper_service = WhisperService()
 async def process_session(session_id: str) -> None:
     config = load_config()
     session_meta = load_session_meta(config, session_id)
+    if should_skip_processing_pipeline(session_meta):
+        rebuild_index(config)
+        return
+
     whisper_service.get_model(config)
     started_at = datetime_now_iso()
     update_session_meta(
@@ -166,7 +171,7 @@ async def post_session_finalize(session_id: str, payload: FinalizeSessionPayload
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
 
-    if meta.status != "video_only":
+    if not should_skip_processing_pipeline(meta):
         meta = update_session_meta(config, session_id, updates={"status": "queued", "error": None})
         await processing_queue.enqueue(session_id)
 
