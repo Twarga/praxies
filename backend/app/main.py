@@ -15,6 +15,7 @@ from app.services.sessions import (
     create_session,
     delete_session_dir,
     extract_session_audio,
+    extract_session_thumbnail,
     finalize_session,
     load_session_bundle,
     mark_session_read,
@@ -37,6 +38,7 @@ async def process_session(session_id: str) -> None:
     rebuild_index(config)
 
     extract_session_audio(config, session_id)
+    extract_session_thumbnail(config, session_id)
 
     finished_at = datetime_now_iso()
     update_session_meta(

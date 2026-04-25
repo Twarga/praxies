@@ -206,6 +206,10 @@ def get_session_audio_path(config: ConfigModel, session_id: str) -> Path:
     return get_session_dir(config, session_id) / "audio.wav"
 
 
+def get_session_thumbnail_output_path(config: ConfigModel, session_id: str) -> Path:
+    return get_session_dir(config, session_id) / "thumbnail.jpg"
+
+
 async def store_session_chunk(
     config: ConfigModel,
     session_id: str,
@@ -300,6 +304,34 @@ def extract_session_audio(config: ConfigModel, session_id: str) -> Path:
         raise RuntimeError(result.stderr.strip() or "ffmpeg audio extraction failed.")
 
     return audio_path
+
+
+def extract_session_thumbnail(config: ConfigModel, session_id: str) -> Path:
+    video_path = get_session_video_path(config, session_id)
+    if video_path is None:
+        raise FileNotFoundError(session_id)
+
+    duration_seconds = probe_session_video(video_path)
+    midpoint_seconds = max(duration_seconds / 2, 0)
+    thumbnail_path = get_session_thumbnail_output_path(config, session_id)
+    command = [
+        "ffmpeg",
+        "-ss",
+        f"{midpoint_seconds:.3f}",
+        "-i",
+        str(video_path),
+        "-frames:v",
+        "1",
+        "-q:v",
+        "3",
+        "-y",
+        str(thumbnail_path),
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "ffmpeg thumbnail extraction failed.")
+
+    return thumbnail_path
 
 
 def probe_session_video(video_path: Path) -> float:
