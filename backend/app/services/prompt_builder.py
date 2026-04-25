@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date, datetime
+from math import floor
 
 from app.models import AnalysisModel, ConfigModel, RecurringPatternsModel
 
@@ -136,6 +137,20 @@ def build_analysis_system_prompt(
     return "\n\n".join(sections)
 
 
+def build_transcript_user_message(transcript_segments: list[dict[str, object]] | None) -> str:
+    lines = ["TRANSCRIPT:", "---"]
+
+    for segment in transcript_segments or []:
+        text = str(segment.get("text", "")).strip()
+        if not text:
+            continue
+        start_seconds = float(segment.get("start_seconds", 0.0) or 0.0)
+        lines.append(f"{_format_transcript_timestamp(start_seconds)} {text}")
+
+    lines.append("---")
+    return "\n".join(lines)
+
+
 def _coerce_reference_date(value: date | datetime) -> date:
     if isinstance(value, datetime):
         return value.date()
@@ -145,6 +160,18 @@ def _coerce_reference_date(value: date | datetime) -> date:
 def _format_analysis_schema_example() -> str:
     AnalysisModel.model_validate(ANALYSIS_SCHEMA_EXAMPLE)
     return json.dumps(ANALYSIS_SCHEMA_EXAMPLE, indent=2, ensure_ascii=False)
+
+
+def _format_transcript_timestamp(total_seconds: float) -> str:
+    safe_seconds = max(0, floor(total_seconds))
+    hours = safe_seconds // 3600
+    minutes = (safe_seconds % 3600) // 60
+    seconds = safe_seconds % 60
+
+    if hours > 0:
+        return f"[{hours:02d}:{minutes:02d}:{seconds:02d}]"
+
+    return f"[{minutes:02d}:{seconds:02d}]"
 
 
 def _format_days_ago(reference_date: date, last_seen_date: date) -> str:

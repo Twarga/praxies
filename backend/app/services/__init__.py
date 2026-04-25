@@ -15,7 +15,11 @@ from app.services.index import (
 )
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
 from app.services.processing_queue import SessionProcessingQueue
-from app.services.prompt_builder import build_analysis_system_prompt, build_recurring_patterns_prompt_block
+from app.services.prompt_builder import (
+    build_analysis_system_prompt,
+    build_recurring_patterns_prompt_block,
+    build_transcript_user_message,
+)
 from app.services.sessions import (
     assemble_session_video,
     create_session,
@@ -51,6 +55,7 @@ __all__ = [
     "AnalysisValidationError",
     "build_analysis_system_prompt",
     "build_recurring_patterns_prompt_block",
+    "build_transcript_user_message",
     "parse_and_validate_analysis_response",
     "validate_analysis_payload",
     "create_session",
