@@ -15,6 +15,7 @@ from app.services.index import (
 )
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
 from app.services.processing_queue import SessionProcessingQueue
+from app.services.prompt_builder import build_recurring_patterns_prompt_block
 from app.services.sessions import (
     assemble_session_video,
     create_session,
@@ -48,6 +49,7 @@ from app.services.whisper_service import WhisperRuntimeConfig, WhisperService, b
 
 __all__ = [
     "AnalysisValidationError",
+    "build_recurring_patterns_prompt_block",
     "parse_and_validate_analysis_response",
     "validate_analysis_payload",
     "create_session",
