@@ -212,6 +212,51 @@ select {
   overflow-y: auto;
 }
 
+.gallery-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.gallery-topbar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.gallery-filter-row {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.gallery-filter-group {
+  display: flex;
+  align-items: center;
+}
+
+.gallery-filter-separator {
+  margin: 0 8px;
+  color: var(--color-border-tertiary);
+}
+
+.gallery-filter-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.gallery-filter-button.active {
+  color: var(--color-accent);
+}
+
 .page-title {
   margin: 0 0 24px;
   color: var(--color-text);

@@ -5,6 +5,11 @@ import { useIndex } from "./hooks/useIndex.js";
 import { useRecorder } from "./hooks/useRecorder.js";
 import { chooseDirectory, openDesktopPath } from "./lib/desktop.js";
 import {
+  filterGallerySessions,
+  getGalleryLanguageFilters,
+  getGalleryLanguageLabel,
+} from "./lib/gallery.js";
+import {
   getRecordingPermissionMessage,
   isPermissionDeniedError,
   requestRecordingStream,
@@ -138,10 +143,36 @@ function TodayPage() {
 }
 
 function GalleryPage() {
+  const { index, isLoading } = useIndex();
+  const [languageFilter, setLanguageFilter] = useState("all");
+  const sessions = index?.sessions ?? [];
+  const filteredSessions = filterGallerySessions(sessions, languageFilter);
+
   return (
-    <main className="main">
-      <h1 className="page-title">gallery</h1>
-      <div className="settings-note">gallery route ready. session grid comes next.</div>
+    <main className="main gallery-page">
+      <div className="gallery-topbar">
+        <h1 className="page-title">gallery</h1>
+        <div className="gallery-filter-row" aria-label="Gallery language filter">
+          {getGalleryLanguageFilters().map((language, index) => (
+            <div key={language} className="gallery-filter-group">
+              {index > 0 ? <span className="gallery-filter-separator">·</span> : null}
+              <button
+                type="button"
+                className={`gallery-filter-button ${languageFilter === language ? "active" : ""}`}
+                onClick={() => setLanguageFilter(language)}
+              >
+                {getGalleryLanguageLabel(language)}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="settings-note">
+        {isLoading
+          ? "loading sessions…"
+          : `${filteredSessions.length} session${filteredSessions.length === 1 ? "" : "s"} in view.`}
+      </div>
     </main>
   );
 }
