@@ -39,6 +39,7 @@ import {
   formatSessionDetailDuration,
   formatSessionDetailLanguage,
   formatSessionDetailTimestamp,
+  formatTranscriptSegmentTimestamp,
   getSessionDetailStatusTone,
   shouldMarkSessionRead,
 } from "./lib/sessionDetail.js";
@@ -327,8 +328,18 @@ function SessionDetailPage({ sessionId, onBack }) {
   }, [activeTab, refreshIndex, session, sessionId]);
 
   const meta = session?.meta;
+  const transcriptSegments = Array.isArray(session?.transcript) ? session.transcript : [];
   const videoUrl = getSessionVideoUrl(sessionId);
   const totalPlaybackTime = videoRef.current?.duration || meta?.duration_seconds || 0;
+
+  function handleSeekTranscript(timestampSeconds) {
+    if (!videoRef.current) {
+      return;
+    }
+
+    videoRef.current.currentTime = timestampSeconds;
+    setCurrentPlaybackTime(timestampSeconds);
+  }
 
   return (
     <main className="main session-detail-page">
@@ -397,7 +408,24 @@ function SessionDetailPage({ sessionId, onBack }) {
                 </div>
                 <div className="session-detail-tab-panel">
                   {activeTab === "transcript" ? (
-                    <div className="session-detail-tabs-placeholder">transcript panel lands next.</div>
+                    transcriptSegments.length > 0 ? (
+                      <div className="session-detail-transcript-list">
+                        {transcriptSegments.map((segment, index) => (
+                          <div key={`${segment.start_seconds}-${index}`} className="session-detail-transcript-segment">
+                            <button
+                              type="button"
+                              className="session-detail-transcript-timestamp"
+                              onClick={() => handleSeekTranscript(segment.start_seconds ?? 0)}
+                            >
+                              {formatTranscriptSegmentTimestamp(segment.start_seconds ?? 0)}
+                            </button>
+                            <div className="session-detail-transcript-text">{segment.text}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="session-detail-tabs-placeholder">no transcript yet.</div>
+                    )
                   ) : null}
                   {activeTab === "analysis" ? (
                     <div className="session-detail-tabs-placeholder">analysis panel lands next.</div>

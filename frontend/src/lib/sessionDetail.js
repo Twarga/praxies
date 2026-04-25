@@ -35,6 +35,10 @@ export function formatSessionDetailTimestamp(totalSeconds) {
   return [minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
 }
 
+export function formatTranscriptSegmentTimestamp(totalSeconds) {
+  return `[${formatSessionDetailTimestamp(totalSeconds)}]`;
+}
+
 export function formatSessionDetailLanguage(language) {
   return SESSION_LANGUAGE_NAMES[language] ?? language;
 }

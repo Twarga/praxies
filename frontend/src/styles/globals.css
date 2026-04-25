@@ -488,6 +488,36 @@ select {
   padding: 16px;
 }
 
+.session-detail-transcript-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.session-detail-transcript-segment {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.session-detail-transcript-timestamp {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+
+.session-detail-transcript-text {
+  color: #d8d4c8;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
 @media (max-width: 960px) {
   .session-detail-layout {
     grid-template-columns: 1fr;
