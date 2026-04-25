@@ -13,6 +13,7 @@ from app.services.sessions import (
     delete_session_dir,
     finalize_session,
     load_session_bundle,
+    mark_session_read,
     store_session_chunk,
     get_session_thumbnail_path,
     get_session_video_path,
@@ -150,6 +151,17 @@ async def get_session_thumbnail(session_id: str) -> Response:
         return Response(status_code=204)
 
     return FileResponse(thumbnail_path, media_type="image/jpeg", filename=thumbnail_path.name)
+
+
+@app.post("/api/sessions/{session_id}/mark-read")
+async def post_session_mark_read(session_id: str) -> dict[str, object]:
+    config = load_config()
+    meta = mark_session_read(config, session_id)
+    if meta is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    rebuild_index(config)
+    return {"id": meta.id, "read": meta.read}
 
 
 @app.delete("/api/sessions/{session_id}")

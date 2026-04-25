@@ -380,6 +380,20 @@ def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, objec
     }
 
 
+def mark_session_read(config: ConfigModel, session_id: str) -> MetaModel | None:
+    try:
+        meta = load_session_meta(config, session_id)
+    except FileNotFoundError:
+        return None
+
+    if meta.read:
+        return meta
+
+    updated_meta = meta.model_copy(update={"read": True})
+    write_json_file(get_session_dir(config, session_id) / "meta.json", updated_meta.model_dump(mode="json"))
+    return updated_meta
+
+
 def delete_session_dir(config: ConfigModel, session_id: str) -> bool:
     session_dir = get_session_dir(config, session_id)
     if not session_dir.exists():
