@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from datetime import date, datetime
 from pathlib import Path
 import re
@@ -134,6 +135,28 @@ def load_session_meta(config: ConfigModel, session_id: str) -> MetaModel:
         raise FileNotFoundError(session_id)
 
     return MetaModel.model_validate(read_json_file(meta_path))
+
+
+def save_session_meta(config: ConfigModel, meta: MetaModel) -> MetaModel:
+    write_json_file(get_session_dir(config, meta.id) / "meta.json", meta.model_dump(mode="json"))
+    return meta
+
+
+def update_session_meta(
+    config: ConfigModel,
+    session_id: str,
+    *,
+    updates: dict[str, Any] | None = None,
+    processing_updates: dict[str, Any] | None = None,
+) -> MetaModel:
+    meta = load_session_meta(config, session_id)
+    next_updates = dict(updates or {})
+
+    if processing_updates:
+        next_updates["processing"] = meta.processing.model_copy(update=processing_updates)
+
+    updated_meta = meta.model_copy(update=next_updates)
+    return save_session_meta(config, updated_meta)
 
 
 def write_session_chunk_manifest(
@@ -315,8 +338,7 @@ def finalize_session(
             "status": final_status,
         }
     )
-    write_json_file(get_session_dir(config, session_id) / "meta.json", updated_meta.model_dump(mode="json"))
-    return updated_meta
+    return save_session_meta(config, updated_meta)
 
 
 def get_session_dir(config: ConfigModel, session_id: str) -> Path:
@@ -390,8 +412,7 @@ def mark_session_read(config: ConfigModel, session_id: str) -> MetaModel | None:
         return meta
 
     updated_meta = meta.model_copy(update={"read": True})
-    write_json_file(get_session_dir(config, session_id) / "meta.json", updated_meta.model_dump(mode="json"))
-    return updated_meta
+    return save_session_meta(config, updated_meta)
 
 
 def delete_session_dir(config: ConfigModel, session_id: str) -> bool:

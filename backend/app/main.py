@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from typing import Any, Literal
 
@@ -18,10 +19,41 @@ from app.services.sessions import (
     mark_session_read,
     store_session_chunk,
     get_session_thumbnail_path,
+    update_session_meta,
     get_session_video_path,
 )
 
-processing_queue = SessionProcessingQueue()
+
+async def process_session(session_id: str) -> None:
+    config = load_config()
+    started_at = datetime_now_iso()
+    update_session_meta(
+        config,
+        session_id,
+        updates={"status": "transcribing", "error": None},
+        processing_updates={"transcribe_started_at": started_at},
+    )
+    rebuild_index(config)
+
+    await asyncio.sleep(0)
+
+    finished_at = datetime_now_iso()
+    update_session_meta(
+        config,
+        session_id,
+        updates={"status": "ready", "error": None},
+        processing_updates={"transcribe_finished_at": finished_at},
+    )
+    rebuild_index(config)
+
+
+def datetime_now_iso() -> str:
+    from datetime import datetime
+
+    return datetime.now().astimezone().isoformat()
+
+
+processing_queue = SessionProcessingQueue(worker=process_session)
 
 
 @asynccontextmanager
@@ -114,6 +146,10 @@ async def post_session_finalize(session_id: str, payload: FinalizeSessionPayload
         raise HTTPException(status_code=404, detail="Session not found.") from None
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
+
+    if meta.status != "video_only":
+        meta = update_session_meta(config, session_id, updates={"status": "queued", "error": None})
+        await processing_queue.enqueue(session_id)
 
     rebuild_index(config)
     return {"session_id": meta.id, "status": meta.status, "save_mode": meta.save_mode}
