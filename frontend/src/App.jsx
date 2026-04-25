@@ -242,6 +242,7 @@ function SessionDetailPage({ sessionId, onBack }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0);
+  const [activeTab, setActiveTab] = useState("transcript");
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -272,6 +273,10 @@ function SessionDetailPage({ sessionId, onBack }) {
     return () => {
       isActive = false;
     };
+  }, [sessionId]);
+
+  useEffect(() => {
+    setActiveTab("transcript");
   }, [sessionId]);
 
   const meta = session?.meta;
@@ -329,7 +334,31 @@ function SessionDetailPage({ sessionId, onBack }) {
 
             <div className="session-detail-column session-detail-column-tabs">
               <div className="session-detail-tabs-shell">
-                <div className="session-detail-tabs-placeholder">transcript / analysis / raw tabs land next.</div>
+                <div className="session-detail-tab-bar" role="tablist" aria-label="Session detail tabs">
+                  {["transcript", "analysis", "raw"].map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeTab === tab}
+                      className={`session-detail-tab ${activeTab === tab ? "active" : ""}`}
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+                <div className="session-detail-tab-panel">
+                  {activeTab === "transcript" ? (
+                    <div className="session-detail-tabs-placeholder">transcript panel lands next.</div>
+                  ) : null}
+                  {activeTab === "analysis" ? (
+                    <div className="session-detail-tabs-placeholder">analysis panel lands next.</div>
+                  ) : null}
+                  {activeTab === "raw" ? (
+                    <div className="session-detail-tabs-placeholder">raw json panel lands next.</div>
+                  ) : null}
+                </div>
               </div>
             </div>
           </section>

@@ -448,7 +448,7 @@ select {
 
 .session-detail-tabs-shell {
   min-height: 320px;
-  padding: 16px;
+  padding: 0;
 }
 
 .session-detail-timestamp {
@@ -457,6 +457,35 @@ select {
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.6;
+}
+
+.session-detail-tab-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.session-detail-tab {
+  padding: 0 0 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.session-detail-tab.active {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.session-detail-tab-panel {
+  min-height: 271px;
+  padding: 16px;
 }
 
 @media (max-width: 960px) {
