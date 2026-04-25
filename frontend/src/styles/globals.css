@@ -157,11 +157,23 @@ select {
   background: #211a0d;
 }
 
+.record-button.is-status {
+  justify-content: flex-start;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
 .record-dot {
   width: 6px;
   height: 6px;
   border-radius: 999px;
   background: var(--color-accent);
+}
+
+.record-button:disabled {
+  opacity: 1;
+  cursor: default;
 }
 
 .rail-spacer {

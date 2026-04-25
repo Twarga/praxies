@@ -45,6 +45,7 @@ import {
   shouldMarkSessionRead,
 } from "./lib/sessionDetail.js";
 import { getRecordShortcutAction } from "./lib/recordShortcuts.js";
+import { getRailRecordSlotState } from "./lib/rail.js";
 import {
   formatBooleanToggle,
   formatLanguageValue,
@@ -86,10 +87,20 @@ function formatRecordingFileSize(bytes) {
   return `${megabytes} mb`;
 }
 
-function LeftRail({ activePage, onNavigate }) {
+function LeftRail({ activePage, onNavigate, onOpenSession }) {
   const { index, isLoading } = useIndex();
   const currentStreak = index?.streak?.current ?? 0;
   const totalSessions = index?.totals?.sessions ?? 0;
+  const recordSlotState = getRailRecordSlotState(index);
+
+  function handleRecordSlotClick() {
+    if (recordSlotState.kind === "status" && recordSlotState.clickable && recordSlotState.sessionId) {
+      onOpenSession(recordSlotState.sessionId);
+      return;
+    }
+
+    onNavigate("record");
+  }
 
   return (
     <aside className="rail">
@@ -116,9 +127,14 @@ function LeftRail({ activePage, onNavigate }) {
       <div className="rail-divider" />
 
       <div className="record-slot" aria-label="Record slot">
-        <button type="button" className="record-button" onClick={() => onNavigate("record")}>
+        <button
+          type="button"
+          className={`record-button ${recordSlotState.kind === "status" ? "is-status" : ""}`}
+          disabled={recordSlotState.kind === "status" && !recordSlotState.clickable}
+          onClick={handleRecordSlotClick}
+        >
           <span className="record-dot" aria-hidden="true" />
-          <span>record</span>
+          <span>{recordSlotState.label}</span>
         </button>
       </div>
 
@@ -1337,7 +1353,13 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      {isRecordRoute(route) ? null : <LeftRail activePage={activePage} onNavigate={handleNavigate} />}
+      {isRecordRoute(route) ? null : (
+        <LeftRail
+          activePage={activePage}
+          onNavigate={handleNavigate}
+          onOpenSession={(sessionId) => navigateTo(createSessionRoute(sessionId))}
+        />
+      )}
       {route.name === "settings" ? <SettingsPage /> : null}
       {route.name === "record" ? <RecordPage onBack={() => navigateTo(createPageRoute("today"))} /> : null}
       {route.name === "today" ? <TodayPage /> : null}
