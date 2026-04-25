@@ -247,6 +247,24 @@ def write_session_transcript_json(config: ConfigModel, session_id: str, segments
     return transcript_path
 
 
+def load_session_transcript_payload(config: ConfigModel, session_id: str) -> dict[str, object | None]:
+    transcript_text_path = get_session_transcript_text_path(config, session_id)
+    transcript_json_path = get_session_transcript_json_path(config, session_id)
+
+    transcript_text = None
+    if transcript_text_path.exists():
+        transcript_text = transcript_text_path.read_text(encoding="utf-8")
+
+    transcript = None
+    if transcript_json_path.exists():
+        transcript = read_json_file(transcript_json_path)
+
+    return {
+        "transcript_text": transcript_text,
+        "transcript": transcript,
+    }
+
+
 async def store_session_chunk(
     config: ConfigModel,
     session_id: str,
@@ -476,17 +494,8 @@ def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, objec
         meta = load_session_meta(config, session_id)
     except FileNotFoundError:
         return None
-    transcript_text_path = session_dir / "transcript.txt"
-    transcript_json_path = session_dir / "transcript.json"
     analysis_path = session_dir / "analysis.json"
-
-    transcript_text = None
-    if transcript_text_path.exists():
-        transcript_text = transcript_text_path.read_text(encoding="utf-8")
-
-    transcript = None
-    if transcript_json_path.exists():
-        transcript = read_json_file(transcript_json_path)
+    transcript_payload = load_session_transcript_payload(config, session_id)
 
     analysis = None
     if analysis_path.exists():
@@ -494,8 +503,8 @@ def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, objec
 
     return {
         "meta": meta.model_dump(mode="json"),
-        "transcript_text": transcript_text,
-        "transcript": transcript,
+        "transcript_text": transcript_payload["transcript_text"],
+        "transcript": transcript_payload["transcript"],
         "analysis": analysis,
     }
 
