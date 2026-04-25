@@ -283,20 +283,37 @@ function SessionDetailPage({ sessionId, onBack }) {
       {error ? <div className="settings-error">{error.message}</div> : null}
 
       {meta ? (
-        <section className="session-detail-top">
-          <h1 className="page-title session-detail-title">{meta.title}</h1>
-          <div className="session-detail-meta">
-            <span>{formatSessionDetailDate(meta.created_at)}</span>
-            <span>·</span>
-            <span>{formatSessionDetailLanguage(meta.language)}</span>
-            <span>·</span>
-            <span>{formatSessionDetailDuration(meta.duration_seconds)}</span>
-            <span>·</span>
-            <span className={`session-detail-status is-${getSessionDetailStatusTone(meta.status)}`}>
-              {meta.status}
-            </span>
-          </div>
-        </section>
+        <>
+          <section className="session-detail-top">
+            <h1 className="page-title session-detail-title">{meta.title}</h1>
+            <div className="session-detail-meta">
+              <span>{formatSessionDetailDate(meta.created_at)}</span>
+              <span>·</span>
+              <span>{formatSessionDetailLanguage(meta.language)}</span>
+              <span>·</span>
+              <span>{formatSessionDetailDuration(meta.duration_seconds)}</span>
+              <span>·</span>
+              <span className={`session-detail-status is-${getSessionDetailStatusTone(meta.status)}`}>
+                {meta.status}
+              </span>
+            </div>
+          </section>
+
+          <section className="session-detail-layout">
+            <div className="session-detail-column session-detail-column-video">
+              <div className="session-detail-video-shell">
+                <div className="session-detail-video-placeholder">video player lands next.</div>
+              </div>
+              <div className="session-detail-timestamp">00:00 / {formatSessionDetailDuration(meta.duration_seconds)}</div>
+            </div>
+
+            <div className="session-detail-column session-detail-column-tabs">
+              <div className="session-detail-tabs-shell">
+                <div className="session-detail-tabs-placeholder">transcript / analysis / raw tabs land next.</div>
+              </div>
+            </div>
+          </section>
+        </>
       ) : null}
     </main>
   );
