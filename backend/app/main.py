@@ -87,7 +87,7 @@ app.add_middleware(
 
 
 class CreateSessionPayload(BaseModel):
-    language: Literal["en", "fr", "es", "tmz"]
+    language: Literal["en", "fr", "es"]
     title: str | None = None
     save_mode: Literal["full", "transcribe_only", "video_only"] | None = None
 

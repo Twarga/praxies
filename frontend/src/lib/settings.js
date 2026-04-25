@@ -2,11 +2,10 @@ export const LANGUAGE_LABELS = {
   en: "english",
   fr: "french",
   es: "spanish",
-  tmz: "tamazight",
 };
 
 export const VIDEO_QUALITY_OPTIONS = ["480p", "720p", "1080p"];
-export const LANGUAGE_OPTIONS = ["en", "fr", "es", "tmz"];
+export const LANGUAGE_OPTIONS = ["en", "fr", "es"];
 export const RETENTION_OPTIONS = [7, 14, 30, 60, 90];
 export const WHISPER_MODEL_OPTIONS = [
   "tiny",

@@ -365,9 +365,6 @@ def validate_session_video(video_path: Path) -> None:
 
 
 def resolve_final_save_mode(meta: MetaModel, requested_save_mode: str | None = None) -> str:
-    if meta.language == "tmz":
-        return "video_only"
-
     return requested_save_mode or meta.save_mode
 
 

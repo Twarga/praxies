@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from app.models import IndexModel, MetaModel
 from app.services.config import ensure_journal_dir
 from app.services.json_io import read_json_file, write_json_file
@@ -22,7 +24,10 @@ def load_meta(session_dir: Path) -> MetaModel | None:
     if not meta_path.exists():
         return None
 
-    return MetaModel.model_validate(read_json_file(meta_path))
+    try:
+        return MetaModel.model_validate(read_json_file(meta_path))
+    except ValidationError:
+        return None
 
 
 def _date_from_created_at(created_at: str) -> date:
@@ -97,7 +102,6 @@ def rebuild_index(config, now: datetime | None = None) -> IndexModel:
                 "en": sum(1 for meta in metas if meta.language == "en"),
                 "fr": sum(1 for meta in metas if meta.language == "fr"),
                 "es": sum(1 for meta in metas if meta.language == "es"),
-                "tmz": sum(1 for meta in metas if meta.language == "tmz"),
             },
         },
     )

@@ -1199,7 +1199,6 @@ function RecordPage({ onBack }) {
               ["en", "en"],
               ["fr", "fr"],
               ["es", "es"],
-              ["tmz", "tamazight"],
             ].map(([code, label], index) => (
               <div key={code} className="record-language-group">
                 {index > 0 ? <span className="record-language-separator">·</span> : null}

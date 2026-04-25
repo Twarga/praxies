@@ -2,7 +2,6 @@ const SESSION_LANGUAGE_NAMES = {
   en: "english",
   fr: "french",
   es: "spanish",
-  tmz: "tamazight",
 };
 
 export function formatSessionDetailDate(createdAt) {

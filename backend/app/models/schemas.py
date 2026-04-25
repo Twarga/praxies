@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-LanguageCode = Literal["en", "fr", "es", "tmz"]
+LanguageCode = Literal["en", "fr", "es"]
 VideoQuality = Literal["480p", "720p", "1080p"]
 Directness = Literal["gentle", "direct", "brutal"]
 WhisperModelName = Literal["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"]

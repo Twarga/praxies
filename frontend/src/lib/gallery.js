@@ -1,11 +1,10 @@
-const GALLERY_LANGUAGE_FILTERS = ["all", "en", "fr", "es", "tmz"];
+const GALLERY_LANGUAGE_FILTERS = ["all", "en", "fr", "es"];
 
 const GALLERY_LANGUAGE_LABELS = {
   all: "all",
   en: "en",
   fr: "fr",
   es: "es",
-  tmz: "tmz",
 };
 
 export function getGalleryLanguageFilters() {
@@ -110,7 +109,6 @@ export function getGalleryEmptyState(languageFilter, hasAnySessions) {
       en: "english",
       fr: "french",
       es: "spanish",
-      tmz: "tamazight",
     };
 
     return `no ${languageNames[languageFilter] ?? languageFilter} sessions yet.`;

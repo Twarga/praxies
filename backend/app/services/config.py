@@ -83,7 +83,11 @@ def load_config(paths: AppPaths = PATHS) -> ConfigModel:
         write_config(default_config, paths.config_file)
         return default_config
 
-    return ConfigModel.model_validate(read_json_file(paths.config_file))
+    payload = _normalize_legacy_config_payload(read_json_file(paths.config_file))
+    config = ConfigModel.model_validate(payload)
+    if payload != config.model_dump(mode="json"):
+        write_config(config, paths.config_file)
+    return config
 
 
 def mask_api_key(api_key: str) -> str:
@@ -113,6 +117,14 @@ def _deep_merge(base: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
         else:
             merged[key] = value
     return merged
+
+
+def _normalize_legacy_config_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = deepcopy(payload)
+    supported_languages = {"en", "fr", "es"}
+    if normalized.get("language_default") not in supported_languages:
+        normalized["language_default"] = "en"
+    return normalized
 
 
 def update_config(patch: dict[str, Any], paths: AppPaths = PATHS) -> ConfigModel:
