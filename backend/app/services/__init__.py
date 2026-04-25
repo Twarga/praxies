@@ -9,6 +9,7 @@ from app.services.index import (
     rebuild_index,
 )
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
+from app.services.processing_queue import SessionProcessingQueue
 from app.services.sessions import (
     assemble_session_video,
     create_session,
@@ -60,6 +61,7 @@ __all__ = [
     "read_json_file",
     "rebuild_index",
     "resolve_journal_dir",
+    "SessionProcessingQueue",
     "store_session_chunk",
     "validate_session_video",
     "write_session_chunk_manifest",

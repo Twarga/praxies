@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from typing import Any, Literal
 
 from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
@@ -8,6 +9,7 @@ from pydantic import BaseModel
 from app.core.settings import APP_VERSION
 from app.services.config import dump_config_for_api, load_config, update_config
 from app.services.index import list_sessions, load_or_rebuild_index, rebuild_index
+from app.services.processing_queue import SessionProcessingQueue
 from app.services.sessions import (
     create_session,
     delete_session_dir,
@@ -19,8 +21,19 @@ from app.services.sessions import (
     get_session_video_path,
 )
 
+processing_queue = SessionProcessingQueue()
 
-app = FastAPI(title="Praxies Backend", version=APP_VERSION)
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    await processing_queue.start()
+    try:
+        yield
+    finally:
+        await processing_queue.stop()
+
+
+app = FastAPI(title="Praxies Backend", version=APP_VERSION, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:5173", "http://localhost:5173", "null"],
