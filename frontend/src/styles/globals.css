@@ -427,6 +427,12 @@ select {
   overflow: hidden;
 }
 
+.session-detail-video {
+  width: 100%;
+  height: 100%;
+  background: #111111;
+}
+
 .session-detail-video-placeholder,
 .session-detail-tabs-placeholder {
   display: flex;

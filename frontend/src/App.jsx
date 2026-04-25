@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { deleteSession, finalizeSession, loadSession } from "./api/sessions.js";
+import { deleteSession, finalizeSession, getSessionVideoUrl, loadSession } from "./api/sessions.js";
 import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
 import { useRecorder } from "./hooks/useRecorder.js";
@@ -31,6 +31,7 @@ import {
   formatSessionDetailDate,
   formatSessionDetailDuration,
   formatSessionDetailLanguage,
+  formatSessionDetailTimestamp,
   getSessionDetailStatusTone,
 } from "./lib/sessionDetail.js";
 import { getRecordShortcutAction } from "./lib/recordShortcuts.js";
@@ -240,6 +241,8 @@ function SessionDetailPage({ sessionId, onBack }) {
   const [session, setSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     let isActive = true;
@@ -272,6 +275,8 @@ function SessionDetailPage({ sessionId, onBack }) {
   }, [sessionId]);
 
   const meta = session?.meta;
+  const videoUrl = getSessionVideoUrl(sessionId);
+  const totalPlaybackTime = videoRef.current?.duration || meta?.duration_seconds || 0;
 
   return (
     <main className="main session-detail-page">
@@ -302,9 +307,24 @@ function SessionDetailPage({ sessionId, onBack }) {
           <section className="session-detail-layout">
             <div className="session-detail-column session-detail-column-video">
               <div className="session-detail-video-shell">
-                <div className="session-detail-video-placeholder">video player lands next.</div>
+                <video
+                  ref={videoRef}
+                  className="session-detail-video"
+                  src={videoUrl}
+                  controls
+                  playsInline
+                  onLoadedMetadata={(event) => {
+                    setCurrentPlaybackTime(event.currentTarget.currentTime ?? 0);
+                  }}
+                  onTimeUpdate={(event) => {
+                    setCurrentPlaybackTime(event.currentTarget.currentTime ?? 0);
+                  }}
+                />
               </div>
-              <div className="session-detail-timestamp">00:00 / {formatSessionDetailDuration(meta.duration_seconds)}</div>
+              <div className="session-detail-timestamp">
+                {formatSessionDetailTimestamp(currentPlaybackTime)} /{" "}
+                {formatSessionDetailTimestamp(totalPlaybackTime)}
+              </div>
             </div>
 
             <div className="session-detail-column session-detail-column-tabs">

@@ -1,4 +1,4 @@
-import { apiFetchJson } from "./client.js";
+import { apiFetchJson, buildApiUrl } from "./client.js";
 
 export function createSession(payload) {
   return apiFetchJson("/api/sessions", {
@@ -35,4 +35,8 @@ export function deleteSession(sessionId) {
 
 export function loadSession(sessionId) {
   return apiFetchJson(`/api/sessions/${sessionId}`);
+}
+
+export function getSessionVideoUrl(sessionId) {
+  return buildApiUrl(`/api/sessions/${sessionId}/video`);
 }

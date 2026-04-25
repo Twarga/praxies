@@ -23,6 +23,19 @@ export function formatSessionDetailDuration(durationSeconds) {
   return `${totalMinutes} min`;
 }
 
+export function formatSessionDetailTimestamp(totalSeconds) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds ?? 0));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+
+  if (hours > 0) {
+    return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+  }
+
+  return [minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
+}
+
 export function formatSessionDetailLanguage(language) {
   return SESSION_LANGUAGE_NAMES[language] ?? language;
 }
