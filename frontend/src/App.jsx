@@ -6,6 +6,7 @@ import { useRecorder } from "./hooks/useRecorder.js";
 import { chooseDirectory, openDesktopPath } from "./lib/desktop.js";
 import {
   filterGallerySessions,
+  groupGallerySessionsByMonth,
   getGalleryLanguageFilters,
   getGalleryLanguageLabel,
 } from "./lib/gallery.js";
@@ -147,6 +148,7 @@ function GalleryPage() {
   const [languageFilter, setLanguageFilter] = useState("all");
   const sessions = index?.sessions ?? [];
   const filteredSessions = filterGallerySessions(sessions, languageFilter);
+  const monthGroups = groupGallerySessionsByMonth(filteredSessions);
 
   return (
     <main className="main gallery-page">
@@ -173,6 +175,15 @@ function GalleryPage() {
           ? "loading sessions…"
           : `${filteredSessions.length} session${filteredSessions.length === 1 ? "" : "s"} in view.`}
       </div>
+
+      {monthGroups.map((group) => (
+        <section key={group.label} className="gallery-month-section">
+          <div className="gallery-month-label">{group.label}</div>
+          <div className="settings-note">
+            {group.sessions.length} session{group.sessions.length === 1 ? "" : "s"} in this month.
+          </div>
+        </section>
+      ))}
     </main>
   );
 }

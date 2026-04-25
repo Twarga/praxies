@@ -257,6 +257,20 @@ select {
   color: var(--color-accent);
 }
 
+.gallery-month-section {
+  margin-top: 16px;
+}
+
+.gallery-month-label {
+  margin-bottom: 16px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  line-height: 1.6;
+  text-transform: lowercase;
+}
+
 .page-title {
   margin: 0 0 24px;
   color: var(--color-text);

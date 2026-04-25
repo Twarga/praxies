@@ -27,3 +27,30 @@ export function filterGallerySessions(sessions, languageFilter) {
 
   return sessions.filter((session) => session.language === languageFilter);
 }
+
+export function formatGalleryMonthLabel(createdAt) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    year: "numeric",
+  })
+    .format(new Date(createdAt))
+    .toLowerCase();
+}
+
+export function groupGallerySessionsByMonth(sessions) {
+  const groups = [];
+  const monthIndex = new Map();
+
+  for (const session of sessions ?? []) {
+    const monthKey = formatGalleryMonthLabel(session.created_at);
+    if (!monthIndex.has(monthKey)) {
+      const nextGroup = { label: monthKey, sessions: [] };
+      monthIndex.set(monthKey, nextGroup);
+      groups.push(nextGroup);
+    }
+
+    monthIndex.get(monthKey).sessions.push(session);
+  }
+
+  return groups;
+}
