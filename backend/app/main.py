@@ -237,6 +237,32 @@ async def post_session_mark_read(session_id: str) -> dict[str, object]:
     return {"id": meta.id, "read": meta.read}
 
 
+@app.post("/api/sessions/{session_id}/retry")
+async def post_session_retry(session_id: str) -> dict[str, object]:
+    config = load_config()
+    try:
+        meta = load_session_meta(config, session_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found.") from None
+
+    if should_skip_processing_pipeline(meta):
+        raise HTTPException(status_code=400, detail="Session does not support retry.") from None
+
+    if meta.status in {"queued", "transcribing", "analyzing"}:
+        rebuild_index(config)
+        return {"session_id": meta.id, "status": meta.status, "enqueued": False}
+
+    queued_meta = update_session_meta(
+        config,
+        session_id,
+        updates={"status": "queued", "error": None},
+        processing_updates={"attempts": meta.processing.attempts + 1},
+    )
+    enqueued = await processing_queue.enqueue(session_id)
+    rebuild_index(config)
+    return {"session_id": queued_meta.id, "status": queued_meta.status, "enqueued": enqueued}
+
+
 @app.delete("/api/sessions/{session_id}")
 async def delete_session(session_id: str) -> dict[str, object]:
     config = load_config()
