@@ -54,3 +54,48 @@ export function groupGallerySessionsByMonth(sessions) {
 
   return groups;
 }
+
+export function formatGallerySessionMeta(createdAt, language) {
+  const dateLabel = new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+  })
+    .format(new Date(createdAt))
+    .replace(",", "")
+    .toLowerCase();
+
+  return `${dateLabel} · ${language}`;
+}
+
+export function formatGalleryDurationPill(durationSeconds) {
+  const totalMinutes = Math.max(1, Math.round((durationSeconds ?? 0) / 60));
+  return `${totalMinutes}m`;
+}
+
+export function getGallerySessionStatus(session) {
+  if (!session) {
+    return null;
+  }
+
+  if (session.status === "failed") {
+    return "failed · retry?";
+  }
+
+  if (session.status === "needs_attention") {
+    return "needs attention";
+  }
+
+  if (session.status === "transcribing") {
+    return "transcribing…";
+  }
+
+  if (session.status !== "ready" && session.status !== "done" && session.status !== "saved" && !session.read) {
+    return "unread";
+  }
+
+  if (!session.read) {
+    return "unread";
+  }
+
+  return null;
+}

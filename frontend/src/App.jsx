@@ -6,6 +6,9 @@ import { useRecorder } from "./hooks/useRecorder.js";
 import { chooseDirectory, openDesktopPath } from "./lib/desktop.js";
 import {
   filterGallerySessions,
+  formatGalleryDurationPill,
+  formatGallerySessionMeta,
+  getGallerySessionStatus,
   groupGallerySessionsByMonth,
   getGalleryLanguageFilters,
   getGalleryLanguageLabel,
@@ -179,8 +182,31 @@ function GalleryPage() {
       {monthGroups.map((group) => (
         <section key={group.label} className="gallery-month-section">
           <div className="gallery-month-label">{group.label}</div>
-          <div className="settings-note">
-            {group.sessions.length} session{group.sessions.length === 1 ? "" : "s"} in this month.
+          <div className="gallery-session-grid">
+            {group.sessions.map((session) => {
+              const statusLabel = getGallerySessionStatus(session);
+
+              return (
+                <article key={session.id} className="gallery-session-card">
+                  <div className="gallery-session-thumb">
+                    <div className="gallery-session-thumb-placeholder" />
+                    <div className="gallery-duration-pill">{formatGalleryDurationPill(session.duration_seconds)}</div>
+                  </div>
+                  <div className="gallery-session-footer">
+                    <div className="gallery-session-meta">
+                      {formatGallerySessionMeta(session.created_at, session.language)}
+                    </div>
+                    <div className="gallery-session-title">{session.title}</div>
+                    {statusLabel ? (
+                      <div className="gallery-session-status">
+                        <span className="gallery-session-status-dot" aria-hidden="true" />
+                        <span>{statusLabel}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
       ))}
