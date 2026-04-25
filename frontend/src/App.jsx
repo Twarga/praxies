@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { deleteSession, finalizeSession } from "./api/sessions.js";
+import { deleteSession, finalizeSession, loadSession } from "./api/sessions.js";
 import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
 import { useRecorder } from "./hooks/useRecorder.js";
@@ -27,6 +27,12 @@ import {
   getActiveNavKey,
   isRecordRoute,
 } from "./lib/routes.js";
+import {
+  formatSessionDetailDate,
+  formatSessionDetailDuration,
+  formatSessionDetailLanguage,
+  getSessionDetailStatusTone,
+} from "./lib/sessionDetail.js";
 import { getRecordShortcutAction } from "./lib/recordShortcuts.js";
 import {
   formatBooleanToggle,
@@ -147,7 +153,7 @@ function TodayPage() {
   );
 }
 
-function GalleryPage() {
+function GalleryPage({ onOpenSession }) {
   const { index, isLoading } = useIndex();
   const [languageFilter, setLanguageFilter] = useState("all");
   const sessions = index?.sessions ?? [];
@@ -189,7 +195,12 @@ function GalleryPage() {
               const statusLabel = getGallerySessionStatus(session);
 
               return (
-                <article key={session.id} className="gallery-session-card">
+                <button
+                  key={session.id}
+                  type="button"
+                  className="gallery-session-card"
+                  onClick={() => onOpenSession(session.id)}
+                >
                   <div className="gallery-session-thumb">
                     <div className="gallery-session-thumb-placeholder" />
                     <div className="gallery-duration-pill">{formatGalleryDurationPill(session.duration_seconds)}</div>
@@ -206,7 +217,7 @@ function GalleryPage() {
                       </div>
                     ) : null}
                   </div>
-                </article>
+                </button>
               );
             })}
           </div>
@@ -225,14 +236,68 @@ function TrendsPage() {
   );
 }
 
-function SessionDetailPlaceholder({ sessionId, onBack }) {
+function SessionDetailPage({ sessionId, onBack }) {
+  const [session, setSession] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function fetchSession() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const nextSession = await loadSession(sessionId);
+        if (isActive) {
+          setSession(nextSession);
+        }
+      } catch (caughtError) {
+        if (isActive) {
+          setError(caughtError);
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void fetchSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, [sessionId]);
+
+  const meta = session?.meta;
+
   return (
-    <main className="main">
-      <button type="button" className="record-back" onClick={onBack}>
+    <main className="main session-detail-page">
+      <button type="button" className="session-back-link" onClick={onBack}>
         ← gallery
       </button>
-      <h1 className="page-title">session</h1>
-      <div className="settings-note">{sessionId}</div>
+
+      {isLoading ? <div className="settings-note">loading session…</div> : null}
+      {error ? <div className="settings-error">{error.message}</div> : null}
+
+      {meta ? (
+        <section className="session-detail-top">
+          <h1 className="page-title session-detail-title">{meta.title}</h1>
+          <div className="session-detail-meta">
+            <span>{formatSessionDetailDate(meta.created_at)}</span>
+            <span>·</span>
+            <span>{formatSessionDetailLanguage(meta.language)}</span>
+            <span>·</span>
+            <span>{formatSessionDetailDuration(meta.duration_seconds)}</span>
+            <span>·</span>
+            <span className={`session-detail-status is-${getSessionDetailStatusTone(meta.status)}`}>
+              {meta.status}
+            </span>
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }
@@ -1108,10 +1173,10 @@ export default function App() {
       {route.name === "settings" ? <SettingsPage /> : null}
       {route.name === "record" ? <RecordPage onBack={() => setRoute(createPageRoute("today"))} /> : null}
       {route.name === "today" ? <TodayPage /> : null}
-      {route.name === "gallery" ? <GalleryPage /> : null}
+      {route.name === "gallery" ? <GalleryPage onOpenSession={(sessionId) => setRoute(createSessionRoute(sessionId))} /> : null}
       {route.name === "trends" ? <TrendsPage /> : null}
       {route.name === "session" ? (
-        <SessionDetailPlaceholder
+        <SessionDetailPage
           sessionId={route.params.sessionId}
           onBack={() => setRoute(createPageRoute("gallery"))}
         />

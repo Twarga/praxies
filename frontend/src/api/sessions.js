@@ -32,3 +32,7 @@ export function deleteSession(sessionId) {
     method: "DELETE",
   });
 }
+
+export function loadSession(sessionId) {
+  return apiFetchJson(`/api/sessions/${sessionId}`);
+}

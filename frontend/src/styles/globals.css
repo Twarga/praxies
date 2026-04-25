@@ -286,10 +286,12 @@ select {
 }
 
 .gallery-session-card {
+  padding: 0;
   overflow: hidden;
   border: 1px solid var(--color-border-visible);
   border-radius: 2px;
   background: #111111;
+  text-align: left;
 }
 
 .gallery-session-thumb {
@@ -357,6 +359,51 @@ select {
   font-size: 22px;
   font-weight: 500;
   line-height: 1.2;
+}
+
+.session-detail-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.session-back-link {
+  align-self: flex-start;
+  margin-bottom: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.session-detail-top {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.session-detail-title {
+  margin-bottom: 4px;
+}
+
+.session-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.session-detail-status.is-accent {
+  color: var(--color-accent);
+}
+
+.session-detail-status.is-error {
+  color: #8a6666;
 }
 
 .settings-section {
