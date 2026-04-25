@@ -1,6 +1,7 @@
 """Backend services."""
 
 from app.services.analysis_service import (
+    AnalysisNeedsAttentionError,
     AnalysisValidationError,
     AnalysisRetryExhaustedError,
     parse_and_validate_analysis_response,
@@ -55,6 +56,7 @@ from app.services.sessions import (
 from app.services.whisper_service import WhisperRuntimeConfig, WhisperService, build_whisper_runtime_config
 
 __all__ = [
+    "AnalysisNeedsAttentionError",
     "AnalysisValidationError",
     "AnalysisRetryExhaustedError",
     "LiteLLMOpenRouterClient",

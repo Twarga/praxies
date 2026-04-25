@@ -18,6 +18,10 @@ class AnalysisRetryExhaustedError(RuntimeError):
     pass
 
 
+class AnalysisNeedsAttentionError(RuntimeError):
+    pass
+
+
 def validate_analysis_payload(payload: dict[str, Any]) -> AnalysisModel:
     try:
         return AnalysisModel.model_validate(payload)
@@ -75,6 +79,12 @@ def run_analysis_with_retries(
         except Exception as error:  # noqa: BLE001
             status_code = _extract_status_code(error)
             message = str(error).lower()
+
+            if status_code == 401:
+                raise AnalysisNeedsAttentionError("API key invalid.") from error
+
+            if status_code == 402:
+                raise AnalysisNeedsAttentionError("Credits exhausted.") from error
 
             if _is_timeout_error(error, message):
                 if timeout_attempts >= 2:
