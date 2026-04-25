@@ -1,8 +1,68 @@
 from __future__ import annotations
 
+import json
 from datetime import date, datetime
 
-from app.models import RecurringPatternsModel
+from app.models import AnalysisModel, ConfigModel, RecurringPatternsModel
+
+
+LANGUAGE_FULL_NAMES = {
+    "en": "english",
+    "fr": "french",
+    "es": "spanish",
+}
+
+ANALYSIS_SCHEMA_EXAMPLE = {
+    "schema_version": 1,
+    "language": "en",
+    "prose_verdict": "Strong central idea, weak close.",
+    "session_summary": "A short summary of the session.",
+    "main_topics": ["topic one", "topic two"],
+    "grammar_and_language": {
+        "errors": [
+            {
+                "said": "I was very to do",
+                "correct": "I was very reluctant to do",
+                "type": "word choice",
+                "timestamp_seconds": 842.5,
+            }
+        ],
+        "fluency_score": 7,
+        "vocabulary_level": "C1",
+        "filler_words": {
+            "like": 12,
+            "uh": 8,
+            "you know": 4,
+        },
+    },
+    "speaking_quality": {
+        "clarity": 7,
+        "pace": "slightly fast mid-section",
+        "structure": "strong open, trailed off at end",
+        "executive_presence_notes": "opening confident, conclusion weakens position",
+    },
+    "ideas_and_reasoning": {
+        "strong_points": [
+            "protagonist's unnamed feeling as eternal recurrence — original, hold onto it"
+        ],
+        "weak_points": [
+            "did not address Nietzsche's ambivalence about eternal recurrence"
+        ],
+        "logical_flaws": [],
+        "factual_errors": [
+            "claimed Nietzsche was an existentialist; he predates the movement by 40 years"
+        ],
+        "philosophical_pushback": "Your read needs a stronger counterpoint.",
+    },
+    "recurring_patterns_hit": [
+        "weak conclusions (5th time in last 10)",
+        "factual claim without citation (3rd time)",
+    ],
+    "actionable_improvements": [
+        "prep one closing sentence before stopping",
+        "replace weak phrasing with active vocabulary",
+    ],
+}
 
 
 def build_recurring_patterns_prompt_block(
@@ -30,10 +90,61 @@ def build_recurring_patterns_prompt_block(
     return "\n".join(lines)
 
 
+def build_analysis_system_prompt(
+    config: ConfigModel,
+    *,
+    language: str,
+    recurring_patterns: RecurringPatternsModel | None = None,
+    now: date | datetime | None = None,
+) -> str:
+    language_full_name = LANGUAGE_FULL_NAMES[language]
+    recurring_block = build_recurring_patterns_prompt_block(recurring_patterns, now=now)
+    sections = [config.personal_context.strip()]
+
+    if recurring_block:
+        sections.append(recurring_block)
+
+    sections.append(
+        "\n".join(
+            [
+                "You are analyzing a single video journaling session. Respond ONLY with",
+                "valid JSON matching the schema below. All prose fields must be in the",
+                f"session's language ({language}). No markdown, no code fences, no",
+                "preamble, no explanation — just the JSON object.",
+                "",
+                "Schema:",
+                _format_analysis_schema_example(),
+                "",
+                "Requirements:",
+                "- Follow the feedback style in the personal context above strictly.",
+                "- Use the recurring patterns provided. If the user hits one again, name",
+                "  it in recurring_patterns_hit exactly as given. Do not invent new",
+                "  pattern names when an existing one fits.",
+                "- Keep prose_verdict to 1–3 sentences. It is read first, alone, at the",
+                "  top of a card.",
+                "- actionable_improvements should be 2–4 concrete, specific items.",
+                "- Fluency score 0–10, honest calibration. A native speaker is 9–10.",
+                "- If there are zero errors in a category, return an empty array — never",
+                "  omit the field.",
+                "- factual_errors is for verifiable claims. logical_flaws is for reasoning",
+                "  gaps. weak_points is for arguments that could be stronger.",
+                f"- Respond in {language_full_name} for all prose fields.",
+            ]
+        )
+    )
+
+    return "\n\n".join(sections)
+
+
 def _coerce_reference_date(value: date | datetime) -> date:
     if isinstance(value, datetime):
         return value.date()
     return value
+
+
+def _format_analysis_schema_example() -> str:
+    AnalysisModel.model_validate(ANALYSIS_SCHEMA_EXAMPLE)
+    return json.dumps(ANALYSIS_SCHEMA_EXAMPLE, indent=2, ensure_ascii=False)
 
 
 def _format_days_ago(reference_date: date, last_seen_date: date) -> str:
