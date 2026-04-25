@@ -36,6 +36,7 @@ from app.services.sessions import (
     generate_session_slug,
     get_session_audio_path,
     get_session_analysis_path,
+    get_session_analysis_raw_path,
     get_session_chunk_manifest_path,
     get_session_chunks_dir,
     get_session_dir,
@@ -53,6 +54,7 @@ from app.services.sessions import (
     update_session_meta,
     validate_session_video,
     write_session_analysis,
+    write_session_analysis_raw,
     write_session_chunk_manifest,
 )
 from app.services.whisper_service import WhisperRuntimeConfig, WhisperService, build_whisper_runtime_config
@@ -81,6 +83,7 @@ __all__ = [
     "extract_session_thumbnail",
     "get_session_audio_path",
     "get_session_analysis_path",
+    "get_session_analysis_raw_path",
     "get_session_chunk_manifest_path",
     "get_session_chunks_dir",
     "get_session_dir",
@@ -108,6 +111,7 @@ __all__ = [
     "update_session_meta",
     "validate_session_video",
     "write_session_analysis",
+    "write_session_analysis_raw",
     "WhisperRuntimeConfig",
     "WhisperService",
     "build_whisper_runtime_config",

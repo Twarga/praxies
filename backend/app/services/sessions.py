@@ -219,6 +219,10 @@ def get_session_analysis_path(config: ConfigModel, session_id: str) -> Path:
     return get_session_dir(config, session_id) / "analysis.json"
 
 
+def get_session_analysis_raw_path(config: ConfigModel, session_id: str) -> Path:
+    return get_session_dir(config, session_id) / "analysis_raw.txt"
+
+
 def get_session_thumbnail_output_path(config: ConfigModel, session_id: str) -> Path:
     return get_session_dir(config, session_id) / "thumbnail.jpg"
 
@@ -257,6 +261,12 @@ def write_session_analysis(config: ConfigModel, session_id: str, payload: dict[s
     analysis_path = get_session_analysis_path(config, session_id)
     write_json_file(analysis_path, analysis.model_dump(mode="json"))
     return analysis_path
+
+
+def write_session_analysis_raw(config: ConfigModel, session_id: str, response_text: str) -> Path:
+    raw_path = get_session_analysis_raw_path(config, session_id)
+    raw_path.write_text(response_text, encoding="utf-8")
+    return raw_path
 
 
 def load_session_transcript_payload(config: ConfigModel, session_id: str) -> dict[str, object | None]:
