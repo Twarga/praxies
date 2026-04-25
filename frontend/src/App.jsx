@@ -25,8 +25,15 @@ import {
   createPageRoute,
   createSessionRoute,
   getActiveNavKey,
+  getRouteKey,
   isRecordRoute,
 } from "./lib/routes.js";
+import {
+  getRouteScrollPosition,
+  getViewportScrollY,
+  restoreViewportScroll,
+  setRouteScrollPosition,
+} from "./lib/scrollState.js";
 import {
   formatSessionDetailDate,
   formatSessionDetailDuration,
@@ -1268,23 +1275,45 @@ function RecordPage({ onBack }) {
 export default function App() {
   const [route, setRoute] = useState(createPageRoute("today"));
   const activePage = getActiveNavKey(route);
+  const routeKey = getRouteKey(route);
+  const previousRouteKeyRef = useRef(routeKey);
+  const scrollPositionsRef = useRef(new Map());
+
+  function navigateTo(nextRoute) {
+    const currentRouteKey = previousRouteKeyRef.current;
+    setRouteScrollPosition(scrollPositionsRef.current, currentRouteKey, getViewportScrollY());
+    setRoute(nextRoute);
+  }
 
   function handleNavigate(nextPage) {
-    setRoute(createPageRoute(nextPage));
+    navigateTo(createPageRoute(nextPage));
   }
+
+  useEffect(() => {
+    const nextScrollPosition = getRouteScrollPosition(scrollPositionsRef.current, routeKey);
+    previousRouteKeyRef.current = routeKey;
+
+    const frameId = window.requestAnimationFrame(() => {
+      restoreViewportScroll(nextScrollPosition);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [routeKey]);
 
   return (
     <div className="app-shell">
       {isRecordRoute(route) ? null : <LeftRail activePage={activePage} onNavigate={handleNavigate} />}
       {route.name === "settings" ? <SettingsPage /> : null}
-      {route.name === "record" ? <RecordPage onBack={() => setRoute(createPageRoute("today"))} /> : null}
+      {route.name === "record" ? <RecordPage onBack={() => navigateTo(createPageRoute("today"))} /> : null}
       {route.name === "today" ? <TodayPage /> : null}
-      {route.name === "gallery" ? <GalleryPage onOpenSession={(sessionId) => setRoute(createSessionRoute(sessionId))} /> : null}
+      {route.name === "gallery" ? <GalleryPage onOpenSession={(sessionId) => navigateTo(createSessionRoute(sessionId))} /> : null}
       {route.name === "trends" ? <TrendsPage /> : null}
       {route.name === "session" ? (
         <SessionDetailPage
           sessionId={route.params.sessionId}
-          onBack={() => setRoute(createPageRoute("gallery"))}
+          onBack={() => navigateTo(createPageRoute("gallery"))}
         />
       ) : null}
     </div>
