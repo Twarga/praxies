@@ -8,9 +8,16 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from app.core.settings import APP_VERSION
+from app.services.analysis_service import (
+    AnalysisNeedsAttentionError,
+    AnalysisRetryExhaustedError,
+    run_analysis_with_retries,
+)
 from app.services.config import dump_config_for_api, load_config, update_config
 from app.services.index import list_sessions, load_or_rebuild_index, rebuild_index
+from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
 from app.services.processing_queue import SessionProcessingQueue
+from app.services.prompt_builder import build_analysis_system_prompt, build_transcript_user_message
 from app.services.sessions import (
     create_session,
     delete_session_dir,
@@ -24,7 +31,9 @@ from app.services.sessions import (
     get_session_thumbnail_path,
     update_session_meta,
     get_session_video_path,
+    load_session_transcript_payload,
     should_skip_processing_pipeline,
+    write_session_analysis,
     write_session_transcript_json,
     write_session_transcript_text,
 )
@@ -32,43 +41,113 @@ from app.services.whisper_service import WhisperService
 
 
 whisper_service = WhisperService()
+llm_client = LiteLLMOpenRouterClient()
 
 
 async def process_session(session_id: str) -> None:
     config = load_config()
     session_meta = load_session_meta(config, session_id)
-    if should_skip_processing_pipeline(session_meta):
+    try:
+        if should_skip_processing_pipeline(session_meta):
+            rebuild_index(config)
+            return
+
+        whisper_service.get_model(config)
+        started_at = datetime_now_iso()
+        update_session_meta(
+            config,
+            session_id,
+            updates={"status": "transcribing", "error": None},
+            processing_updates={
+                "transcribe_started_at": started_at,
+                "model_used": config.whisper.model,
+            },
+        )
         rebuild_index(config)
-        return
 
-    whisper_service.get_model(config)
-    started_at = datetime_now_iso()
-    update_session_meta(
-        config,
-        session_id,
-        updates={"status": "transcribing", "error": None},
-        processing_updates={
-            "transcribe_started_at": started_at,
-            "model_used": config.whisper.model,
-        },
-    )
-    rebuild_index(config)
+        audio_path = extract_session_audio(config, session_id)
+        extract_session_thumbnail(config, session_id)
+        segments, _info = whisper_service.transcribe(str(audio_path), config, language=session_meta.language)
+        segment_list = list(segments)
+        write_session_transcript_text(config, session_id, segment_list)
+        write_session_transcript_json(config, session_id, segment_list)
 
-    audio_path = extract_session_audio(config, session_id)
-    extract_session_thumbnail(config, session_id)
-    segments, _info = whisper_service.transcribe(str(audio_path), config, language=session_meta.language)
-    segment_list = list(segments)
-    write_session_transcript_text(config, session_id, segment_list)
-    write_session_transcript_json(config, session_id, segment_list)
+        transcribe_finished_at = datetime_now_iso()
+        session_meta = load_session_meta(config, session_id)
+        if session_meta.save_mode == "transcribe_only":
+            update_session_meta(
+                config,
+                session_id,
+                updates={"status": "ready", "error": None},
+                processing_updates={"transcribe_finished_at": transcribe_finished_at},
+            )
+            rebuild_index(config)
+            return
 
-    finished_at = datetime_now_iso()
-    update_session_meta(
-        config,
-        session_id,
-        updates={"status": "ready", "error": None},
-        processing_updates={"transcribe_finished_at": finished_at},
-    )
-    rebuild_index(config)
+        analyze_started_at = datetime_now_iso()
+        update_session_meta(
+            config,
+            session_id,
+            updates={"status": "analyzing", "error": None},
+            processing_updates={
+                "transcribe_finished_at": transcribe_finished_at,
+                "analyze_started_at": analyze_started_at,
+                "model_used": config.openrouter.default_model,
+            },
+        )
+        rebuild_index(config)
+
+        transcript_payload = load_session_transcript_payload(config, session_id)
+        analysis = run_analysis_with_retries(
+            client=llm_client,
+            config=config,
+            system_prompt=build_analysis_system_prompt(config, language=session_meta.language),
+            user_message=build_transcript_user_message(transcript_payload["transcript"]),
+        )
+        write_session_analysis(config, session_id, analysis.model_dump(mode="json"))
+
+        analyze_finished_at = datetime_now_iso()
+        update_session_meta(
+            config,
+            session_id,
+            updates={"status": "ready", "error": None},
+            processing_updates={"analyze_finished_at": analyze_finished_at},
+        )
+        rebuild_index(config)
+    except (AnalysisNeedsAttentionError, OpenRouterClientError) as error:
+        finished_at = datetime_now_iso()
+        update_session_meta(
+            config,
+            session_id,
+            updates={"status": "needs_attention", "error": str(error)},
+            processing_updates={"analyze_finished_at": finished_at},
+        )
+        rebuild_index(config)
+    except AnalysisRetryExhaustedError as error:
+        finished_at = datetime_now_iso()
+        update_session_meta(
+            config,
+            session_id,
+            updates={"status": "failed", "error": str(error)},
+            processing_updates={"analyze_finished_at": finished_at},
+        )
+        rebuild_index(config)
+    except Exception as error:
+        failed_at = datetime_now_iso()
+        current_meta = load_session_meta(config, session_id)
+        processing_updates: dict[str, str] = {}
+        if current_meta.status == "transcribing":
+            processing_updates["transcribe_finished_at"] = failed_at
+        elif current_meta.status == "analyzing":
+            processing_updates["analyze_finished_at"] = failed_at
+
+        update_session_meta(
+            config,
+            session_id,
+            updates={"status": "failed", "error": str(error)},
+            processing_updates=processing_updates or None,
+        )
+        rebuild_index(config)
 
 
 def datetime_now_iso() -> str:
