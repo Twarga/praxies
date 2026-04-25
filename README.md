@@ -1,7 +1,7 @@
-# Praxies
+# Praxis
 
 <p align="center">
-  <img src="./logo.png" alt="Praxies logo" width="180" />
+  <img src="./logo.png" alt="Praxis logo" width="180" />
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
 
 ## What it is
 
-Praxies is an AI-assisted video journaling app for desktop. Record a session, transcribe it with Whisper, analyze it with an LLM, and review how your speaking, ideas, and habits evolve over time.
+Praxis is an AI-assisted video journaling app for desktop. Record a session, transcribe it with Whisper, analyze it with an LLM, and review how your speaking, ideas, and habits evolve over time.
 
 ## Core workflow
 

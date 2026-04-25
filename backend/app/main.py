@@ -1,23 +1,30 @@
 import asyncio
 from contextlib import asynccontextmanager
+import json
 from typing import Any, Literal
 
 from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 
 from app.core.settings import APP_VERSION
 from app.services.analysis_service import (
     AnalysisNeedsAttentionError,
     AnalysisRetryExhaustedError,
+    AnalysisValidationError,
+    parse_and_validate_analysis_response,
     run_analysis_with_retries,
 )
 from app.services.config import dump_config_for_api, load_config, update_config
 from app.services.index import list_sessions, load_or_rebuild_index, rebuild_index
 from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
 from app.services.processing_queue import SessionProcessingQueue
-from app.services.prompt_builder import build_analysis_system_prompt, build_transcript_user_message
+from app.services.prompt_builder import (
+    build_analysis_export_prompt,
+    build_analysis_system_prompt,
+    build_transcript_user_message,
+)
 from app.services.sessions import (
     create_session,
     delete_session_dir,
@@ -34,6 +41,7 @@ from app.services.sessions import (
     load_session_transcript_payload,
     should_skip_processing_pipeline,
     write_session_analysis,
+    write_session_analysis_raw,
     write_session_transcript_json,
     write_session_transcript_text,
 )
@@ -168,7 +176,7 @@ async def lifespan(_: FastAPI):
         await processing_queue.stop()
 
 
-app = FastAPI(title="Praxies Backend", version=APP_VERSION, lifespan=lifespan)
+app = FastAPI(title="Praxis Backend", version=APP_VERSION, lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:5173", "http://localhost:5173", "null"],
@@ -189,6 +197,10 @@ class FinalizeSessionPayload(BaseModel):
     save_mode: Literal["full", "transcribe_only", "video_only"]
 
 
+class ImportAnalysisPayload(BaseModel):
+    response_text: str
+
+
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -203,6 +215,35 @@ async def get_config() -> dict[str, object]:
 async def patch_config(payload: dict[str, Any]) -> dict[str, object]:
     updated = update_config(payload)
     return dump_config_for_api(updated)
+
+
+@app.post("/api/config/test-openrouter")
+async def post_test_openrouter() -> dict[str, object]:
+    config = load_config()
+
+    try:
+        response_text = llm_client.analyze_session(
+            config=config,
+            system_prompt='Return ONLY a JSON object: {"ok": true}.',
+            user_message="ping",
+        )
+        payload = json.loads(response_text)
+    except OpenRouterClientError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from None
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail="OpenRouter returned invalid JSON during test.") from None
+    except Exception as error:  # noqa: BLE001
+        status_code = getattr(error, "status_code", None)
+        if status_code == 401:
+            raise HTTPException(status_code=401, detail="API key invalid.") from None
+        if status_code == 402:
+            raise HTTPException(status_code=402, detail="Credits exhausted.") from None
+        raise HTTPException(status_code=502, detail=str(error)) from None
+
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=502, detail="OpenRouter test did not return a JSON object.") from None
+
+    return {"ok": True, "model": config.openrouter.default_model}
 
 
 @app.post("/api/sessions")
@@ -282,6 +323,42 @@ async def get_session(session_id: str) -> dict[str, object]:
     return session
 
 
+@app.get("/api/sessions/{session_id}/export-prompt")
+async def get_session_export_prompt(session_id: str) -> PlainTextResponse:
+    config = load_config()
+    session = load_session_bundle(config, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    transcript_segments = session.get("transcript")
+    if not transcript_segments:
+        raise HTTPException(status_code=400, detail="Transcript not available yet.")
+
+    meta = load_session_meta(config, session_id)
+    prompt_text = build_analysis_export_prompt(
+        config,
+        language=meta.language,
+        transcript_segments=transcript_segments,
+    )
+    return PlainTextResponse(prompt_text)
+
+
+@app.get("/api/sessions/{session_id}/export-transcript")
+async def get_session_export_transcript(session_id: str) -> PlainTextResponse:
+    config = load_config()
+    session = load_session_bundle(config, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    transcript_segments = session.get("transcript")
+    if not transcript_segments:
+        raise HTTPException(status_code=400, detail="Transcript not available yet.")
+
+    transcript_text = build_transcript_user_message(transcript_segments)
+    transcript_lines = transcript_text.splitlines()[2:-1]
+    return PlainTextResponse("\n".join(transcript_lines))
+
+
 @app.get("/api/sessions/{session_id}/video")
 async def get_session_video(session_id: str) -> FileResponse:
     video_path = get_session_video_path(load_config(), session_id)
@@ -340,6 +417,39 @@ async def post_session_retry(session_id: str) -> dict[str, object]:
     enqueued = await processing_queue.enqueue(session_id)
     rebuild_index(config)
     return {"session_id": queued_meta.id, "status": queued_meta.status, "enqueued": enqueued}
+
+
+@app.post("/api/sessions/{session_id}/import-analysis")
+async def post_session_import_analysis(session_id: str, payload: ImportAnalysisPayload) -> dict[str, object]:
+    config = load_config()
+    try:
+        meta = load_session_meta(config, session_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found.") from None
+
+    if should_skip_processing_pipeline(meta):
+        raise HTTPException(status_code=400, detail="Session does not support analysis import.") from None
+
+    try:
+        parsed_analysis = parse_and_validate_analysis_response(payload.response_text)
+    except AnalysisValidationError as error:
+        write_session_analysis_raw(config, session_id, payload.response_text)
+        raise HTTPException(status_code=400, detail=str(error)) from None
+
+    if parsed_analysis.language != meta.language:
+        write_session_analysis_raw(config, session_id, payload.response_text)
+        raise HTTPException(status_code=400, detail="Imported analysis language does not match the session.") from None
+
+    write_session_analysis(config, session_id, parsed_analysis.model_dump(mode="json"))
+    finished_at = datetime_now_iso()
+    updated_meta = update_session_meta(
+        config,
+        session_id,
+        updates={"status": "ready", "error": None},
+        processing_updates={"analyze_finished_at": finished_at},
+    )
+    rebuild_index(config)
+    return {"session_id": updated_meta.id, "status": updated_meta.status}
 
 
 @app.delete("/api/sessions/{session_id}")

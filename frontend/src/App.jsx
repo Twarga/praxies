@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { deleteSession, finalizeSession, getSessionVideoUrl, loadSession, markSessionRead } from "./api/sessions.js";
+import { testOpenRouter } from "./api/config.js";
+import {
+  deleteSession,
+  exportSessionPrompt,
+  exportSessionTranscript,
+  finalizeSession,
+  getSessionThumbnailUrl,
+  getSessionVideoUrl,
+  importSessionAnalysis,
+  loadSession,
+  markSessionRead,
+} from "./api/sessions.js";
 import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
 import { useRecorder } from "./hooks/useRecorder.js";
@@ -55,6 +66,7 @@ import {
   VIDEO_QUALITY_OPTIONS,
   WHISPER_MODEL_OPTIONS,
 } from "./lib/settings.js";
+import { formatTodayDate, getTodayStatusLine } from "./lib/today.js";
 
 const navItems = ["today", "gallery", "trends", "settings"];
 const ACTIVE_RECORDER_STATES = new Set(["recording", "paused", "stopping"]);
@@ -87,6 +99,27 @@ function formatRecordingFileSize(bytes) {
   return `${megabytes} mb`;
 }
 
+async function copyText(text) {
+  if (!text) {
+    throw new Error("Nothing to copy.");
+  }
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "absolute";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textarea);
+}
+
 function LeftRail({ activePage, onNavigate, onOpenSession }) {
   const { index, isLoading } = useIndex();
   const currentStreak = index?.streak?.current ?? 0;
@@ -105,7 +138,7 @@ function LeftRail({ activePage, onNavigate, onOpenSession }) {
   return (
     <aside className="rail">
       <div className="rail-brand">
-        <div className="wordmark">TWARGA</div>
+        <div className="wordmark">PRAXIS</div>
         <div className="wordmark-sub">journal</div>
       </div>
 
@@ -154,16 +187,102 @@ function LeftRail({ activePage, onNavigate, onOpenSession }) {
   );
 }
 
-function TodayPage() {
+function TodayDigestCard({ latestSessionDetail, onOpenSession }) {
+  const meta = latestSessionDetail?.meta;
+  const analysis = latestSessionDetail?.analysis;
+  const actionItems = Array.isArray(analysis?.actionable_improvements)
+    ? analysis.actionable_improvements.slice(0, 3)
+    : [];
+  const subtitle = meta
+    ? `${meta.title} · ${formatSessionDetailLanguage(meta.language)} · ${formatSessionDetailDuration(meta.duration_seconds)}`
+    : "";
+
+  const fallbackVerdictByStatus = {
+    queued: "processing is queued and will start shortly.",
+    transcribing: "transcription is in progress.",
+    analyzing: "analysis is in progress.",
+    needs_attention: meta?.error ?? "analysis needs attention.",
+    failed: meta?.error ?? "processing failed.",
+    video_only: "this session was saved as video only.",
+    ready: latestSessionDetail?.transcript_text ? "transcript is ready." : "session is ready.",
+  };
+
+  return (
+    <section className="digest-card">
+      <div className="digest-card-header">
+        <div>
+          <div className="digest-card-title">latest session</div>
+          <div className="digest-card-subtitle">{subtitle}</div>
+        </div>
+        <button type="button" className="digest-card-open" onClick={() => onOpenSession(meta.id)}>
+          open full →
+        </button>
+      </div>
+      <div className="digest-card-verdict">
+        {analysis?.prose_verdict || analysis?.session_summary || fallbackVerdictByStatus[meta?.status] || "session saved."}
+      </div>
+      {actionItems.length > 0 ? (
+        <div className="digest-card-actions">
+          {actionItems.map((item, index) => (
+            <div key={`${index + 1}-${item}`} className="digest-card-action-row">
+              <div className="digest-card-action-number">{String(index + 1).padStart(2, "0")}</div>
+              <div className="digest-card-action-text">{item}</div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {!analysis && meta?.status === "needs_attention" ? (
+        <div className="digest-card-inline-note">use the session detail page to copy the prompt or import external analysis.</div>
+      ) : null}
+    </section>
+  );
+}
+
+function TodayPage({ onOpenSession }) {
   const { index, isLoading } = useIndex();
-  const hasSessions = (index?.sessions?.length ?? 0) > 0;
+  const [latestSessionDetail, setLatestSessionDetail] = useState(null);
+  const [detailError, setDetailError] = useState(null);
+  const sessions = index?.sessions ?? [];
+  const hasSessions = sessions.length > 0;
+  const latestSessionId = sessions[0]?.id ?? null;
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!latestSessionId) {
+      setLatestSessionDetail(null);
+      setDetailError(null);
+      return undefined;
+    }
+
+    async function fetchLatestSession() {
+      try {
+        const nextSession = await loadSession(latestSessionId);
+        if (isActive) {
+          setLatestSessionDetail(nextSession);
+          setDetailError(null);
+        }
+      } catch (caughtError) {
+        if (isActive) {
+          setLatestSessionDetail(null);
+          setDetailError(caughtError);
+        }
+      }
+    }
+
+    void fetchLatestSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, [latestSessionId]);
 
   return (
     <main className="main">
-      <div className="date-line">thursday · 24 april 2026</div>
-      <div className="status-line">you haven&apos;t recorded today yet.</div>
+      <div className="date-line">{formatTodayDate()}</div>
+      <div className="status-line">{getTodayStatusLine(sessions)}</div>
 
-      {(!hasSessions || isLoading) && (
+      {!hasSessions ? (
         <section className="welcome-block" aria-label="Welcome">
           <p>welcome back.</p>
           <p>
@@ -175,8 +294,36 @@ function TodayPage() {
             skip it and just record.
           </p>
         </section>
-      )}
+      ) : null}
+
+      {hasSessions && isLoading ? <div className="settings-note">loading today…</div> : null}
+      {hasSessions && detailError ? <div className="settings-error">{detailError.message}</div> : null}
+      {hasSessions && latestSessionDetail ? (
+        <TodayDigestCard latestSessionDetail={latestSessionDetail} onOpenSession={onOpenSession} />
+      ) : null}
     </main>
+  );
+}
+
+function GalleryThumbnail({ sessionId, title }) {
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [sessionId]);
+
+  if (hasError) {
+    return <div className="gallery-session-thumb-placeholder" />;
+  }
+
+  return (
+    <img
+      className="gallery-session-thumb-image"
+      src={getSessionThumbnailUrl(sessionId)}
+      alt={title}
+      loading="lazy"
+      onError={() => setHasError(true)}
+    />
   );
 }
 
@@ -229,7 +376,7 @@ function GalleryPage({ onOpenSession }) {
                   onClick={() => onOpenSession(session.id)}
                 >
                   <div className="gallery-session-thumb">
-                    <div className="gallery-session-thumb-placeholder" />
+                    <GalleryThumbnail sessionId={session.id} title={session.title} />
                     <div className="gallery-duration-pill">{formatGalleryDurationPill(session.duration_seconds)}</div>
                   </div>
                   <div className="gallery-session-footer">
@@ -254,6 +401,185 @@ function GalleryPage({ onOpenSession }) {
   );
 }
 
+function AnalysisSection({ title, children }) {
+  return (
+    <section className="analysis-section">
+      <div className="analysis-section-title">{title}</div>
+      {children}
+    </section>
+  );
+}
+
+function AnalysisList({ items, ordered = false, emptyText = "none." }) {
+  if (!items?.length) {
+    return <div className="analysis-empty">{emptyText}</div>;
+  }
+
+  return ordered ? (
+    <ol className="analysis-list ordered">
+      {items.map((item, index) => (
+        <li key={`${index + 1}-${item}`} className="analysis-list-item">
+          {item}
+        </li>
+      ))}
+    </ol>
+  ) : (
+    <ul className="analysis-list">
+      {items.map((item, index) => (
+        <li key={`${index + 1}-${item}`} className="analysis-list-item">
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AnalysisPanel({ analysis, meta }) {
+  if (!analysis) {
+    return (
+      <div className="analysis-empty-shell">
+        <div className="session-detail-tabs-placeholder">analysis not available yet.</div>
+        {meta?.error ? <div className="analysis-inline-note">{meta.error}</div> : null}
+      </div>
+    );
+  }
+
+  const grammarErrors = analysis.grammar_and_language?.errors ?? [];
+  const fillerWords = Object.entries(analysis.grammar_and_language?.filler_words ?? {}).filter(
+    ([, count]) => Number(count) > 0,
+  );
+
+  return (
+    <div className="analysis-panel">
+      <div className="analysis-verdict">{analysis.prose_verdict}</div>
+
+      <AnalysisSection title="session summary">
+        <div className="analysis-prose">{analysis.session_summary}</div>
+      </AnalysisSection>
+
+      <AnalysisSection title="main topics">
+        <AnalysisList items={analysis.main_topics} />
+      </AnalysisSection>
+
+      <AnalysisSection title="grammar and language">
+        <div className="analysis-metrics-grid">
+          <div className="analysis-metric-card">
+            <div className="analysis-metric-label">fluency</div>
+            <div className="analysis-metric-value">{analysis.grammar_and_language?.fluency_score}/10</div>
+          </div>
+          <div className="analysis-metric-card">
+            <div className="analysis-metric-label">vocabulary</div>
+            <div className="analysis-metric-value">{analysis.grammar_and_language?.vocabulary_level}</div>
+          </div>
+        </div>
+        <AnalysisList
+          items={grammarErrors.map(
+            (entry) =>
+              `${formatTranscriptSegmentTimestamp(entry.timestamp_seconds)} ${entry.said} → ${entry.correct} (${entry.type})`,
+          )}
+          emptyText="no grammar corrections."
+        />
+        <AnalysisList
+          items={fillerWords.map(([word, count]) => `${word} · ${count}`)}
+          emptyText="no filler words tracked."
+        />
+      </AnalysisSection>
+
+      <AnalysisSection title="speaking quality">
+        <div className="analysis-metrics-grid">
+          <div className="analysis-metric-card">
+            <div className="analysis-metric-label">clarity</div>
+            <div className="analysis-metric-value">{analysis.speaking_quality?.clarity}/10</div>
+          </div>
+          <div className="analysis-metric-card">
+            <div className="analysis-metric-label">pace</div>
+            <div className="analysis-metric-value analysis-metric-text">{analysis.speaking_quality?.pace}</div>
+          </div>
+        </div>
+        <div className="analysis-prose">{analysis.speaking_quality?.structure}</div>
+        <div className="analysis-inline-note">{analysis.speaking_quality?.executive_presence_notes}</div>
+      </AnalysisSection>
+
+      <AnalysisSection title="ideas and reasoning">
+        <AnalysisList items={analysis.ideas_and_reasoning?.strong_points} emptyText="no strong points called out." />
+        <AnalysisList items={analysis.ideas_and_reasoning?.weak_points} emptyText="no weak points called out." />
+        <AnalysisList items={analysis.ideas_and_reasoning?.logical_flaws} emptyText="no logical flaws called out." />
+        <AnalysisList items={analysis.ideas_and_reasoning?.factual_errors} emptyText="no factual errors called out." />
+        <div className="analysis-prose">{analysis.ideas_and_reasoning?.philosophical_pushback}</div>
+      </AnalysisSection>
+
+      <AnalysisSection title="recurring patterns hit">
+        <AnalysisList items={analysis.recurring_patterns_hit} emptyText="none hit this session." />
+      </AnalysisSection>
+
+      <AnalysisSection title="actionable improvements">
+        <AnalysisList items={analysis.actionable_improvements} ordered emptyText="no action items." />
+      </AnalysisSection>
+    </div>
+  );
+}
+
+function RawPanel({
+  analysis,
+  copyState,
+  importState,
+  importText,
+  onCopyPrompt,
+  onCopyTranscript,
+  onImport,
+  onImportTextChange,
+  rawAnalysisText,
+  sessionStatus,
+  transcriptAvailable,
+}) {
+  const prettyAnalysis = analysis ? JSON.stringify(analysis, null, 2) : "";
+  const canImport = sessionStatus === "needs_attention" || sessionStatus === "failed" || !analysis;
+
+  return (
+    <div className="raw-panel">
+      <div className="raw-panel-actions">
+        <button type="button" className="settings-action" disabled={!transcriptAvailable} onClick={() => void onCopyPrompt()}>
+          copy full prompt
+        </button>
+        <button
+          type="button"
+          className="settings-action"
+          disabled={!transcriptAvailable}
+          onClick={() => void onCopyTranscript()}
+        >
+          copy transcript only
+        </button>
+      </div>
+      {copyState ? <div className="analysis-inline-note">{copyState}</div> : null}
+
+      <pre className="raw-panel-content">{prettyAnalysis || rawAnalysisText || "no raw analysis yet."}</pre>
+
+      {canImport ? (
+        <div className="raw-import-shell">
+          <div className="analysis-section-title">import analysis json</div>
+          <textarea
+            className="raw-import-textarea"
+            value={importText}
+            onChange={(event) => onImportTextChange(event.target.value)}
+            placeholder="paste a valid analysis.json object here"
+            spellCheck={false}
+          />
+          <div className="raw-panel-actions">
+            <button
+              type="button"
+              className="record-start-button"
+              disabled={!importText.trim() || importState === "importing"}
+              onClick={() => void onImport()}
+            >
+              {importState === "importing" ? "importing…" : "import analysis"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function TrendsPage() {
   return (
     <main className="main">
@@ -270,7 +596,16 @@ function SessionDetailPage({ sessionId, onBack }) {
   const [error, setError] = useState(null);
   const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0);
   const [activeTab, setActiveTab] = useState("transcript");
+  const [copyState, setCopyState] = useState(null);
+  const [importState, setImportState] = useState("idle");
+  const [importText, setImportText] = useState("");
   const videoRef = useRef(null);
+
+  async function reloadSession() {
+    const nextSession = await loadSession(sessionId);
+    setSession(nextSession);
+    return nextSession;
+  }
 
   useEffect(() => {
     let isActive = true;
@@ -304,6 +639,9 @@ function SessionDetailPage({ sessionId, onBack }) {
 
   useEffect(() => {
     setActiveTab("transcript");
+    setCopyState(null);
+    setImportState("idle");
+    setImportText("");
   }, [sessionId]);
 
   useEffect(() => {
@@ -346,6 +684,9 @@ function SessionDetailPage({ sessionId, onBack }) {
 
   const meta = session?.meta;
   const transcriptSegments = Array.isArray(session?.transcript) ? session.transcript : [];
+  const transcriptAvailable = transcriptSegments.length > 0;
+  const analysis = session?.analysis ?? null;
+  const rawAnalysisText = session?.analysis_raw_text ?? "";
   const videoUrl = getSessionVideoUrl(sessionId);
   const totalPlaybackTime = videoRef.current?.duration || meta?.duration_seconds || 0;
 
@@ -356,6 +697,44 @@ function SessionDetailPage({ sessionId, onBack }) {
 
     videoRef.current.currentTime = timestampSeconds;
     setCurrentPlaybackTime(timestampSeconds);
+  }
+
+  async function handleCopyPrompt() {
+    try {
+      const promptText = await exportSessionPrompt(sessionId);
+      await copyText(promptText);
+      setCopyState("full prompt copied.");
+    } catch (caughtError) {
+      setCopyState(caughtError instanceof Error ? caughtError.message : "Failed to copy prompt.");
+    }
+  }
+
+  async function handleCopyTranscript() {
+    try {
+      const transcriptText = await exportSessionTranscript(sessionId);
+      await copyText(transcriptText);
+      setCopyState("transcript copied.");
+    } catch (caughtError) {
+      setCopyState(caughtError instanceof Error ? caughtError.message : "Failed to copy transcript.");
+    }
+  }
+
+  async function handleImportAnalysis() {
+    setImportState("importing");
+    setCopyState(null);
+
+    try {
+      await importSessionAnalysis(sessionId, importText);
+      await refreshIndex();
+      await reloadSession();
+      setImportText("");
+      setActiveTab("analysis");
+      setCopyState("analysis imported.");
+    } catch (caughtError) {
+      setCopyState(caughtError instanceof Error ? caughtError.message : "Failed to import analysis.");
+    } finally {
+      setImportState("idle");
+    }
   }
 
   return (
@@ -425,7 +804,7 @@ function SessionDetailPage({ sessionId, onBack }) {
                 </div>
                 <div className="session-detail-tab-panel">
                   {activeTab === "transcript" ? (
-                    transcriptSegments.length > 0 ? (
+                    transcriptAvailable ? (
                       <div className="session-detail-transcript-list">
                         {transcriptSegments.map((segment, index) => (
                           <div
@@ -450,10 +829,22 @@ function SessionDetailPage({ sessionId, onBack }) {
                     )
                   ) : null}
                   {activeTab === "analysis" ? (
-                    <div className="session-detail-tabs-placeholder">analysis panel lands next.</div>
+                    <AnalysisPanel analysis={analysis} meta={meta} />
                   ) : null}
                   {activeTab === "raw" ? (
-                    <div className="session-detail-tabs-placeholder">raw json panel lands next.</div>
+                    <RawPanel
+                      analysis={analysis}
+                      copyState={copyState}
+                      importState={importState}
+                      importText={importText}
+                      onCopyPrompt={handleCopyPrompt}
+                      onCopyTranscript={handleCopyTranscript}
+                      onImport={handleImportAnalysis}
+                      onImportTextChange={setImportText}
+                      rawAnalysisText={rawAnalysisText}
+                      sessionStatus={meta?.status}
+                      transcriptAvailable={transcriptAvailable}
+                    />
                   ) : null}
                 </div>
               </div>
@@ -631,6 +1022,64 @@ function InlineTextRow({ label, onSave, value }) {
   );
 }
 
+function InlineSecretRow({ label, onSave, valueLabel }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftValue, setDraftValue] = useState("");
+
+  function handleStartEdit() {
+    setDraftValue("");
+    setIsEditing(true);
+  }
+
+  async function handleSave() {
+    await onSave(draftValue);
+    setIsEditing(false);
+    setDraftValue("");
+  }
+
+  function handleCancel() {
+    setDraftValue("");
+    setIsEditing(false);
+  }
+
+  if (isEditing) {
+    return (
+      <div className="settings-row">
+        <div className="settings-label">{label}</div>
+        <div className="settings-field-wrap">
+          <input
+            className="settings-control"
+            type="password"
+            value={draftValue}
+            onChange={(event) => setDraftValue(event.target.value)}
+            placeholder="paste a new api key"
+          />
+        </div>
+        <div className="settings-action-group">
+          <button type="button" className="settings-action" onClick={handleSave}>
+            save
+          </button>
+          <button type="button" className="settings-action settings-action-muted" onClick={handleCancel}>
+            cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="settings-row">
+      <div className="settings-label">{label}</div>
+      <div className="settings-value">{valueLabel}</div>
+      <div className="settings-action-slot">
+        <button type="button" className="settings-action" onClick={handleStartEdit}>
+          change
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ToggleRow({ label, onToggle, value }) {
   return (
     <div className="settings-row">
@@ -701,6 +1150,7 @@ function SettingsSection({ title, children, note = null, dimmed = false }) {
 
 function SettingsPage() {
   const { config, error, isLoading, isPatching, patchConfig } = useConfig();
+  const [testStatus, setTestStatus] = useState(null);
 
   async function handleChooseJournalFolder() {
     const selectedDirectory = await chooseDirectory();
@@ -709,6 +1159,21 @@ function SettingsPage() {
     }
 
     await patchConfig({ journal_folder: selectedDirectory });
+  }
+
+  async function handleSaveApiKey(nextValue) {
+    await patchConfig({ openrouter: { api_key: nextValue } });
+    setTestStatus(nextValue ? "api key updated." : "api key cleared.");
+  }
+
+  async function handleTestOpenRouter() {
+    setTestStatus("testing openrouter…");
+    try {
+      const result = await testOpenRouter();
+      setTestStatus(`connected · ${result.model}`);
+    } catch (caughtError) {
+      setTestStatus(caughtError instanceof Error ? caughtError.message : "OpenRouter test failed.");
+    }
   }
 
   if (isLoading || !config) {
@@ -749,7 +1214,6 @@ function SettingsPage() {
           }))}
           onSave={(nextValue) => patchConfig({ retention_days: Number(nextValue) })}
         />
-        <SettingsRow label="disk used" action="" />
       </SettingsSection>
 
       <SettingsSection title="recording">
@@ -782,7 +1246,18 @@ function SettingsPage() {
       </SettingsSection>
 
       <SettingsSection title="ai">
-        <SettingsRow label="openrouter api key" value={config.openrouter.api_key || "—"} />
+        <InlineSecretRow
+          label="openrouter api key"
+          valueLabel={config.openrouter.configured ? config.openrouter.api_key : "not set"}
+          onSave={handleSaveApiKey}
+        />
+        <ActionSettingsRow
+          label="connection"
+          value={config.openrouter.configured ? "configured" : "not set"}
+          action="test"
+          onAction={handleTestOpenRouter}
+        />
+        {testStatus ? <div className="settings-inline-note settings-inline-note-offset">{testStatus}</div> : null}
         <InlineTextRow
           label="model"
           value={config.openrouter.default_model}
@@ -1362,7 +1837,7 @@ export default function App() {
       )}
       {route.name === "settings" ? <SettingsPage /> : null}
       {route.name === "record" ? <RecordPage onBack={() => navigateTo(createPageRoute("today"))} /> : null}
-      {route.name === "today" ? <TodayPage /> : null}
+      {route.name === "today" ? <TodayPage onOpenSession={(sessionId) => navigateTo(createSessionRoute(sessionId))} /> : null}
       {route.name === "gallery" ? <GalleryPage onOpenSession={(sessionId) => navigateTo(createSessionRoute(sessionId))} /> : null}
       {route.name === "trends" ? <TrendsPage /> : null}
       {route.name === "session" ? (

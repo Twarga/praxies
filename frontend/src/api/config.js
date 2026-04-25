@@ -10,3 +10,9 @@ export function patchConfig(patch) {
     body: JSON.stringify(patch),
   });
 }
+
+export function testOpenRouter() {
+  return apiFetchJson("/api/config/test-openrouter", {
+    method: "POST",
+  });
+}

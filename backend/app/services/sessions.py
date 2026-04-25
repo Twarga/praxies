@@ -517,17 +517,23 @@ def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, objec
     except FileNotFoundError:
         return None
     analysis_path = session_dir / "analysis.json"
+    analysis_raw_path = get_session_analysis_raw_path(config, session_id)
     transcript_payload = load_session_transcript_payload(config, session_id)
 
     analysis = None
     if analysis_path.exists():
         analysis = read_json_file(analysis_path)
 
+    analysis_raw_text = None
+    if analysis_raw_path.exists():
+        analysis_raw_text = analysis_raw_path.read_text(encoding="utf-8")
+
     return {
         "meta": meta.model_dump(mode="json"),
         "transcript_text": transcript_payload["transcript_text"],
         "transcript": transcript_payload["transcript"],
         "analysis": analysis,
+        "analysis_raw_text": analysis_raw_text,
     }
 
 

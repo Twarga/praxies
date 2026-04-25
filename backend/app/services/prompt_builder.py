@@ -151,6 +151,34 @@ def build_transcript_user_message(transcript_segments: list[dict[str, object]] |
     return "\n".join(lines)
 
 
+def build_analysis_export_prompt(
+    config: ConfigModel,
+    *,
+    language: str,
+    transcript_segments: list[dict[str, object]] | None,
+    recurring_patterns: RecurringPatternsModel | None = None,
+    now: date | datetime | None = None,
+) -> str:
+    language_full_name = LANGUAGE_FULL_NAMES[language]
+    recurring_block = build_recurring_patterns_prompt_block(recurring_patterns, now=now) or "None yet."
+    transcript_block = build_transcript_user_message(transcript_segments).replace("TRANSCRIPT:\n", "", 1)
+
+    return "\n\n".join(
+        [
+            "=== CONTEXT ===",
+            config.personal_context.strip(),
+            "=== RECURRING PATTERNS ===",
+            recurring_block,
+            "=== SCHEMA ===",
+            _format_analysis_schema_example(),
+            "=== TRANSCRIPT ===",
+            transcript_block,
+            "=== INSTRUCTIONS ===",
+            f"Respond in {language_full_name}. Return ONLY the JSON object.",
+        ]
+    )
+
+
 def _coerce_reference_date(value: date | datetime) -> date:
     if isinstance(value, datetime):
         return value.date()

@@ -1,4 +1,4 @@
-import { apiFetchJson, buildApiUrl } from "./client.js";
+import { apiFetchJson, apiFetchText, buildApiUrl } from "./client.js";
 
 export function createSession(payload) {
   return apiFetchJson("/api/sessions", {
@@ -41,8 +41,27 @@ export function getSessionVideoUrl(sessionId) {
   return buildApiUrl(`/api/sessions/${sessionId}/video`);
 }
 
+export function getSessionThumbnailUrl(sessionId) {
+  return buildApiUrl(`/api/sessions/${sessionId}/thumbnail`);
+}
+
 export function markSessionRead(sessionId) {
   return apiFetchJson(`/api/sessions/${sessionId}/mark-read`, {
     method: "POST",
+  });
+}
+
+export function exportSessionPrompt(sessionId) {
+  return apiFetchText(`/api/sessions/${sessionId}/export-prompt`);
+}
+
+export function exportSessionTranscript(sessionId) {
+  return apiFetchText(`/api/sessions/${sessionId}/export-transcript`);
+}
+
+export function importSessionAnalysis(sessionId, responseText) {
+  return apiFetchJson(`/api/sessions/${sessionId}/import-analysis`, {
+    method: "POST",
+    body: JSON.stringify({ response_text: responseText }),
   });
 }

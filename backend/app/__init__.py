@@ -1,1 +1,1 @@
-"""Twarga Journal backend package."""
+"""Praxis backend package."""

@@ -9,33 +9,21 @@ from app.models import ConfigModel
 from app.services.json_io import read_json_file, write_json_file
 
 
-DEFAULT_PERSONAL_CONTEXT = """You are giving feedback to Twarga, a 22-year-old solo founder from Morocco.
-He chose the name "Twarga" at 14, inspired by Saharan Tuareg/Amazigh culture,
-and identifies as Riffian Amazigh. His long-term vision is a three-brand
-empire: TwargaOps (open-source DevOps infrastructure), RSPStudio (adult game
-studio), and RSPStories (serialized fiction). Currently RSP funds TwargaOps.
-He plans to relocate from Morocco to Brazil (Santa Catarina / Rio Grande do
-Sul) and buy his mother a house in Morocco first.
-
-Intellectual interests: Nietzsche, Camus, Adler, Jung, Dostoevsky,
-existentialism, classic literature, serious cinema, game design. He has a
-documented pattern of deep research and planning cycles without shipping —
-he is actively working to break this through execution-first commitments.
-
-He speaks English, French, and Spanish, and is using this journaling tool to
-practice all three while developing his speaking, ideas, and executive
-presence for his future as a CEO.
+DEFAULT_PERSONAL_CONTEXT = """You are giving feedback on a private video journaling session.
+The user is using Praxis to improve speaking quality, language fluency,
+thinking clarity, and executive presence over time. Assume the user wants
+precision, not comfort, and values correction over praise.
 
 Feedback style — direct, no softening:
-- Call out factual errors specifically. Name what he got wrong and point to
+- Call out factual errors specifically. Name what the user got wrong and point to
   a source.
 - Call out logical flaws and weak arguments. Don't hedge.
-- Name strengths only when they are specifically what he should do more of.
+- Name strengths only when they are specifically what the user should do more of.
   No filler praise.
-- When he falls into the "plan without ship" pattern, name it.
+- When the user falls into the "plan without ship" pattern, name it.
 - Call out grammar and language errors in the target language, with the
   correction.
-- Track recurring patterns and reference them by name when he repeats them.
+- Track recurring patterns and reference them by name when the user repeats them.
 - Do not be cruel. Do not be gentle. Be accurate and useful.
 
 Respond in the language of the session.
@@ -79,6 +67,12 @@ def write_config(config: ConfigModel, config_file: Path) -> None:
 
 def load_config(paths: AppPaths = PATHS) -> ConfigModel:
     if not paths.config_file.exists():
+        if paths.legacy_config_file.exists():
+            legacy_payload = _normalize_legacy_config_payload(read_json_file(paths.legacy_config_file))
+            migrated_config = ConfigModel.model_validate(legacy_payload)
+            write_config(migrated_config, paths.config_file)
+            return migrated_config
+
         default_config = build_default_config(paths)
         write_config(default_config, paths.config_file)
         return default_config
@@ -103,6 +97,7 @@ def mask_api_key(api_key: str) -> str:
 def dump_config_for_api(config: ConfigModel, paths: AppPaths = PATHS) -> dict[str, object]:
     payload = config.model_dump(mode="json")
     payload["openrouter"]["api_key"] = mask_api_key(config.openrouter.api_key)
+    payload["openrouter"]["configured"] = bool(config.openrouter.api_key)
     payload["app_version"] = APP_VERSION
     payload["config_path"] = str(paths.config_file)
     payload["logs_path"] = str(paths.backend_log_file)

@@ -42,7 +42,7 @@ async function createWindow() {
   } catch (error) {
     await dialog.showErrorBox(
       "backend failed to start",
-      "backend failed to start — see logs at ~/.cache/twarga-journal/backend.log",
+      "backend failed to start — see logs at ~/.cache/praxis/backend.log",
     );
     app.quit();
     return;
@@ -54,7 +54,7 @@ async function createWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: "#0a0a0a",
-    title: "Praxies",
+    title: "Praxis",
     webPreferences: {
       preload: join(__dirname, "preload.js"),
       contextIsolation: true,
