@@ -210,6 +210,10 @@ def get_session_transcript_text_path(config: ConfigModel, session_id: str) -> Pa
     return get_session_dir(config, session_id) / "transcript.txt"
 
 
+def get_session_transcript_json_path(config: ConfigModel, session_id: str) -> Path:
+    return get_session_dir(config, session_id) / "transcript.json"
+
+
 def get_session_thumbnail_output_path(config: ConfigModel, session_id: str) -> Path:
     return get_session_dir(config, session_id) / "thumbnail.jpg"
 
@@ -224,6 +228,22 @@ def write_session_transcript_text(config: ConfigModel, session_id: str, segments
     ]
     transcript_text = "\n".join(lines)
     transcript_path.write_text(f"{transcript_text}\n" if transcript_text else "", encoding="utf-8")
+    return transcript_path
+
+
+def write_session_transcript_json(config: ConfigModel, session_id: str, segments: list[Any]) -> Path:
+    transcript_path = get_session_transcript_json_path(config, session_id)
+    payload = [
+        {
+            "start_seconds": float(getattr(segment, "start", 0.0) or 0.0),
+            "end_seconds": float(getattr(segment, "end", 0.0) or 0.0),
+            "text": text,
+        }
+        for segment in segments
+        for text in [str(getattr(segment, "text", "")).strip()]
+        if text
+    ]
+    write_json_file(transcript_path, payload)
     return transcript_path
 
 
