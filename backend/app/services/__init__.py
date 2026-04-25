@@ -1,5 +1,10 @@
 """Backend services."""
 
+from app.services.analysis_service import (
+    AnalysisValidationError,
+    parse_and_validate_analysis_response,
+    validate_analysis_payload,
+)
 from app.services.config import ensure_journal_dir, load_config, resolve_journal_dir
 from app.services.index import (
     get_index_backup_file_path,
@@ -42,6 +47,9 @@ from app.services.sessions import (
 from app.services.whisper_service import WhisperRuntimeConfig, WhisperService, build_whisper_runtime_config
 
 __all__ = [
+    "AnalysisValidationError",
+    "parse_and_validate_analysis_response",
+    "validate_analysis_payload",
     "create_session",
     "delete_session_dir",
     "discover_session_dirs",
