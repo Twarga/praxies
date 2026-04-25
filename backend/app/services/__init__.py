@@ -37,6 +37,7 @@ from app.services.sessions import (
     validate_session_video,
     write_session_chunk_manifest,
 )
+from app.services.whisper_service import WhisperRuntimeConfig, WhisperService, build_whisper_runtime_config
 
 __all__ = [
     "create_session",
@@ -74,6 +75,9 @@ __all__ = [
     "store_session_chunk",
     "update_session_meta",
     "validate_session_video",
+    "WhisperRuntimeConfig",
+    "WhisperService",
+    "build_whisper_runtime_config",
     "write_session_chunk_manifest",
     "write_json_file",
 ]
