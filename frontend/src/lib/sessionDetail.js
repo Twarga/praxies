@@ -47,3 +47,15 @@ export function getSessionDetailStatusTone(status) {
 
   return "accent";
 }
+
+export function shouldMarkSessionRead(activeTab, session) {
+  if (activeTab !== "analysis") {
+    return false;
+  }
+
+  if (!session?.analysis) {
+    return false;
+  }
+
+  return session?.meta?.read === false;
+}

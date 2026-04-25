@@ -40,3 +40,9 @@ export function loadSession(sessionId) {
 export function getSessionVideoUrl(sessionId) {
   return buildApiUrl(`/api/sessions/${sessionId}/video`);
 }
+
+export function markSessionRead(sessionId) {
+  return apiFetchJson(`/api/sessions/${sessionId}/mark-read`, {
+    method: "POST",
+  });
+}

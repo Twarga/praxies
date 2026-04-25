@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { deleteSession, finalizeSession, getSessionVideoUrl, loadSession } from "./api/sessions.js";
+import { deleteSession, finalizeSession, getSessionVideoUrl, loadSession, markSessionRead } from "./api/sessions.js";
 import { useConfig } from "./hooks/useConfig.js";
 import { useIndex } from "./hooks/useIndex.js";
 import { useRecorder } from "./hooks/useRecorder.js";
@@ -33,6 +33,7 @@ import {
   formatSessionDetailLanguage,
   formatSessionDetailTimestamp,
   getSessionDetailStatusTone,
+  shouldMarkSessionRead,
 } from "./lib/sessionDetail.js";
 import { getRecordShortcutAction } from "./lib/recordShortcuts.js";
 import {
@@ -238,6 +239,7 @@ function TrendsPage() {
 }
 
 function SessionDetailPage({ sessionId, onBack }) {
+  const { refreshIndex } = useIndex();
   const [session, setSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -278,6 +280,44 @@ function SessionDetailPage({ sessionId, onBack }) {
   useEffect(() => {
     setActiveTab("transcript");
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!shouldMarkSessionRead(activeTab, session)) {
+      return undefined;
+    }
+
+    let isActive = true;
+
+    async function syncReadState() {
+      try {
+        await markSessionRead(sessionId);
+        await refreshIndex();
+        if (isActive) {
+          setSession((currentSession) => {
+            if (!currentSession?.meta) {
+              return currentSession;
+            }
+
+            return {
+              ...currentSession,
+              meta: {
+                ...currentSession.meta,
+                read: true,
+              },
+            };
+          });
+        }
+      } catch {
+        // Leave current detail navigation intact even if mark-read fails.
+      }
+    }
+
+    void syncReadState();
+
+    return () => {
+      isActive = false;
+    };
+  }, [activeTab, refreshIndex, session, sessionId]);
 
   const meta = session?.meta;
   const videoUrl = getSessionVideoUrl(sessionId);
