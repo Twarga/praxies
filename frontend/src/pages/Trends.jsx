@@ -20,6 +20,16 @@ function formatHours(value) {
   return numeric.toFixed(numeric >= 10 ? 0 : 1);
 }
 
+function buildVolumeSummaryLine(summary, range) {
+  const sessions = summary?.sessions ?? 0;
+  const hours = formatHours(summary?.hours);
+  const activeDays = summary?.active_days ?? 0;
+  const rangeLabel = (summary?.range ?? range).toUpperCase();
+  const languageCounts = summary?.by_language ?? {};
+
+  return `${sessions} sessions · ${hours} hours · ${activeDays} active days · ${rangeLabel} · EN ${languageCounts.en ?? 0} / FR ${languageCounts.fr ?? 0} / ES ${languageCounts.es ?? 0}`;
+}
+
 function SummaryStat({ label, value }) {
   return (
     <div className="rounded-lg border border-[#2A2C31] bg-[#1C1D21] p-4">
@@ -243,6 +253,85 @@ function PatternTrendList({ patternsByLanguage }) {
   );
 }
 
+function FillerWordsPanel({ fillerWordsByLanguage }) {
+  const sections = LANGUAGE_SERIES.map((language) => ({
+    ...language,
+    words: fillerWordsByLanguage?.[language.id] ?? [],
+  }));
+  const totalRows = sections.reduce((count, section) => count + section.words.length, 0);
+
+  if (totalRows === 0) {
+    return (
+      <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-3">
+          Filler Words
+        </h3>
+        <p className="text-sm text-[#D1D1D1] opacity-70 leading-relaxed">
+          No filler words are available in this range yet.
+        </p>
+      </div>
+    );
+  }
+
+  const maxCount = Math.max(
+    ...sections.flatMap((section) => section.words.map((word) => Number(word.count) || 0)),
+    1,
+  );
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+          Filler Words
+        </h3>
+        <span className="text-[10px] font-mono uppercase tracking-widest opacity-40">
+          by language
+        </span>
+      </div>
+
+      <div className="space-y-5">
+        {sections.map((section) => (
+          <div key={section.id}>
+            <div className="flex items-center gap-2 mb-3">
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: section.color }}
+              />
+              <h4 className="text-[10px] font-mono uppercase tracking-widest opacity-50">
+                {section.label}
+              </h4>
+            </div>
+
+            {section.words.length === 0 ? (
+              <p className="text-xs text-[#D1D1D1] opacity-40">No filler words.</p>
+            ) : (
+              <div className="space-y-2">
+                {section.words.slice(0, 6).map((word) => {
+                  const widthPercent = Math.max(8, ((Number(word.count) || 0) / maxCount) * 100);
+                  return (
+                    <div key={`${section.id}-${word.word}`}>
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <span className="text-[#E0E0E0] truncate">{word.word}</span>
+                        <span className="font-mono text-white tnum">{word.count}</span>
+                      </div>
+                      <div className="mt-1 h-1.5 rounded-full bg-[#0A0B0D] overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${widthPercent}%`, backgroundColor: section.color }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function Trends({ scrollRef }) {
   const [range, setRange] = useState("30d");
   const [payload, setPayload] = useState(null);
@@ -316,6 +405,12 @@ export function Trends({ scrollRef }) {
           </div>
         ) : (
           <div className="max-w-6xl mx-auto flex flex-col gap-6">
+            <div className="rounded-lg border border-[#2A2C31] bg-[#151619] px-5 py-3">
+              <p className="text-[11px] font-mono uppercase tracking-widest text-[#D1D1D1] opacity-60">
+                {buildVolumeSummaryLine(summary, range)}
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <SummaryStat label="Sessions" value={summary?.sessions ?? 0} />
               <SummaryStat label="Hours" value={formatHours(summary?.hours)} />
@@ -326,10 +421,7 @@ export function Trends({ scrollRef }) {
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <FluencyChart series={payload?.fluency_by_language} />
               <PatternTrendList patternsByLanguage={payload?.pattern_hits_by_language} />
-              <PlaceholderPanel
-                title="Filler Words"
-                body="Filler-word totals are loaded by language and range."
-              />
+              <FillerWordsPanel fillerWordsByLanguage={payload?.filler_words_by_language} />
               <PlaceholderPanel
                 title="Language Mix"
                 body={`EN ${summary?.by_language?.en ?? 0} · FR ${summary?.by_language?.fr ?? 0} · ES ${summary?.by_language?.es ?? 0}`}
