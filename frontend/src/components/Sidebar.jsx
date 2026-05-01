@@ -1,10 +1,11 @@
-import { LayoutDashboard, Mic, Settings as SettingsIcon, Video } from "lucide-react";
+import { LayoutDashboard, Mic, Settings as SettingsIcon, TrendingUp, Video } from "lucide-react";
 import { useIndex } from "../hooks/useIndex.js";
 
 const NAV_ITEMS = [
   { id: "today", icon: LayoutDashboard, label: "Today" },
   { id: "record", icon: Mic, label: "Record" },
   { id: "gallery", icon: Video, label: "Gallery" },
+  { id: "trends", icon: TrendingUp, label: "Trends" },
 ];
 
 export function Sidebar({ currentPage, onNavigate }) {

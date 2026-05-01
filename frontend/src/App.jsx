@@ -11,6 +11,7 @@ import { Record } from "./pages/Record.jsx";
 import { SessionDetail } from "./pages/SessionDetail.jsx";
 import { Settings } from "./pages/Settings.jsx";
 import { Today } from "./pages/Today.jsx";
+import { Trends } from "./pages/Trends.jsx";
 
 function getPageRouteKey(page, params) {
   if (page === "session") {
@@ -64,6 +65,7 @@ export default function App() {
         {currentPage === "today" ? <Today onNavigate={handleNavigate} scrollRef={scrollContainerRef} /> : null}
         {currentPage === "record" ? <Record onNavigate={handleNavigate} /> : null}
         {currentPage === "gallery" ? <Gallery onNavigate={handleNavigate} scrollRef={scrollContainerRef} /> : null}
+        {currentPage === "trends" ? <Trends scrollRef={scrollContainerRef} /> : null}
         {currentPage === "settings" ? <Settings scrollRef={scrollContainerRef} /> : null}
         {currentPage === "session" && params?.sessionId ? (
           <SessionDetail
