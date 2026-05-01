@@ -1,16 +1,55 @@
-import { useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Sidebar } from "./components/Sidebar.jsx";
+import {
+  getElementScrollTop,
+  getRouteScrollPosition,
+  restoreElementScroll,
+  setRouteScrollPosition,
+} from "./lib/scrollState.js";
 import { Gallery } from "./pages/Gallery.jsx";
 import { Record } from "./pages/Record.jsx";
 import { SessionDetail } from "./pages/SessionDetail.jsx";
 import { Settings } from "./pages/Settings.jsx";
 import { Today } from "./pages/Today.jsx";
 
+function getPageRouteKey(page, params) {
+  if (page === "session") {
+    return params?.sessionId ? `session/${params.sessionId}` : "session";
+  }
+
+  return page || "today";
+}
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState("today");
   const [params, setParams] = useState({});
+  const scrollContainerRef = useRef(null);
+  const scrollPositionsRef = useRef(new Map());
+
+  const routeKey = useMemo(
+    () => getPageRouteKey(currentPage, params),
+    [currentPage, params],
+  );
+
+  function saveCurrentScrollPosition() {
+    if (currentPage === "record") return;
+
+    setRouteScrollPosition(
+      scrollPositionsRef.current,
+      routeKey,
+      getElementScrollTop(scrollContainerRef.current),
+    );
+  }
+
+  useLayoutEffect(() => {
+    if (currentPage === "record") return;
+
+    const savedPosition = getRouteScrollPosition(scrollPositionsRef.current, routeKey);
+    restoreElementScroll(scrollContainerRef.current, savedPosition);
+  }, [currentPage, routeKey]);
 
   function handleNavigate(page, nextParams) {
+    saveCurrentScrollPosition();
     setCurrentPage(page);
     setParams(nextParams || {});
   }
@@ -22,12 +61,16 @@ export default function App() {
       ) : null}
 
       <main className="flex-1 flex flex-col overflow-hidden bg-[#0F1012] min-w-0">
-        {currentPage === "today" ? <Today onNavigate={handleNavigate} /> : null}
+        {currentPage === "today" ? <Today onNavigate={handleNavigate} scrollRef={scrollContainerRef} /> : null}
         {currentPage === "record" ? <Record onNavigate={handleNavigate} /> : null}
-        {currentPage === "gallery" ? <Gallery onNavigate={handleNavigate} /> : null}
-        {currentPage === "settings" ? <Settings /> : null}
+        {currentPage === "gallery" ? <Gallery onNavigate={handleNavigate} scrollRef={scrollContainerRef} /> : null}
+        {currentPage === "settings" ? <Settings scrollRef={scrollContainerRef} /> : null}
         {currentPage === "session" && params?.sessionId ? (
-          <SessionDetail sessionId={params.sessionId} onNavigate={handleNavigate} />
+          <SessionDetail
+            sessionId={params.sessionId}
+            onNavigate={handleNavigate}
+            scrollRef={scrollContainerRef}
+          />
         ) : null}
       </main>
     </div>

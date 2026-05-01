@@ -35,7 +35,7 @@ function GalleryThumbnail({ sessionId }) {
   );
 }
 
-export function Gallery({ onNavigate }) {
+export function Gallery({ onNavigate, scrollRef }) {
   const { index, isLoading } = useIndex();
   const [search, setSearch] = useState("");
   const [langFilter, setLangFilter] = useState("all");
@@ -108,7 +108,7 @@ export function Gallery({ onNavigate }) {
         </div>
       ) : null}
 
-      <div className="flex-1 overflow-y-auto px-8 pb-12 pt-8">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 pb-12 pt-8">
         {isLoading && sessions.length === 0 ? (
           <div className="text-[11px] font-mono opacity-50 uppercase tracking-widest">
             Loading sessions…

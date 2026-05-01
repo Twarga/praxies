@@ -457,7 +457,7 @@ function FillerWords({ map }) {
   );
 }
 
-export function SessionDetail({ sessionId, onNavigate }) {
+export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
   const { config } = useConfig();
   const { refreshIndex } = useIndex();
   const { pushToast } = useToast();
@@ -913,7 +913,7 @@ export function SessionDetail({ sessionId, onNavigate }) {
             ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 praxis-fade-in" key={activeTab}>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 praxis-fade-in" key={activeTab}>
             {!isReviewable ? (
               <ProcessingPanel
                 meta={meta}

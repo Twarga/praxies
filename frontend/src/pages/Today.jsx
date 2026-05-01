@@ -30,7 +30,7 @@ function getPrimaryLanguage(byLanguage) {
   return code.toUpperCase();
 }
 
-export function Today({ onNavigate }) {
+export function Today({ onNavigate, scrollRef }) {
   const { index } = useIndex();
   const sessions = index?.sessions ?? [];
   const processing = sessions.filter((s) => isProcessingStatus(s.status));
@@ -72,7 +72,7 @@ export function Today({ onNavigate }) {
     null;
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <div ref={scrollRef} className="flex flex-col h-full overflow-y-auto">
       <header className="h-16 border-b border-[#2A2C31] flex items-center px-8 bg-[#151619] shrink-0 justify-between">
         <h2 className="text-lg font-semibold tracking-tight text-white">Today's Overview</h2>
         <div className="px-2 py-0.5 rounded bg-[#2A2C31] text-[#E0E0E0] text-[10px] font-mono uppercase tracking-widest">

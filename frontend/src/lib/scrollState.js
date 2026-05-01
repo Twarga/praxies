@@ -21,3 +21,15 @@ export function getViewportScrollY(win = globalThis.window) {
 export function restoreViewportScroll(position, win = globalThis.window) {
   win?.scrollTo?.(0, Math.max(0, position));
 }
+
+export function getElementScrollTop(element) {
+  return element?.scrollTop ?? 0;
+}
+
+export function restoreElementScroll(element, position) {
+  if (!element) {
+    return;
+  }
+
+  element.scrollTop = Math.max(0, position);
+}

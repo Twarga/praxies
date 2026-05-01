@@ -112,7 +112,7 @@ function SectionTitle({ children }) {
   );
 }
 
-export function Settings() {
+export function Settings({ scrollRef }) {
   const { config, patchConfig, isPatching } = useConfig();
   const { pushToast } = useToast();
   const [activeTab, setActiveTab] = useState("general");
@@ -292,7 +292,7 @@ export function Settings() {
           ))}
         </div>
 
-        <div className="flex-1 p-8 overflow-y-auto">
+        <div ref={scrollRef} className="flex-1 p-8 overflow-y-auto">
           <div className="max-w-2xl mx-auto" key={activeTab}>
             {activeTab === "general" ? (
               <div className="space-y-8 praxis-fade-in">
