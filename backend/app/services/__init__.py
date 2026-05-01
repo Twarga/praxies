@@ -95,6 +95,7 @@ from app.services.weekly_rollups import (
     get_weekly_rollup_path,
     get_weekly_rollups_dir,
     is_weekly_rollup_due,
+    load_weekly_rollup,
     parse_weekly_rollup_response,
 )
 
@@ -176,6 +177,7 @@ __all__ = [
     "get_weekly_rollup_path",
     "get_weekly_rollups_dir",
     "is_weekly_rollup_due",
+    "load_weekly_rollup",
     "parse_weekly_rollup_response",
     "export_burned_subtitle_video",
     "normalize_subtitle_segments",

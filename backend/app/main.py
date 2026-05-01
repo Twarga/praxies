@@ -62,6 +62,7 @@ from app.services.subtitle_service import (
 )
 from app.services.trends import build_trends_payload
 from app.services.waveform_service import build_waveform_bins
+from app.services.weekly_rollups import load_weekly_rollup
 from app.services.whisper_service import WhisperService
 
 
@@ -626,6 +627,19 @@ async def get_trends(range: str = Query(default="30d")) -> dict[str, object]:  #
         return build_trends_payload(load_config(), trend_range=range)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
+
+
+@app.get("/api/weekly/{week}")
+async def get_weekly_rollup(week: str) -> dict[str, object]:
+    try:
+        rollup = load_weekly_rollup(load_config(), week)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from None
+
+    if rollup is None:
+        raise HTTPException(status_code=404, detail="Weekly rollup not found.") from None
+
+    return rollup.model_dump(mode="json")
 
 
 @app.get("/api/sessions/{session_id}")

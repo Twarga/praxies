@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, time, timedelta
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ from app.services.sessions import discover_session_dirs, get_session_analysis_pa
 
 
 WEEKLY_ROLLUP_DEFAULT_WEEKDAY = "sunday"
+WEEK_KEY_PATTERN = re.compile(r"^\d{4}-W\d{2}$")
 WEEKDAY_INDEXES = {
     "monday": 0,
     "tuesday": 1,
@@ -29,6 +31,7 @@ def get_weekly_rollups_dir(config: ConfigModel) -> Path:
 
 
 def get_weekly_rollup_path(config: ConfigModel, week: str) -> Path:
+    _validate_week_key(week)
     return get_weekly_rollups_dir(config) / f"{week}.json"
 
 
@@ -89,6 +92,14 @@ def generate_weekly_rollup(
     rollup = parse_weekly_rollup_response(response_text, metadata=metadata)
     write_json_file(get_weekly_rollup_path(config, week), rollup.model_dump(mode="json"))
     return rollup
+
+
+def load_weekly_rollup(config: ConfigModel, week: str) -> WeeklyRollupModel | None:
+    path = get_weekly_rollup_path(config, week)
+    if not path.exists():
+        return None
+
+    return WeeklyRollupModel.model_validate(read_json_file(path))
 
 
 def build_weekly_rollup_system_prompt() -> str:
@@ -196,6 +207,11 @@ def _parse_session_datetime(value: str, reference: datetime) -> datetime:
     if parsed.tzinfo is None:
         return parsed.replace(tzinfo=reference.tzinfo)
     return parsed.astimezone(reference.tzinfo)
+
+
+def _validate_week_key(week: str) -> None:
+    if not WEEK_KEY_PATTERN.match(week):
+        raise ValueError("Invalid weekly rollup week key.")
 
 
 def _parse_weekly_rollup_time(value: str) -> tuple[int, time]:
