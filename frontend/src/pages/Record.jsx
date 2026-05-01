@@ -15,6 +15,7 @@ import { createBeforeUnloadHandler } from "../lib/recording.js";
 import { getRecordShortcutAction } from "../lib/recordShortcuts.js";
 
 const ACTIVE_RECORDER_STATES = new Set(["recording", "paused", "stopping"]);
+const DISCARD_CONFIRM_TIMEOUT_MS = 5000;
 
 const LANGUAGE_OPTIONS = [
   { code: "en", label: "EN_US" },
@@ -71,6 +72,7 @@ export function Record({ onNavigate }) {
   const [actionState, setActionState] = useState("idle");
   const [actionError, setActionError] = useState(null);
   const [reviewTitle, setReviewTitle] = useState("");
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const videoRef = useRef(null);
   const reviewVideoRef = useRef(null);
@@ -113,8 +115,19 @@ export function Record({ onNavigate }) {
       setReviewTitle("");
       setActionState("idle");
       setActionError(null);
+      setShowDiscardConfirm(false);
     }
   }, [recorder.state, recorder.sessionId]);
+
+  useEffect(() => {
+    if (!showDiscardConfirm) return undefined;
+
+    const timeoutId = window.setTimeout(() => {
+      setShowDiscardConfirm(false);
+    }, DISCARD_CONFIRM_TIMEOUT_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [showDiscardConfirm]);
 
   useEffect(() => () => stopMediaStream(stream), [stream]);
 
@@ -133,6 +146,7 @@ export function Record({ onNavigate }) {
     handleStop: () => recorder.stopRecording(),
     handleSave: () => handleFinalize("full"),
     handleDiscard: () => handleDiscard(),
+    handleCancelDiscard: () => setShowDiscardConfirm(false),
     handleBack: () => onNavigate("today"),
   };
 
@@ -142,7 +156,7 @@ export function Record({ onNavigate }) {
         event,
         permissionState,
         recorderState: recorder.state,
-        showDiscardConfirm: false,
+        showDiscardConfirm,
       });
       if (!action) return;
       event.preventDefault();
@@ -153,12 +167,13 @@ export function Record({ onNavigate }) {
       if (action === "stop") return void handlers.handleStop();
       if (action === "save-full") return void handlers.handleSave();
       if (action === "discard") return void handlers.handleDiscard();
+      if (action === "cancel-discard") return handlers.handleCancelDiscard();
       if (action === "back") return handlers.handleBack();
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [permissionState, recorder.state]);
+  }, [permissionState, recorder.state, showDiscardConfirm]);
 
   async function handleStartRecording() {
     let nextStream = stream;
@@ -196,6 +211,7 @@ export function Record({ onNavigate }) {
     if (!recorder.sessionId) return;
     setActionState("saving");
     setActionError(null);
+    setShowDiscardConfirm(false);
     try {
       await finalizeSession(recorder.sessionId, {
         title: reviewTitle.trim() || null,
@@ -223,8 +239,16 @@ export function Record({ onNavigate }) {
       onNavigate("today");
       return;
     }
+
+    if (!showDiscardConfirm) {
+      setShowDiscardConfirm(true);
+      setActionError(null);
+      return;
+    }
+
     setActionState("saving");
     setActionError(null);
+    setShowDiscardConfirm(false);
     try {
       await deleteSession(recorder.sessionId);
       await refreshIndex();
@@ -390,14 +414,23 @@ export function Record({ onNavigate }) {
                 className="w-full bg-[#1C1D21] border border-[#2A2C31] rounded px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:border-[#4ADE80]"
                 aria-label="Recording title"
               />
+              {showDiscardConfirm ? (
+                <div className="text-[10px] font-mono uppercase tracking-widest text-red-300/80">
+                  Click confirm discard to delete this take. Cancels automatically in 5s.
+                </div>
+              ) : null}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 <button
                   type="button"
                   onClick={() => void handleDiscard()}
                   disabled={actionState !== "idle"}
-                  className="h-11 px-4 bg-transparent border border-[#2A2C31] hover:bg-[#1C1D21] text-white rounded text-xs font-semibold uppercase tracking-widest transition-colors disabled:opacity-50"
+                  className={`h-11 px-4 rounded text-xs font-semibold uppercase tracking-widest transition-colors disabled:opacity-50 ${
+                    showDiscardConfirm
+                      ? "bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-500/20"
+                      : "bg-transparent border border-[#2A2C31] hover:bg-[#1C1D21] text-white"
+                  }`}
                 >
-                  Discard
+                  {showDiscardConfirm ? "Confirm Discard" : "Discard"}
                 </button>
                 <button
                   type="button"
