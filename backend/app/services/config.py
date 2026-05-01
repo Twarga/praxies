@@ -65,6 +65,7 @@ Respond in the language of the session.
 def build_default_config(paths: AppPaths = PATHS) -> ConfigModel:
     return ConfigModel(
         schema_version=1,
+        app_version=APP_VERSION,
         journal_folder=str(paths.journal_dir),
         language_default="en",
         video_quality="720p",
@@ -109,9 +110,10 @@ def load_config(paths: AppPaths = PATHS) -> ConfigModel:
         write_config(default_config, paths.config_file)
         return default_config
 
-    payload = _normalize_legacy_config_payload(read_json_file(paths.config_file))
+    raw_payload = read_json_file(paths.config_file)
+    payload = _normalize_legacy_config_payload(raw_payload)
     config = ConfigModel.model_validate(payload)
-    if payload != config.model_dump(mode="json"):
+    if payload != raw_payload or payload != config.model_dump(mode="json"):
         write_config(config, paths.config_file)
     return config
 
@@ -153,6 +155,9 @@ def _normalize_legacy_config_payload(payload: dict[str, Any]) -> dict[str, Any]:
         normalized["language_default"] = "en"
     if normalized.get("personal_context", "").strip() == LEGACY_DEFAULT_PERSONAL_CONTEXT.strip():
         normalized["personal_context"] = DEFAULT_PERSONAL_CONTEXT
+    if normalized.get("personal_context", "").strip() == "":
+        normalized["personal_context"] = DEFAULT_PERSONAL_CONTEXT
+    normalized["app_version"] = APP_VERSION
     return normalized
 
 

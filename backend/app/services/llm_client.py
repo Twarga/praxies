@@ -21,6 +21,25 @@ class LiteLLMOpenRouterClient:
         user_message: str,
         model_id: str | None = None,
     ) -> str:
+        return self.complete_json(
+            config=config,
+            system_prompt=system_prompt,
+            user_message=user_message,
+            model_id=model_id,
+            temperature=0.4,
+            max_tokens=4000,
+        )
+
+    def complete_json(
+        self,
+        *,
+        config: ConfigModel,
+        system_prompt: str,
+        user_message: str,
+        model_id: str | None = None,
+        temperature: float = 0.2,
+        max_tokens: int = 4000,
+    ) -> str:
         if not config.openrouter.api_key:
             raise OpenRouterClientError("OpenRouter API key is missing.")
 
@@ -33,8 +52,8 @@ class LiteLLMOpenRouterClient:
                 {"role": "user", "content": user_message},
             ],
             response_format={"type": "json_object"},
-            temperature=0.4,
-            max_tokens=4000,
+            temperature=temperature,
+            max_tokens=max_tokens,
         )
 
         content = self._extract_response_content(response)

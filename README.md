@@ -64,27 +64,38 @@ Early development. Planning is in place and implementation is starting from the 
 
 Prerequisites:
 
-- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (manages Python and backend deps)
 - Node.js 20+
 - npm
 - FFmpeg
 
-Local startup:
+Backend setup (run once):
 
 ```bash
-python3 -m venv venv
-./venv/bin/pip install -r backend/requirements.txt
+uv sync
+```
 
+This creates `.venv/` at the repo root with Python 3.13 and all backend deps from `pyproject.toml`.
+
+Frontend setup (run once):
+
+```bash
 cd frontend
 npm install
+```
+
+Local startup — frontend dev server:
+
+```bash
+cd frontend
 npm run dev
 ```
 
-In another terminal:
+In another terminal — backend:
 
 ```bash
 cd backend
-../venv/bin/python -m uvicorn app.main:app --reload --port 8000
+../.venv/bin/python -m uvicorn app.main:app --reload --port 8000
 ```
 
 Then launch Electron:

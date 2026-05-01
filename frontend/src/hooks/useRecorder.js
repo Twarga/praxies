@@ -1,26 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import { createSession, uploadSessionChunk } from "../api/sessions.js";
+import { getRecordingProfile } from "../lib/media.js";
 
-const PRIMARY_MIME_TYPE = "video/webm;codecs=vp8,opus";
+const PREFERRED_MIME_TYPES = [
+  "video/webm;codecs=vp9,opus",
+  "video/webm;codecs=vp8,opus",
+  "video/webm",
+];
 const FALLBACK_MIME_TYPE = "video/webm";
-const VIDEO_BITRATE = 2_500_000;
-const CHUNK_TIMESLICE_MS = 10_000;
+const AUDIO_BITRATE = 128_000;
 
-export function getRecorderOptions(MediaRecorderClass = globalThis.MediaRecorder) {
-  if (MediaRecorderClass?.isTypeSupported?.(PRIMARY_MIME_TYPE)) {
-    return {
-      mimeType: PRIMARY_MIME_TYPE,
-      videoBitsPerSecond: VIDEO_BITRATE,
-    };
-  }
+export function getRecorderOptions(
+  videoQuality = "720p",
+  MediaRecorderClass = globalThis.MediaRecorder,
+) {
+  const profile = getRecordingProfile(videoQuality);
+  const mimeType =
+    PREFERRED_MIME_TYPES.find((candidate) => MediaRecorderClass?.isTypeSupported?.(candidate)) ??
+    FALLBACK_MIME_TYPE;
 
   return {
-    mimeType: FALLBACK_MIME_TYPE,
-    videoBitsPerSecond: VIDEO_BITRATE,
+    mimeType,
+    audioBitsPerSecond: AUDIO_BITRATE,
+    videoBitsPerSecond: profile.videoBitsPerSecond,
   };
 }
 
-export function useRecorder({ language, stream }) {
+export function useRecorder({ language, stream, videoQuality }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [error, setError] = useState(null);
   const [recordedBlob, setRecordedBlob] = useState(null);
@@ -30,7 +36,6 @@ export function useRecorder({ language, stream }) {
 
   const accumulatedMsRef = useRef(0);
   const blobChunksRef = useRef([]);
-  const chunkIndexRef = useRef(0);
   const mediaRecorderRef = useRef(null);
   const reviewBlobUrlRef = useRef(null);
   const sessionIdRef = useRef(null);
@@ -39,7 +44,6 @@ export function useRecorder({ language, stream }) {
   const stopResolverRef = useRef(null);
   const stopRejecterRef = useRef(null);
   const timerRef = useRef(null);
-  const uploadPromisesRef = useRef([]);
 
   function clearTimer() {
     if (timerRef.current) {
@@ -72,11 +76,9 @@ export function useRecorder({ language, stream }) {
   function resetRecorderState() {
     accumulatedMsRef.current = 0;
     blobChunksRef.current = [];
-    chunkIndexRef.current = 0;
     mediaRecorderRef.current = null;
     sessionIdRef.current = null;
     startedAtRef.current = null;
-    uploadPromisesRef.current = [];
     clearTimer();
     setElapsedSeconds(0);
     setSessionId(null);
@@ -84,8 +86,9 @@ export function useRecorder({ language, stream }) {
     setState("idle");
   }
 
-  async function startRecording({ saveMode = "full", title = null } = {}) {
-    if (!stream) {
+  async function startRecording({ recordingStream = null, saveMode = "full", title = null } = {}) {
+    const activeStream = recordingStream ?? stream;
+    if (!activeStream) {
       throw new Error("Recording stream not ready.");
     }
 
@@ -107,8 +110,7 @@ export function useRecorder({ language, stream }) {
       title,
     });
 
-    const recorder = new MediaRecorder(stream, getRecorderOptions());
-    const pendingUploads = [];
+    const recorder = new MediaRecorder(activeStream, getRecorderOptions(videoQuality));
 
     resetRecorderState();
     sessionIdRef.current = session.session_id;
@@ -121,13 +123,20 @@ export function useRecorder({ language, stream }) {
       }
 
       blobChunksRef.current.push(event.data);
-      const chunkIndex = chunkIndexRef.current;
-      chunkIndexRef.current += 1;
-
-      const uploadPromise = uploadSessionChunk(session.session_id, chunkIndex, event.data);
-      pendingUploads.push(uploadPromise);
-      uploadPromisesRef.current = pendingUploads;
     };
+
+    const videoTrack = activeStream.getVideoTracks()[0] ?? null;
+    if (videoTrack) {
+      videoTrack.addEventListener(
+        "ended",
+        () => {
+          if (recorder.state === "recording" || recorder.state === "paused") {
+            recorder.stop();
+          }
+        },
+        { once: true },
+      );
+    }
 
     recorder.onerror = (event) => {
       const nextError = event?.error ?? new Error("Recording failed.");
@@ -141,8 +150,12 @@ export function useRecorder({ language, stream }) {
 
     recorder.onstop = async () => {
       try {
-        await Promise.all(uploadPromisesRef.current);
         const blob = new Blob(blobChunksRef.current, { type: recorder.mimeType || FALLBACK_MIME_TYPE });
+        if (blob.size <= 0) {
+          throw new Error("No recording data captured.");
+        }
+
+        await uploadSessionChunk(session.session_id, 0, blob);
         const blobUrl = URL.createObjectURL(blob);
         reviewBlobUrlRef.current = blobUrl;
         setRecordedBlob(blob);
@@ -172,7 +185,7 @@ export function useRecorder({ language, stream }) {
     mediaRecorderRef.current = recorder;
     startedAtRef.current = Date.now();
     startTimer();
-    recorder.start(CHUNK_TIMESLICE_MS);
+    recorder.start();
     return session.session_id;
   }
 

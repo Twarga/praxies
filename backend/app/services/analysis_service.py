@@ -15,7 +15,9 @@ class AnalysisValidationError(ValueError):
 
 
 class AnalysisRetryExhaustedError(RuntimeError):
-    pass
+    def __init__(self, message: str, last_raw: str = "") -> None:
+        super().__init__(message)
+        self.last_raw = last_raw
 
 
 class AnalysisNeedsAttentionError(RuntimeError):
@@ -49,7 +51,7 @@ def run_analysis_with_retries(
     user_message: str,
     sleep_fn: Callable[[float], None] | None = None,
     network_retry_limit: int = 3,
-) -> AnalysisModel:
+) -> tuple[AnalysisModel, str]:
     sleep = sleep_fn or (lambda _seconds: None)
     malformed_retry_used = False
     timeout_attempts = 0
@@ -57,6 +59,7 @@ def run_analysis_with_retries(
     rate_limit_attempts = 0
     network_attempts = 0
     current_system_prompt = system_prompt
+    last_raw = ""
 
     while True:
         try:
@@ -65,10 +68,12 @@ def run_analysis_with_retries(
                 system_prompt=current_system_prompt,
                 user_message=user_message,
             )
-            return parse_and_validate_analysis_response(response_text)
+            last_raw = response_text
+            analysis = parse_and_validate_analysis_response(response_text)
+            return analysis, last_raw
         except AnalysisValidationError as error:
             if malformed_retry_used:
-                raise AnalysisRetryExhaustedError("Analysis response remained malformed after retry.") from error
+                raise AnalysisRetryExhaustedError("Analysis response remained malformed after retry.", last_raw=last_raw) from error
 
             malformed_retry_used = True
             current_system_prompt = (
@@ -88,28 +93,28 @@ def run_analysis_with_retries(
 
             if _is_timeout_error(error, message):
                 if timeout_attempts >= 2:
-                    raise AnalysisRetryExhaustedError("Analysis timed out after retries.") from error
+                    raise AnalysisRetryExhaustedError("Analysis timed out after retries.", last_raw=last_raw) from error
                 sleep([2, 5][timeout_attempts])
                 timeout_attempts += 1
                 continue
 
             if status_code == 429:
                 if rate_limit_attempts >= 3:
-                    raise AnalysisRetryExhaustedError("Analysis hit rate limits after retries.") from error
+                    raise AnalysisRetryExhaustedError("Analysis hit rate limits after retries.", last_raw=last_raw) from error
                 sleep([30, 120, 600][rate_limit_attempts])
                 rate_limit_attempts += 1
                 continue
 
             if status_code == 500:
                 if server_error_attempts >= 2:
-                    raise AnalysisRetryExhaustedError("Analysis failed with server errors after retries.") from error
+                    raise AnalysisRetryExhaustedError("Analysis failed with server errors after retries.", last_raw=last_raw) from error
                 sleep([2, 5][server_error_attempts])
                 server_error_attempts += 1
                 continue
 
             if _is_network_error(error, message):
                 if network_attempts >= network_retry_limit:
-                    raise AnalysisRetryExhaustedError("Analysis failed with network errors after retries.") from error
+                    raise AnalysisRetryExhaustedError("Analysis failed with network errors after retries.", last_raw=last_raw) from error
                 sleep(60)
                 network_attempts += 1
                 continue

@@ -29,19 +29,19 @@ export function getRailRecordSlotState(index) {
 
   if (latestSession.status === "ready" || latestSession.status === "done") {
     return {
-      kind: "status",
-      label: "ready ✓",
-      sessionId: latestSession.id,
+      kind: "record",
+      label: "record",
+      sessionId: null,
       clickable: true,
     };
   }
 
   if (latestSession.status === "needs_attention" || latestSession.status === "failed") {
     return {
-      kind: "status",
-      label: "needs attention",
-      sessionId: latestSession.id,
-      clickable: false,
+      kind: "record",
+      label: "record",
+      sessionId: null,
+      clickable: true,
     };
   }
 

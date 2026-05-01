@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.settings import APP_VERSION
+
 
 LanguageCode = Literal["en", "fr", "es"]
 VideoQuality = Literal["480p", "720p", "1080p"]
@@ -23,7 +25,7 @@ SessionStatus = Literal[
 ]
 SessionSaveMode = Literal["full", "transcribe_only", "video_only"]
 SessionTitleSource = Literal["user", "llm", "default"]
-SessionSource = Literal["webcam", "upload"]
+SessionSource = Literal["screen", "upload", "webcam"]
 
 
 class StrictModel(BaseModel):
@@ -51,6 +53,7 @@ class ConfigTelegramModel(StrictModel):
 
 class ConfigModel(StrictModel):
     schema_version: int = 1
+    app_version: str = APP_VERSION
     journal_folder: str
     language_default: LanguageCode
     video_quality: VideoQuality
@@ -65,12 +68,21 @@ class ConfigModel(StrictModel):
     telegram: ConfigTelegramModel
 
 
+class MetaProcessingTerminalLineModel(StrictModel):
+    created_at: str
+    level: Literal["info", "success", "warning", "error"] = "info"
+    message: str
+
+
 class MetaProcessingModel(StrictModel):
     transcribe_started_at: str | None = None
     transcribe_finished_at: str | None = None
     analyze_started_at: str | None = None
     analyze_finished_at: str | None = None
     model_used: str | None = None
+    progress_label: str | None = None
+    progress_percent: int = Field(default=0, ge=0, le=100)
+    terminal_lines: list[MetaProcessingTerminalLineModel] = Field(default_factory=list)
     attempts: int = Field(default=0, ge=0)
 
 

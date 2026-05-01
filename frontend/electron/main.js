@@ -1,12 +1,16 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { launchBackend } from "./backend-launcher.js";
+
+const require = createRequire(import.meta.url);
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const isDev = !app.isPackaged;
 
 let backendProcess;
+const devFrontendUrl = process.env.PRAXIES_FRONTEND_URL || "http://127.0.0.1:5173";
 
 async function waitForBackend(port, timeoutMs = 10000) {
   const start = Date.now();
@@ -26,16 +30,18 @@ async function waitForBackend(port, timeoutMs = 10000) {
 }
 
 async function createWindow() {
-  const { child, port } = launchBackend();
+  const { child, port } = await launchBackend();
   backendProcess = child;
 
-  child.stdout.on("data", (chunk) => {
-    process.stdout.write(`[backend] ${chunk}`);
-  });
+  if (child) {
+    child.stdout.on("data", (chunk) => {
+      process.stdout.write(`[backend] ${chunk}`);
+    });
 
-  child.stderr.on("data", (chunk) => {
-    process.stderr.write(`[backend] ${chunk}`);
-  });
+    child.stderr.on("data", (chunk) => {
+      process.stderr.write(`[backend] ${chunk}`);
+    });
+  }
 
   try {
     await waitForBackend(port);
@@ -63,7 +69,7 @@ async function createWindow() {
   });
 
   if (isDev) {
-    await win.loadURL("http://127.0.0.1:5173");
+    await win.loadURL(devFrontendUrl);
   } else {
     await win.loadFile(join(__dirname, "..", "dist", "index.html"));
   }
@@ -91,7 +97,11 @@ app.whenReady().then(() => {
     return true;
   });
 
-  void createWindow();
+  void createWindow().catch((error) => {
+    console.error("[electron] failed to create main window:", error);
+    dialog.showErrorBox("startup failed", "praxis failed to create the main window.");
+    app.quit();
+  });
 });
 
 app.on("window-all-closed", () => {

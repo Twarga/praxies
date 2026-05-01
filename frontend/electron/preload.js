@@ -1,4 +1,7 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { contextBridge, ipcRenderer } = require("electron");
 
 const desktopApi = {
   chooseDirectory: () => ipcRenderer.invoke("choose-directory"),

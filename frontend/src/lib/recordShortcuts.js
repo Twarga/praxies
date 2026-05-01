@@ -25,7 +25,7 @@ export function getRecordShortcutAction({
   const normalizedKey = event.key?.toLowerCase();
 
   if (event.code === "Space") {
-    if (recorderState === "idle" && permissionState === "granted") {
+    if (recorderState === "idle" && permissionState !== "requesting") {
       return "start";
     }
 

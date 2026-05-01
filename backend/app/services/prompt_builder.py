@@ -11,6 +11,7 @@ LANGUAGE_FULL_NAMES = {
     "en": "english",
     "fr": "french",
     "es": "spanish",
+    "ar": "arabic",
 }
 
 ANALYSIS_SCHEMA_EXAMPLE = {
@@ -149,6 +150,34 @@ def build_transcript_user_message(transcript_segments: list[dict[str, object]] |
 
     lines.append("---")
     return "\n".join(lines)
+
+
+def build_subtitle_translation_system_prompt(*, source_language: str, target_language: str) -> str:
+    source_name = LANGUAGE_FULL_NAMES[source_language]
+    target_name = LANGUAGE_FULL_NAMES[target_language]
+    return "\n".join(
+        [
+            "You translate timed subtitle segments for a video export.",
+            f"Translate from {source_name} to {target_name}.",
+            "Preserve meaning and tone, but keep each translated subtitle concise enough",
+            "to fit into the original timing. Do not add explanations.",
+            "Return ONLY valid JSON with this exact shape:",
+            '{"segments":[{"index":0,"text":"translated subtitle text"}]}',
+        ]
+    )
+
+
+def build_subtitle_translation_user_message(segments: list[dict[str, object]]) -> str:
+    payload = {
+        "segments": [
+            {
+                "index": int(segment["index"]),
+                "text": str(segment["text"]),
+            }
+            for segment in segments
+        ]
+    }
+    return json.dumps(payload, ensure_ascii=False)
 
 
 def build_analysis_export_prompt(

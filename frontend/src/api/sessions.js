@@ -41,6 +41,14 @@ export function getSessionVideoUrl(sessionId) {
   return buildApiUrl(`/api/sessions/${sessionId}/video`);
 }
 
+export function getSessionSubtitleUrl(sessionId, language, format = "vtt") {
+  return buildApiUrl(`/api/sessions/${sessionId}/subtitles/${language}.${format}`);
+}
+
+export function getSessionExportedVideoUrl(sessionId, filename) {
+  return buildApiUrl(`/api/sessions/${sessionId}/exports/${filename}`);
+}
+
 export function getSessionThumbnailUrl(sessionId) {
   return buildApiUrl(`/api/sessions/${sessionId}/thumbnail`);
 }
@@ -51,12 +59,27 @@ export function markSessionRead(sessionId) {
   });
 }
 
+export function retrySessionProcessing(sessionId) {
+  return apiFetchJson(`/api/sessions/${sessionId}/retry`, {
+    method: "POST",
+  });
+}
+
 export function exportSessionPrompt(sessionId) {
   return apiFetchText(`/api/sessions/${sessionId}/export-prompt`);
 }
 
 export function exportSessionTranscript(sessionId) {
   return apiFetchText(`/api/sessions/${sessionId}/export-transcript`);
+}
+
+export function exportSessionSubtitledVideo(sessionId, targetLanguage) {
+  const normalizedTargetLanguage = String(targetLanguage ?? "").trim().toLowerCase();
+
+  return apiFetchJson(`/api/sessions/${sessionId}/export-subtitled-video`, {
+    method: "POST",
+    body: JSON.stringify({ target_language: normalizedTargetLanguage }),
+  });
 }
 
 export function importSessionAnalysis(sessionId, responseText) {
