@@ -2,6 +2,7 @@ import { Filter, PlayCircle, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { getSessionThumbnailUrl } from "../api/sessions.js";
 import { useIndex } from "../hooks/useIndex.js";
+import { groupGallerySessionsByMonth } from "../lib/gallery.js";
 import {
   formatDuration,
   formatShortDate,
@@ -50,6 +51,7 @@ export function Gallery({ onNavigate }) {
       return true;
     });
   }, [sessions, search, langFilter]);
+  const groupedSessions = useMemo(() => groupGallerySessionsByMonth(filtered), [filtered]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -118,42 +120,51 @@ export function Gallery({ onNavigate }) {
               : "No sessions match these filters."}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filtered.map((session) => (
-              <button
-                key={session.id}
-                type="button"
-                onClick={() => onNavigate("session", { sessionId: session.id })}
-                className="bg-[#1C1D21] border border-[#2A2C31] rounded-lg overflow-hidden cursor-pointer hover:border-[#4ADE80]/50 transition-colors group flex flex-col text-left"
-              >
-                <div className="aspect-video bg-[#0A0B0D] relative flex items-center justify-center border-b border-[#2A2C31] overflow-hidden">
-                  <GalleryThumbnail sessionId={session.id} />
-                  <div className="absolute bottom-2 right-2 bg-[#151619]/90 backdrop-blur-sm px-1.5 py-0.5 rounded text-[10px] font-mono text-[#E0E0E0] border border-[#2A2C31]">
-                    {formatDuration(session.duration_seconds)}
-                  </div>
-                  {!session.read ? (
-                    <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-[#4ADE80] shadow-[0_0_8px_rgba(74,222,128,0.6)]" />
-                  ) : null}
-                </div>
-
-                <div className="p-4 flex flex-col gap-2 flex-1">
-                  <h3 className="font-semibold text-white truncate text-sm">
-                    {getSessionTitle(session)}
-                  </h3>
-                  <div className="flex items-center justify-between mt-auto">
-                    <span className="text-[10px] font-mono opacity-50">
-                      {formatShortDate(session.created_at)}
-                    </span>
-                    <span
-                      className={`text-[9px] px-1.5 py-0.5 rounded font-mono uppercase tracking-widest ${getStatusBadgeStyle(
-                        session.status,
-                      )}`}
+          <div className="flex flex-col gap-10">
+            {groupedSessions.map((group) => (
+              <section key={group.label} className="flex flex-col gap-4">
+                <h3 className="text-[10px] font-mono lowercase tracking-[0.24em] text-[#D1D1D1] opacity-50">
+                  {group.label}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {group.sessions.map((session) => (
+                    <button
+                      key={session.id}
+                      type="button"
+                      onClick={() => onNavigate("session", { sessionId: session.id })}
+                      className="bg-[#1C1D21] border border-[#2A2C31] rounded-lg overflow-hidden cursor-pointer hover:border-[#4ADE80]/50 transition-colors group flex flex-col text-left"
                     >
-                      {getStatusLabel(session.status)}
-                    </span>
-                  </div>
+                      <div className="aspect-video bg-[#0A0B0D] relative flex items-center justify-center border-b border-[#2A2C31] overflow-hidden">
+                        <GalleryThumbnail sessionId={session.id} />
+                        <div className="absolute bottom-2 right-2 bg-[#151619]/90 backdrop-blur-sm px-1.5 py-0.5 rounded text-[10px] font-mono text-[#E0E0E0] border border-[#2A2C31]">
+                          {formatDuration(session.duration_seconds)}
+                        </div>
+                        {!session.read ? (
+                          <div className="absolute top-2 left-2 w-2 h-2 rounded-full bg-[#4ADE80] shadow-[0_0_8px_rgba(74,222,128,0.6)]" />
+                        ) : null}
+                      </div>
+
+                      <div className="p-4 flex flex-col gap-2 flex-1">
+                        <h3 className="font-semibold text-white truncate text-sm">
+                          {getSessionTitle(session)}
+                        </h3>
+                        <div className="flex items-center justify-between mt-auto">
+                          <span className="text-[10px] font-mono opacity-50">
+                            {formatShortDate(session.created_at)}
+                          </span>
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded font-mono uppercase tracking-widest ${getStatusBadgeStyle(
+                              session.status,
+                            )}`}
+                          >
+                            {getStatusLabel(session.status)}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </button>
+              </section>
             ))}
           </div>
         )}
