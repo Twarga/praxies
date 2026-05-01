@@ -5,7 +5,7 @@
 **User:** Twarga
 
 ---
-
+search for the best models localy or not on the cloud cheap and extreamly god top notch ,  but also cheap and hostable on all devices and also teh new ones 2025-2026 SOTA , not gpt 2 , or llama 2 old generation
 ## 1. Executive Summary
 
 ### What is Praxis?
