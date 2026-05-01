@@ -16,6 +16,7 @@ from app.services.analysis_service import (
     run_analysis_with_retries,
 )
 from app.services.config import dump_config_for_api, load_config, update_config
+from app.services.digest import select_today_digest_session
 from app.services.index import list_sessions, load_or_rebuild_index, rebuild_index
 from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
 from app.services.openrouter_catalog import OpenRouterCatalogError, fetch_openrouter_models
@@ -611,6 +612,11 @@ async def get_patterns(language: str) -> dict[str, object]:
         raise HTTPException(status_code=400, detail=str(error)) from None
 
     return patterns.model_dump(mode="json")
+
+
+@app.get("/api/digest/today")
+async def get_today_digest() -> dict[str, object]:
+    return {"digest": select_today_digest_session(load_config())}
 
 
 @app.get("/api/sessions/{session_id}")

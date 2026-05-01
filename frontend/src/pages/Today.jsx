@@ -1,6 +1,6 @@
 import { AlertCircle, Loader2, Mic, PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { loadSession } from "../api/sessions.js";
+import { loadSession, loadTodayDigest } from "../api/sessions.js";
 import { useIndex } from "../hooks/useIndex.js";
 import {
   formatDurationMinutes,
@@ -9,7 +9,6 @@ import {
   getSessionTitle,
   isAttentionStatus,
   isProcessingStatus,
-  isReadyStatus,
 } from "../lib/sessionUi.js";
 
 function isInLastSevenDays(value) {
@@ -117,29 +116,28 @@ export function Today({ onNavigate, scrollRef }) {
     (s) => s.status === "video_only" || s.save_mode === "transcribe_only",
   );
   const fallbackSession = needsAttention[0] || skippedAnalysis[0] || null;
-  const latestReady = sessions.find((s) => isReadyStatus(s.status));
-  const [latestBundle, setLatestBundle] = useState(null);
+  const [todayDigest, setTodayDigest] = useState(null);
+  const [digestLoading, setDigestLoading] = useState(true);
   const [fallbackBundle, setFallbackBundle] = useState(null);
 
   useEffect(() => {
-    if (!latestReady) {
-      setLatestBundle(null);
-      return undefined;
-    }
-
     let cancelled = false;
-    loadSession(latestReady.id)
-      .then((bundle) => {
-        if (!cancelled) setLatestBundle(bundle);
+    setDigestLoading(true);
+    loadTodayDigest()
+      .then((payload) => {
+        if (!cancelled) setTodayDigest(payload.digest ?? null);
       })
       .catch(() => {
-        if (!cancelled) setLatestBundle(null);
+        if (!cancelled) setTodayDigest(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDigestLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [latestReady?.id]);
+  }, [index?.generated_at]);
 
   useEffect(() => {
     if (!fallbackSession) {
@@ -169,11 +167,10 @@ export function Today({ onNavigate, scrollRef }) {
   const totalsByLang = index?.totals?.by_language ?? {};
   const primaryLanguage = getPrimaryLanguage(totalsByLang);
 
-  const summaryText =
-    latestBundle?.analysis?.session_summary ||
-    latestBundle?.analysis?.prose_verdict ||
-    null;
   const fallbackBanner = getFallbackBannerCopy(fallbackSession, fallbackBundle);
+  const digestSession = todayDigest?.session ?? null;
+  const digestAnalysis = todayDigest?.analysis ?? null;
+  const digestActions = (digestAnalysis?.actionable_improvements ?? []).slice(0, 3);
 
   return (
     <div ref={scrollRef} className="flex flex-col h-full overflow-y-auto">
@@ -246,20 +243,27 @@ export function Today({ onNavigate, scrollRef }) {
             </p>
           </button>
 
-          {/* Latest session */}
-          {latestReady && (
+          {/* Digest */}
+          {digestLoading ? (
+            <div className="bg-[#1C1D21] border border-[#2A2C31] rounded-lg p-5 flex items-center gap-3">
+              <Loader2 size={14} className="text-[#F27D26] animate-spin shrink-0" />
+              <p className="text-[11px] font-mono uppercase tracking-widest opacity-50">
+                Loading digest
+              </p>
+            </div>
+          ) : digestSession && digestAnalysis ? (
             <div className="flex flex-col gap-3">
               <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-                Latest Session
+                Daily Digest
               </h3>
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => onNavigate("session", { sessionId: latestReady.id })}
+                onClick={() => onNavigate("session", { sessionId: digestSession.id })}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" || event.key === " ") {
                     event.preventDefault();
-                    onNavigate("session", { sessionId: latestReady.id });
+                    onNavigate("session", { sessionId: digestSession.id });
                   }
                 }}
                 className="bg-[#1C1D21] border border-[#2A2C31] rounded-lg p-5 flex flex-col gap-4 cursor-pointer hover:border-[#4ADE80] transition-colors"
@@ -267,10 +271,11 @@ export function Today({ onNavigate, scrollRef }) {
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="text-base font-semibold text-white mb-1 tracking-tight">
-                      {getSessionTitle(latestReady)}
+                      {getSessionTitle(digestSession)}
                     </h4>
                     <p className="text-[11px] font-mono opacity-50 uppercase tracking-tighter">
-                      {formatShortDate(latestReady.created_at)} · {formatDurationMinutes(latestReady.duration_seconds)}
+                      {formatShortDate(digestSession.created_at)} · {formatDurationMinutes(digestSession.duration_seconds)}
+                      {todayDigest.digest_date ? ` · digest ${todayDigest.digest_date}` : ""}
                     </p>
                   </div>
                   <div className="w-8 h-8 rounded bg-[#2A2C31] flex items-center justify-center">
@@ -278,12 +283,39 @@ export function Today({ onNavigate, scrollRef }) {
                   </div>
                 </div>
 
-                {summaryText ? (
-                  <div className="mt-1 text-sm text-[#D1D1D1] italic opacity-80 border-l-2 border-[#F27D26] pl-3 py-1">
-                    "{summaryText}"
+                {digestAnalysis.prose_verdict ? (
+                  <div className="mt-1 text-sm text-[#D1D1D1] opacity-85 border-l-2 border-[#F27D26] pl-3 py-1 leading-relaxed">
+                    "{digestAnalysis.prose_verdict}"
+                  </div>
+                ) : null}
+
+                {digestActions.length ? (
+                  <div className="border border-[#2A2C31] bg-[#151619] rounded p-4">
+                    <div className="text-[10px] font-mono uppercase tracking-widest opacity-40 mb-3">
+                      Next actions
+                    </div>
+                    <div className="space-y-2">
+                      {digestActions.map((action, index) => (
+                        <div key={`${action}-${index}`} className="flex gap-3 text-xs text-[#D1D1D1]">
+                          <span className="font-mono text-[#4ADE80] opacity-80">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <span className="leading-relaxed">{action}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
               </div>
+            </div>
+          ) : (
+            <div className="bg-[#1C1D21] border border-[#2A2C31] rounded-lg p-5">
+              <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-3">
+                Daily Digest
+              </h3>
+              <p className="text-sm text-[#D1D1D1] opacity-75 leading-relaxed">
+                No analyzed session is ready for a digest yet. Record and process a session to unlock this card.
+              </p>
             </div>
           )}
         </div>

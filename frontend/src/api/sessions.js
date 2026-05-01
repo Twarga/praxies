@@ -37,6 +37,10 @@ export function loadSession(sessionId) {
   return apiFetchJson(`/api/sessions/${sessionId}`);
 }
 
+export function loadTodayDigest() {
+  return apiFetchJson("/api/digest/today");
+}
+
 export function getSessionVideoUrl(sessionId) {
   return buildApiUrl(`/api/sessions/${sessionId}/video`);
 }
