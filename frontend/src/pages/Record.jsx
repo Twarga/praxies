@@ -144,6 +144,7 @@ export function Record({ onNavigate }) {
     handlePause: () => recorder.pauseRecording(),
     handleResume: () => recorder.resumeRecording(),
     handleStop: () => recorder.stopRecording(),
+    handleStopForDiscard: () => handleStopForDiscard(),
     handleSave: () => handleFinalize("full"),
     handleDiscard: () => handleDiscard(),
     handleCancelDiscard: () => setShowDiscardConfirm(false),
@@ -165,6 +166,7 @@ export function Record({ onNavigate }) {
       if (action === "pause") return handlers.handlePause();
       if (action === "resume") return handlers.handleResume();
       if (action === "stop") return void handlers.handleStop();
+      if (action === "stop-for-discard") return void handlers.handleStopForDiscard();
       if (action === "save-full") return void handlers.handleSave();
       if (action === "discard") return void handlers.handleDiscard();
       if (action === "cancel-discard") return handlers.handleCancelDiscard();
@@ -231,6 +233,17 @@ export function Record({ onNavigate }) {
     } catch (error) {
       setActionState("idle");
       setActionError(error instanceof Error ? error.message : "Failed to finalize recording.");
+    }
+  }
+
+  async function handleStopForDiscard() {
+    try {
+      const result = await recorder.stopRecording();
+      if (result) {
+        setShowDiscardConfirm(true);
+      }
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Failed to stop recording.");
     }
   }
 

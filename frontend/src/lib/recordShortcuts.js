@@ -43,7 +43,7 @@ export function getRecordShortcutAction({
   }
 
   if (normalizedKey === "enter" && recorderState === "stopped") {
-    return "save-full";
+    return showDiscardConfirm ? null : "save-full";
   }
 
   if (normalizedKey === "d" && recorderState === "stopped") {
@@ -55,8 +55,12 @@ export function getRecordShortcutAction({
       return "back";
     }
 
+    if (recorderState === "recording" || recorderState === "paused") {
+      return "stop-for-discard";
+    }
+
     if (recorderState === "stopped") {
-      return showDiscardConfirm ? "cancel-discard" : "back";
+      return showDiscardConfirm ? "cancel-discard" : "discard";
     }
   }
 
