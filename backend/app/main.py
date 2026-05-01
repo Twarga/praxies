@@ -602,6 +602,17 @@ async def get_sessions(
     return list_sessions(load_config(), lang=lang, date_from=from_date, date_to=to_date, limit=limit)
 
 
+@app.get("/api/patterns/{language}")
+async def get_patterns(language: str) -> dict[str, object]:
+    normalized_language = language.strip().lower()
+    try:
+        patterns = load_recurring_patterns(load_config(), normalized_language)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from None
+
+    return patterns.model_dump(mode="json")
+
+
 @app.get("/api/sessions/{session_id}")
 async def get_session(session_id: str) -> dict[str, object]:
     session = load_session_bundle(load_config(), session_id)
