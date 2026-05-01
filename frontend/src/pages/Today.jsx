@@ -1,6 +1,7 @@
 import { AlertCircle, Loader2, Mic, PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { loadSession, loadTodayDigest } from "../api/sessions.js";
+import { StreakGrid } from "../components/StreakGrid.jsx";
 import { useIndex } from "../hooks/useIndex.js";
 import {
   formatDurationMinutes,
@@ -410,6 +411,18 @@ export function Today({ onNavigate, scrollRef }) {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="bg-[#151619] rounded-lg border border-[#2A2C31] p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+                Streak Grid
+              </h3>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
+                {index?.streak?.current ?? 0} day
+              </div>
+            </div>
+            <StreakGrid sessions={sessions} />
           </div>
         </div>
       </div>

@@ -79,9 +79,9 @@ export function StreakGrid({ sessions, endDate = new Date() }) {
   const days = buildGridDays(sessions, endDate);
 
   return (
-    <div className="overflow-hidden">
+    <div className="overflow-x-auto pb-1">
       <div
-        className="grid grid-flow-col grid-rows-7 gap-[3px]"
+        className="grid grid-flow-col grid-rows-7 gap-[3px] w-max"
         aria-label="365 day streak activity grid"
       >
         {days.map((day) => (
