@@ -90,6 +90,8 @@ def rebuild_index(config, now: datetime | None = None) -> IndexModel:
                 "title": meta.title,
                 "duration_seconds": meta.duration_seconds,
                 "status": meta.status,
+                "save_mode": meta.save_mode,
+                "error": meta.error,
                 "read": meta.read,
             }
             for meta in metas

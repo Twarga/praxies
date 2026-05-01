@@ -116,6 +116,8 @@ class IndexSessionSummary(StrictModel):
     title: str
     duration_seconds: float = Field(ge=0)
     status: SessionStatus
+    save_mode: SessionSaveMode = "full"
+    error: str | None = None
     read: bool
 
 

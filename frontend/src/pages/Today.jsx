@@ -30,13 +30,96 @@ function getPrimaryLanguage(byLanguage) {
   return code.toUpperCase();
 }
 
+function getFallbackBannerCopy(session, bundle) {
+  const meta = bundle?.meta;
+  const errorText = meta?.error || session?.error || "";
+  const error = String(errorText).toLowerCase();
+
+  if (session?.status === "video_only" || meta?.save_mode === "video_only") {
+    return {
+      tone: "neutral",
+      eyebrow: "analysis skipped",
+      title: "Saved as video only",
+      body: "This take was saved without transcription or AI analysis. Open it to review the raw recording.",
+      action: "Open video",
+    };
+  }
+
+  if (meta?.save_mode === "transcribe_only") {
+    return {
+      tone: "neutral",
+      eyebrow: "analysis skipped",
+      title: "Transcript-only session",
+      body: "This take has a transcript, but AI analysis was intentionally skipped.",
+      action: "Open transcript",
+    };
+  }
+
+  if (error.includes("api key") || error.includes("401") || error.includes("unauthorized")) {
+    return {
+      tone: "warning",
+      eyebrow: "openrouter attention",
+      title: "API key needs attention",
+      body: "The session could not be analyzed because the OpenRouter key is missing or invalid. Fix it in Settings, then retry the session.",
+      action: "Review recovery",
+    };
+  }
+
+  if (error.includes("credit") || error.includes("402") || error.includes("payment")) {
+    return {
+      tone: "warning",
+      eyebrow: "openrouter attention",
+      title: "OpenRouter credits exhausted",
+      body: "The transcript is saved, but analysis could not run because the account has no available credits.",
+      action: "Review recovery",
+    };
+  }
+
+  if (error.includes("malformed") || error.includes("json") || error.includes("schema")) {
+    return {
+      tone: "warning",
+      eyebrow: "model output rejected",
+      title: "Analysis response was malformed",
+      body: "The transcript is saved, but the model returned output that did not match the required analysis schema. You can retry or import external JSON.",
+      action: "Open fallback",
+    };
+  }
+
+  if (session?.status === "failed") {
+    return {
+      tone: "danger",
+      eyebrow: "processing failed",
+      title: "Session processing failed",
+      body: errorText || "The local pipeline failed before the session became ready. Open the session to inspect the processing log.",
+      action: "Inspect session",
+    };
+  }
+
+  if (session?.status === "needs_attention") {
+    return {
+      tone: "warning",
+      eyebrow: "needs attention",
+      title: "Analysis needs manual recovery",
+      body: errorText || "The transcript is saved, but AI analysis needs a retry or manual import.",
+      action: "Recover analysis",
+    };
+  }
+
+  return null;
+}
+
 export function Today({ onNavigate, scrollRef }) {
   const { index } = useIndex();
   const sessions = index?.sessions ?? [];
   const processing = sessions.filter((s) => isProcessingStatus(s.status));
   const needsAttention = sessions.filter((s) => isAttentionStatus(s.status));
+  const skippedAnalysis = sessions.filter(
+    (s) => s.status === "video_only" || s.save_mode === "transcribe_only",
+  );
+  const fallbackSession = needsAttention[0] || skippedAnalysis[0] || null;
   const latestReady = sessions.find((s) => isReadyStatus(s.status));
   const [latestBundle, setLatestBundle] = useState(null);
+  const [fallbackBundle, setFallbackBundle] = useState(null);
 
   useEffect(() => {
     if (!latestReady) {
@@ -58,6 +141,26 @@ export function Today({ onNavigate, scrollRef }) {
     };
   }, [latestReady?.id]);
 
+  useEffect(() => {
+    if (!fallbackSession) {
+      setFallbackBundle(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    loadSession(fallbackSession.id)
+      .then((bundle) => {
+        if (!cancelled) setFallbackBundle(bundle);
+      })
+      .catch(() => {
+        if (!cancelled) setFallbackBundle(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fallbackSession?.id]);
+
   const recentSessions = sessions.filter((s) => isInLastSevenDays(s.created_at));
   const weeklyCount = recentSessions.length;
   const weeklyMinutes = Math.round(
@@ -70,6 +173,7 @@ export function Today({ onNavigate, scrollRef }) {
     latestBundle?.analysis?.session_summary ||
     latestBundle?.analysis?.prose_verdict ||
     null;
+  const fallbackBanner = getFallbackBannerCopy(fallbackSession, fallbackBundle);
 
   return (
     <div ref={scrollRef} className="flex flex-col h-full overflow-y-auto">
@@ -83,6 +187,48 @@ export function Today({ onNavigate, scrollRef }) {
       <div className="px-8 max-w-5xl w-full mx-auto grid grid-cols-12 gap-6 py-8">
         {/* Main column */}
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+          {fallbackSession && fallbackBanner ? (
+            <button
+              type="button"
+              onClick={() => onNavigate("session", { sessionId: fallbackSession.id })}
+              className={`bg-[#151619] border rounded-lg p-5 text-left transition-colors ${
+                fallbackBanner.tone === "danger"
+                  ? "border-red-500/40 hover:border-red-400/70"
+                  : fallbackBanner.tone === "warning"
+                    ? "border-[#F27D26]/50 hover:border-[#F27D26]/80"
+                    : "border-[#2A2C31] hover:border-[#4ADE80]/50"
+              }`}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className={`w-9 h-9 rounded flex items-center justify-center shrink-0 ${
+                    fallbackBanner.tone === "danger"
+                      ? "bg-red-500/10 text-red-300"
+                      : fallbackBanner.tone === "warning"
+                        ? "bg-[#F27D26]/10 text-[#F27D26]"
+                        : "bg-[#2A2C31] text-[#D1D1D1]"
+                  }`}
+                >
+                  <AlertCircle size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-mono uppercase tracking-widest opacity-50 mb-1">
+                    {fallbackBanner.eyebrow}
+                  </div>
+                  <h3 className="text-sm font-semibold text-white mb-1">
+                    {fallbackBanner.title}
+                  </h3>
+                  <p className="text-xs text-[#D1D1D1] opacity-75 leading-relaxed">
+                    {fallbackBanner.body}
+                  </p>
+                  <div className="mt-4 text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
+                    {fallbackBanner.action} · {getSessionTitle(fallbackSession)}
+                  </div>
+                </div>
+              </div>
+            </button>
+          ) : null}
+
           {/* Primary action */}
           <button
             type="button"
