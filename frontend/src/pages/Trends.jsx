@@ -9,6 +9,12 @@ const RANGE_OPTIONS = [
   { id: "all", label: "ALL" },
 ];
 
+const LANGUAGE_SERIES = [
+  { id: "en", label: "EN", color: "#4ADE80" },
+  { id: "fr", label: "FR", color: "#F27D26" },
+  { id: "es", label: "ES", color: "#60A5FA" },
+];
+
 function formatHours(value) {
   const numeric = Number(value) || 0;
   return numeric.toFixed(numeric >= 10 ? 0 : 1);
@@ -32,6 +38,132 @@ function PlaceholderPanel({ title, body }) {
         {title}
       </h3>
       <p className="text-sm text-[#D1D1D1] opacity-70 leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+function FluencyChart({ series }) {
+  const points = LANGUAGE_SERIES.flatMap((language) =>
+    (series?.[language.id] ?? []).map((point) => ({
+      ...point,
+      language: language.id,
+      color: language.color,
+    })),
+  );
+
+  if (points.length === 0) {
+    return (
+      <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-3">
+          Fluency
+        </h3>
+        <p className="text-sm text-[#D1D1D1] opacity-70 leading-relaxed">
+          No fluency scores are available in this range yet.
+        </p>
+      </div>
+    );
+  }
+
+  const timestamps = points.map((point) => new Date(point.date).getTime()).filter(Number.isFinite);
+  const minTime = Math.min(...timestamps);
+  const maxTime = Math.max(...timestamps);
+  const width = 640;
+  const height = 240;
+  const padding = { top: 22, right: 22, bottom: 30, left: 34 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+
+  function xFor(date) {
+    const time = new Date(date).getTime();
+    if (maxTime === minTime) return padding.left + plotWidth / 2;
+    return padding.left + ((time - minTime) / (maxTime - minTime)) * plotWidth;
+  }
+
+  function yFor(score) {
+    return padding.top + (1 - (Number(score) || 0) / 10) * plotHeight;
+  }
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+          Fluency
+        </h3>
+        <div className="flex items-center gap-3">
+          {LANGUAGE_SERIES.map((language) => (
+            <div key={language.id} className="flex items-center gap-1.5">
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: language.color }}
+              />
+              <span className="text-[10px] font-mono uppercase tracking-widest opacity-50">
+                {language.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-[240px]"
+        role="img"
+        aria-label="Fluency score line chart"
+      >
+        {[0, 2, 4, 6, 8, 10].map((score) => {
+          const y = yFor(score);
+          return (
+            <g key={score}>
+              <line
+                x1={padding.left}
+                x2={width - padding.right}
+                y1={y}
+                y2={y}
+                stroke="#2A2C31"
+                strokeWidth="1"
+              />
+              <text
+                x={padding.left - 10}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-[#D1D1D1] opacity-40 text-[10px] font-mono"
+              >
+                {score}
+              </text>
+            </g>
+          );
+        })}
+
+        {LANGUAGE_SERIES.map((language) => {
+          const languagePoints = series?.[language.id] ?? [];
+          const path = languagePoints
+            .map((point, index) => `${index === 0 ? "M" : "L"} ${xFor(point.date)} ${yFor(point.score)}`)
+            .join(" ");
+
+          return (
+            <g key={language.id}>
+              {languagePoints.length > 1 ? (
+                <path d={path} fill="none" stroke={language.color} strokeWidth="2.5" />
+              ) : null}
+              {languagePoints.map((point) => (
+                <circle
+                  key={`${language.id}-${point.session_id}`}
+                  cx={xFor(point.date)}
+                  cy={yFor(point.score)}
+                  r="4"
+                  fill={language.color}
+                  stroke="#151619"
+                  strokeWidth="2"
+                >
+                  <title>
+                    {language.label} · {point.date} · {point.score}/10
+                  </title>
+                </circle>
+              ))}
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
@@ -117,10 +249,7 @@ export function Trends({ scrollRef }) {
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <PlaceholderPanel
-                title="Fluency"
-                body="Fluency chart data is loaded. The line chart renders in the next task."
-              />
+              <FluencyChart series={payload?.fluency_by_language} />
               <PlaceholderPanel
                 title="Recurring Patterns"
                 body="Pattern counts and trend labels are loaded. The visual list renders in the next task."
