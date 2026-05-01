@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const QUALIFYING_SESSION_SECONDS = 120;
 
@@ -75,36 +77,58 @@ function buildGridDays(sessions, endDate) {
   return days;
 }
 
+function formatSummary(day) {
+  if (!day) return "Hover a day to inspect practice activity.";
+
+  const minutes = Math.round(day.totalSeconds / 60);
+  if (day.count === 0) {
+    return `${day.key} · no qualifying practice`;
+  }
+
+  const sessionLabel = day.count === 1 ? "session" : "sessions";
+  return `${day.key} · ${day.count} ${sessionLabel} · ${minutes} min`;
+}
+
 export function StreakGrid({ sessions, endDate = new Date() }) {
   const days = buildGridDays(sessions, endDate);
+  const [activeDay, setActiveDay] = useState(null);
 
   return (
-    <div className="overflow-x-auto pb-1">
-      <div
-        className="grid grid-flow-col grid-rows-7 gap-[3px] w-max"
-        aria-label="365 day streak activity grid"
-      >
-        {days.map((day) => (
-          <div
-            key={day.key}
-            className={`h-2.5 w-2.5 rounded-[2px] border ${INTENSITY_CLASSES[day.intensity]}`}
-            title={`${day.key}: ${day.count} qualifying session${day.count === 1 ? "" : "s"}`}
-            aria-label={`${day.key}: ${day.count} qualifying session${day.count === 1 ? "" : "s"}`}
-          />
-        ))}
+    <div>
+      <div className="mb-3 min-h-4 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/50">
+        {formatSummary(activeDay)}
       </div>
-      <div className="mt-3 flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/40">
-        <span>less</span>
-        <div className="flex gap-[3px]">
-          {INTENSITY_CLASSES.map((className, index) => (
-            <span
-              key={className}
-              className={`h-2.5 w-2.5 rounded-[2px] border ${className}`}
-              aria-label={`intensity ${index}`}
+      <div className="overflow-x-auto pb-1" onMouseLeave={() => setActiveDay(null)}>
+        <div
+          className="grid grid-flow-col grid-rows-7 gap-[3px] w-max"
+          aria-label="365 day streak activity grid"
+        >
+          {days.map((day) => (
+            <button
+              key={day.key}
+              type="button"
+              onMouseEnter={() => setActiveDay(day)}
+              onFocus={() => setActiveDay(day)}
+              onBlur={() => setActiveDay(null)}
+              className={`h-2.5 w-2.5 rounded-[2px] border outline-none transition-transform hover:scale-125 focus:scale-125 focus:ring-1 focus:ring-[#D1D1D1]/40 ${INTENSITY_CLASSES[day.intensity]}`}
+              title={`${day.key}: ${day.count} qualifying session${day.count === 1 ? "" : "s"}`}
+              aria-label={formatSummary(day)}
             />
           ))}
         </div>
-        <span>more</span>
+        <div className="mt-3 flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/40">
+          <span>less</span>
+          <div className="flex gap-[3px]">
+            {INTENSITY_CLASSES.map((className, index) => (
+              <span
+                key={className}
+                className={`h-2.5 w-2.5 rounded-[2px] border ${className}`}
+                aria-label={`intensity ${index}`}
+              />
+            ))}
+          </div>
+          <span>more</span>
+        </div>
       </div>
     </div>
   );

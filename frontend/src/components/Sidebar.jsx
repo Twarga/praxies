@@ -10,6 +10,7 @@ const NAV_ITEMS = [
 export function Sidebar({ currentPage, onNavigate }) {
   const { index } = useIndex();
   const totalSessions = index?.totals?.sessions ?? 0;
+  const currentStreak = index?.streak?.current ?? 0;
 
   return (
     <nav className="w-[72px] sm:w-[240px] h-full bg-[#151619] border-r border-[#2A2C31] flex flex-col py-6 items-center sm:items-stretch sm:px-4 shrink-0">
@@ -65,8 +66,19 @@ export function Sidebar({ currentPage, onNavigate }) {
             Settings
           </span>
         </button>
-        <div className="hidden sm:block mt-2 text-[10px] sm:px-3 font-mono opacity-30 text-center sm:text-left">
-          {totalSessions} sessions
+        <div className="hidden sm:grid mt-3 grid-cols-2 gap-2 sm:px-1 font-mono">
+          <div className="rounded border border-[#2A2C31] bg-[#1C1D21] px-2 py-2">
+            <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1] opacity-35">
+              Streak
+            </div>
+            <div className="text-sm text-white tnum">{currentStreak}</div>
+          </div>
+          <div className="rounded border border-[#2A2C31] bg-[#1C1D21] px-2 py-2">
+            <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1] opacity-35">
+              Total
+            </div>
+            <div className="text-sm text-white tnum">{totalSessions}</div>
+          </div>
         </div>
       </div>
     </nav>

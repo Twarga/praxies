@@ -428,6 +428,33 @@ function ListBlock({ title, items, accent }) {
   );
 }
 
+function PatternsHitTodayBlock({ items }) {
+  if (!items || items.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+          Patterns Hit Today
+        </h3>
+        <span className="text-[10px] font-mono uppercase tracking-widest text-[#F27D26]">
+          {items.length} hit{items.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {items.map((item, index) => (
+          <div
+            key={`patterns-hit-today-${index}`}
+            className="p-3 bg-[#1C1D21] border-l-2 border-[#F27D26] text-sm text-[#E0E0E0]"
+          >
+            {item}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function StatBlock({ label, value }) {
   return (
     <div className="p-4 bg-[#1C1D21] border border-[#2A2C31] rounded-lg">
@@ -1120,11 +1147,7 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
                         </div>
                       ) : null}
 
-                      <ListBlock
-                        title="Recurring Patterns"
-                        items={analysis.recurring_patterns_hit}
-                        accent="warning"
-                      />
+                      <PatternsHitTodayBlock items={analysis.recurring_patterns_hit} />
                       <ListBlock
                         title="Action Items"
                         items={analysis.actionable_improvements}
