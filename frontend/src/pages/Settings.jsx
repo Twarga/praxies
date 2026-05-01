@@ -1,5 +1,5 @@
 import { Check, FolderOpen, Loader2, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   loadOpenRouterModels,
   testOpenRouter,
@@ -119,14 +119,60 @@ export function Settings() {
   const [openRouterModels, setOpenRouterModels] = useState([]);
   const [openRouterApiKey, setOpenRouterApiKey] = useState("");
   const [personalContext, setPersonalContext] = useState("");
+  const [personalContextSaveState, setPersonalContextSaveState] = useState("idle");
   const [openRouterTest, setOpenRouterTest] = useState(null);
   const [whisperTest, setWhisperTest] = useState(null);
   const [openRouterTesting, setOpenRouterTesting] = useState(false);
   const [whisperTesting, setWhisperTesting] = useState(false);
+  const lastSyncedPersonalContextRef = useRef("");
+  const patchConfigRef = useRef(patchConfig);
+  const pushToastRef = useRef(pushToast);
 
   useEffect(() => {
-    setPersonalContext(config?.personal_context ?? "");
+    patchConfigRef.current = patchConfig;
+    pushToastRef.current = pushToast;
+  }, [patchConfig, pushToast]);
+
+  useEffect(() => {
+    if (!config) return;
+
+    const previousSynced = lastSyncedPersonalContextRef.current;
+    const nextSynced = config.personal_context ?? "";
+    const canSyncFromConfig = personalContext === previousSynced || previousSynced === "";
+
+    lastSyncedPersonalContextRef.current = nextSynced;
+    if (canSyncFromConfig) {
+      setPersonalContext(nextSynced);
+      setPersonalContextSaveState("idle");
+    }
   }, [config?.personal_context]);
+
+  useEffect(() => {
+    const savedContext = config?.personal_context ?? "";
+    if (!config) return undefined;
+
+    if (personalContext === savedContext) {
+      return undefined;
+    }
+
+    setPersonalContextSaveState("pending");
+    const timeoutId = window.setTimeout(() => {
+      setPersonalContextSaveState("saving");
+      patchConfigRef.current({ personal_context: personalContext })
+        .then(() => {
+          setPersonalContextSaveState("saved");
+        })
+        .catch((error) => {
+          setPersonalContextSaveState("error");
+          pushToastRef.current({
+            kind: "error",
+            message: error instanceof Error ? error.message : "Failed to autosave context.",
+          });
+        });
+    }, 1000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [config?.personal_context, personalContext]);
 
   useEffect(() => {
     if (activeTab !== "ai") return;
@@ -180,10 +226,6 @@ export function Settings() {
     } finally {
       setWhisperTesting(false);
     }
-  }
-
-  async function handleSavePersonalContext() {
-    await applyPatch({ personal_context: personalContext }, "Personal context saved.");
   }
 
   async function handleSaveApiKey() {
@@ -286,14 +328,24 @@ export function Settings() {
                       className="w-full bg-[#0A0B0D] border border-[#2A2C31] rounded p-3 text-xs text-[#E0E0E0] font-mono leading-relaxed focus:outline-none focus:border-[#4ADE80] resize-y"
                     />
                     <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => void handleSavePersonalContext()}
-                        disabled={isPatching || personalContext === config.personal_context}
-                        className="px-3 py-1.5 bg-[#4ADE80] hover:bg-[#4ADE80]/90 text-black rounded text-xs font-semibold uppercase tracking-widest transition-colors disabled:opacity-50"
-                      >
-                        Save Context
-                      </button>
+                      <div className="min-h-6 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1] opacity-70">
+                        {personalContextSaveState === "pending" ? "Autosaves in 1s" : null}
+                        {personalContextSaveState === "saving" ? (
+                          <>
+                            <Loader2 size={12} className="animate-spin" />
+                            Saving context
+                          </>
+                        ) : null}
+                        {personalContextSaveState === "saved" ? (
+                          <>
+                            <Check size={12} className="text-[#4ADE80]" />
+                            Context saved
+                          </>
+                        ) : null}
+                        {personalContextSaveState === "error" ? (
+                          <span className="text-red-400">Autosave failed</span>
+                        ) : null}
+                      </div>
                     </div>
                   </Card>
                 </section>
