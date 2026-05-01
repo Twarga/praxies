@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from app.models import ConfigModel, RecurringPatternsModel
@@ -9,6 +9,9 @@ from app.services.json_io import read_json_file, write_json_file
 
 
 SUPPORTED_PATTERN_LANGUAGES = {"en", "fr", "es"}
+PATTERN_CLEANUP_INTERVAL = 10
+PATTERN_DECAY_AFTER_DAYS = 30
+MAX_RECURRING_PATTERNS = 15
 
 
 def get_patterns_dir(config: ConfigModel) -> Path:
@@ -60,6 +63,63 @@ def merge_recurring_pattern_hits(
     return save_recurring_patterns(config, updated)
 
 
+def cleanup_recurring_patterns_if_due(
+    config: ConfigModel,
+    *,
+    language: str,
+    completed_analysis_count: int,
+    now: datetime | None = None,
+) -> RecurringPatternsModel:
+    patterns = load_recurring_patterns(config, language)
+    updated = cleanup_recurring_patterns(
+        patterns,
+        completed_analysis_count=completed_analysis_count,
+        now=now,
+    )
+    if updated == patterns:
+        return patterns
+    return save_recurring_patterns(config, updated)
+
+
+def cleanup_recurring_patterns(
+    patterns: RecurringPatternsModel,
+    *,
+    completed_analysis_count: int,
+    now: datetime | None = None,
+) -> RecurringPatternsModel:
+    _validate_language(patterns.language)
+    if completed_analysis_count <= 0 or completed_analysis_count % PATTERN_CLEANUP_INTERVAL != 0:
+        capped = _cap_pattern_entries([entry.model_dump(mode="json") for entry in patterns.patterns])
+        if len(capped) == len(patterns.patterns):
+            return patterns
+        return RecurringPatternsModel(
+            language=patterns.language,
+            updated_at=(now or datetime.now().astimezone()).isoformat(timespec="seconds"),
+            patterns=capped,
+        )
+
+    reference = now or datetime.now().astimezone()
+    reference_date = reference.date()
+    cleaned: list[dict[str, object]] = []
+
+    for pattern in patterns.patterns:
+        entry = pattern.model_dump(mode="json")
+        days_since_seen = (reference_date - date.fromisoformat(pattern.last_seen)).days
+        count = int(entry["count"])
+
+        if days_since_seen >= PATTERN_DECAY_AFTER_DAYS:
+            count = max(1, count - 1)
+
+        entry["count"] = count
+        cleaned.append(entry)
+
+    return RecurringPatternsModel(
+        language=patterns.language,
+        updated_at=reference.isoformat(timespec="seconds"),
+        patterns=_cap_pattern_entries(cleaned),
+    )
+
+
 def merge_recurring_patterns(
     patterns: RecurringPatternsModel,
     *,
@@ -102,7 +162,7 @@ def merge_recurring_patterns(
     return RecurringPatternsModel(
         language=patterns.language,
         updated_at=updated_at,
-        patterns=entries,
+        patterns=_cap_pattern_entries(entries),
     )
 
 
@@ -124,3 +184,17 @@ def _dedupe_hits(hits: list[str] | None) -> list[str]:
         seen.add(key)
         deduped.append(normalized)
     return deduped
+
+
+def _cap_pattern_entries(entries: list[dict[str, object]]) -> list[dict[str, object]]:
+    if len(entries) <= MAX_RECURRING_PATTERNS:
+        return entries
+
+    return sorted(
+        entries,
+        key=lambda entry: (
+            -int(entry["count"]),
+            -date.fromisoformat(str(entry["last_seen"])).toordinal(),
+            str(entry["name"]).casefold(),
+        ),
+    )[:MAX_RECURRING_PATTERNS]

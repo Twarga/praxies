@@ -7,6 +7,7 @@ import pytest
 from app.models import RecurringPatternsModel
 from app.services.json_io import read_json_file
 from app.services.recurring_patterns import (
+    cleanup_recurring_patterns,
     get_patterns_file_path,
     load_recurring_patterns,
     merge_recurring_pattern_hits,
@@ -142,3 +143,115 @@ def test_merge_recurring_patterns_is_idempotent_for_same_session(config):
     assert len(updated.patterns) == 1
     assert updated.patterns[0].count == 1
     assert updated.patterns[0].recent_sessions == ["2026-05-01_fr_take"]
+
+
+def test_cleanup_recurring_patterns_skips_until_tenth_analysis():
+    existing = RecurringPatternsModel(
+        language="en",
+        updated_at="2026-05-01T12:00:00+00:00",
+        patterns=[
+            {
+                "name": "stale but not due",
+                "description": "Stale but cleanup is not due.",
+                "count": 2,
+                "first_seen": "2026-03-01",
+                "last_seen": "2026-03-01",
+                "recent_sessions": ["2026-03-01_en_take"],
+            }
+        ],
+    )
+
+    updated = cleanup_recurring_patterns(
+        existing,
+        completed_analysis_count=9,
+        now=datetime.fromisoformat("2026-05-01T12:00:00+00:00"),
+    )
+
+    assert updated == existing
+
+
+def test_cleanup_recurring_patterns_decays_without_deleting_old_entries():
+    existing = RecurringPatternsModel(
+        language="en",
+        updated_at="2026-05-01T12:00:00+00:00",
+        patterns=[
+            {
+                "name": "recent",
+                "description": "Seen recently.",
+                "count": 3,
+                "first_seen": "2026-04-20",
+                "last_seen": "2026-04-25",
+                "recent_sessions": ["2026-04-25_en_take"],
+            },
+            {
+                "name": "decay",
+                "description": "Old enough to decay.",
+                "count": 3,
+                "first_seen": "2026-03-01",
+                "last_seen": "2026-03-20",
+                "recent_sessions": ["2026-03-20_en_take"],
+            },
+            {
+                "name": "floor at one",
+                "description": "Old single-count pattern.",
+                "count": 1,
+                "first_seen": "2026-03-01",
+                "last_seen": "2026-03-20",
+                "recent_sessions": ["2026-03-20_en_take"],
+            },
+            {
+                "name": "very old",
+                "description": "Very old pattern.",
+                "count": 9,
+                "first_seen": "2025-12-01",
+                "last_seen": "2026-01-01",
+                "recent_sessions": ["2026-01-01_en_take"],
+            },
+        ],
+    )
+
+    updated = cleanup_recurring_patterns(
+        existing,
+        completed_analysis_count=10,
+        now=datetime.fromisoformat("2026-05-01T12:00:00+00:00"),
+    )
+
+    assert [pattern.name for pattern in updated.patterns] == [
+        "recent",
+        "decay",
+        "floor at one",
+        "very old",
+    ]
+    assert updated.patterns[0].count == 3
+    assert updated.patterns[1].count == 2
+    assert updated.patterns[2].count == 1
+    assert updated.patterns[3].count == 8
+
+
+def test_recurring_patterns_are_capped_to_fifteen_on_merge():
+    existing = RecurringPatternsModel(
+        language="en",
+        updated_at="2026-05-01T12:00:00+00:00",
+        patterns=[
+            {
+                "name": f"pattern {index:02d}",
+                "description": f"pattern {index:02d}",
+                "count": index,
+                "first_seen": "2026-04-01",
+                "last_seen": "2026-04-01",
+                "recent_sessions": [f"2026-04-{index:02d}_en_take"],
+            }
+            for index in range(1, 17)
+        ],
+    )
+
+    updated = merge_recurring_patterns(
+        existing,
+        session_id="2026-05-01_en_take",
+        hits=["new weak pattern"],
+        now=datetime.fromisoformat("2026-05-01T12:00:00+00:00"),
+    )
+
+    assert len(updated.patterns) == 15
+    assert "pattern 16" in {pattern.name for pattern in updated.patterns}
+    assert "pattern 01" not in {pattern.name for pattern in updated.patterns}

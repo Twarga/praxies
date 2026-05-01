@@ -21,6 +21,8 @@ from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientErr
 from app.services.processing_queue import SessionProcessingQueue
 from app.services.recurring_patterns import (
     build_empty_recurring_patterns,
+    cleanup_recurring_patterns,
+    cleanup_recurring_patterns_if_due,
     get_patterns_dir,
     get_patterns_file_path,
     load_recurring_patterns,
@@ -95,6 +97,8 @@ __all__ = [
     "build_analysis_system_prompt",
     "build_recurring_patterns_prompt_block",
     "build_empty_recurring_patterns",
+    "cleanup_recurring_patterns",
+    "cleanup_recurring_patterns_if_due",
     "build_transcript_user_message",
     "parse_and_validate_analysis_response",
     "run_analysis_with_retries",
