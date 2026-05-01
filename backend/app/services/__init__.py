@@ -86,6 +86,13 @@ from app.services.subtitle_service import (
 )
 from app.services.waveform_service import DEFAULT_WAVEFORM_BAR_COUNT, build_waveform_bins
 from app.services.whisper_service import WhisperRuntimeConfig, WhisperService, build_whisper_runtime_config
+from app.services.weekly_rollups import (
+    get_completed_week_key,
+    get_iso_week_key,
+    get_weekly_rollup_path,
+    get_weekly_rollups_dir,
+    is_weekly_rollup_due,
+)
 
 __all__ = [
     "AnalysisNeedsAttentionError",
@@ -157,6 +164,11 @@ __all__ = [
     "write_session_analysis",
     "write_session_analysis_raw",
     "write_session_waveform",
+    "get_completed_week_key",
+    "get_iso_week_key",
+    "get_weekly_rollup_path",
+    "get_weekly_rollups_dir",
+    "is_weekly_rollup_due",
     "export_burned_subtitle_video",
     "normalize_subtitle_segments",
     "render_srt",
