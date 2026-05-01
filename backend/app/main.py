@@ -60,6 +60,7 @@ from app.services.subtitle_service import (
     translate_subtitle_segments,
     write_subtitle_files,
 )
+from app.services.trends import build_trends_payload
 from app.services.waveform_service import build_waveform_bins
 from app.services.whisper_service import WhisperService
 
@@ -617,6 +618,14 @@ async def get_patterns(language: str) -> dict[str, object]:
 @app.get("/api/digest/today")
 async def get_today_digest() -> dict[str, object]:
     return {"digest": select_today_digest_session(load_config())}
+
+
+@app.get("/api/trends")
+async def get_trends(range: str = Query(default="30d")) -> dict[str, object]:  # noqa: A002
+    try:
+        return build_trends_payload(load_config(), trend_range=range)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from None
 
 
 @app.get("/api/sessions/{session_id}")
