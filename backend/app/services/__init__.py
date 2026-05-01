@@ -24,6 +24,8 @@ from app.services.recurring_patterns import (
     get_patterns_dir,
     get_patterns_file_path,
     load_recurring_patterns,
+    merge_recurring_pattern_hits,
+    merge_recurring_patterns,
     save_recurring_patterns,
 )
 from app.services.prompt_builder import (
@@ -134,6 +136,8 @@ __all__ = [
     "mark_session_read",
     "load_or_rebuild_index",
     "load_recurring_patterns",
+    "merge_recurring_pattern_hits",
+    "merge_recurring_patterns",
     "overwrite_json_file",
     "probe_session_video",
     "read_json_file",
