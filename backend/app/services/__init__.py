@@ -19,6 +19,13 @@ from app.services.index import (
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
 from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
 from app.services.processing_queue import SessionProcessingQueue
+from app.services.recurring_patterns import (
+    build_empty_recurring_patterns,
+    get_patterns_dir,
+    get_patterns_file_path,
+    load_recurring_patterns,
+    save_recurring_patterns,
+)
 from app.services.prompt_builder import (
     build_analysis_export_prompt,
     build_analysis_system_prompt,
@@ -85,6 +92,7 @@ __all__ = [
     "build_analysis_export_prompt",
     "build_analysis_system_prompt",
     "build_recurring_patterns_prompt_block",
+    "build_empty_recurring_patterns",
     "build_transcript_user_message",
     "parse_and_validate_analysis_response",
     "run_analysis_with_retries",
@@ -114,6 +122,8 @@ __all__ = [
     "get_session_waveform_path",
     "get_index_backup_file_path",
     "get_index_file_path",
+    "get_patterns_dir",
+    "get_patterns_file_path",
     "list_sessions",
     "load_config",
     "load_session_chunk_manifest",
@@ -123,12 +133,14 @@ __all__ = [
     "load_session_waveform_payload",
     "mark_session_read",
     "load_or_rebuild_index",
+    "load_recurring_patterns",
     "overwrite_json_file",
     "probe_session_video",
     "read_json_file",
     "rebuild_index",
     "resolve_journal_dir",
     "save_session_meta",
+    "save_recurring_patterns",
     "should_skip_processing_pipeline",
     "SessionProcessingQueue",
     "store_session_chunk",
