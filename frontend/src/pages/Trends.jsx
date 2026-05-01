@@ -168,6 +168,81 @@ function FluencyChart({ series }) {
   );
 }
 
+function PatternTrendList({ patternsByLanguage }) {
+  const rows = LANGUAGE_SERIES.flatMap((language) =>
+    (patternsByLanguage?.[language.id] ?? []).map((pattern) => ({
+      ...pattern,
+      language: language.id,
+      languageLabel: language.label,
+      color: language.color,
+    })),
+  ).sort((a, b) => (Number(b.count) || 0) - (Number(a.count) || 0));
+
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-3">
+          Recurring Patterns
+        </h3>
+        <p className="text-sm text-[#D1D1D1] opacity-70 leading-relaxed">
+          No recurring pattern hits are available in this range yet.
+        </p>
+      </div>
+    );
+  }
+
+  const maxCount = Math.max(...rows.map((row) => Number(row.count) || 0), 1);
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+          Recurring Patterns
+        </h3>
+        <span className="text-[10px] font-mono uppercase tracking-widest opacity-40">
+          {rows.length} tracked
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {rows.slice(0, 8).map((row) => {
+          const widthPercent = Math.max(8, ((Number(row.count) || 0) / maxCount) * 100);
+          return (
+            <div key={`${row.language}-${row.name}`} className="rounded border border-[#2A2C31] bg-[#1C1D21] p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="rounded px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-widest text-black"
+                      style={{ backgroundColor: row.color }}
+                    >
+                      {row.languageLabel}
+                    </span>
+                    <p className="truncate text-sm font-medium text-white">{row.name}</p>
+                  </div>
+                  <div className="mt-2 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+                    {row.trend}
+                  </div>
+                </div>
+                <div className="text-right font-mono">
+                  <div className="text-sm text-white tnum">{row.count}</div>
+                  <div className="text-[9px] uppercase tracking-widest opacity-35">hits</div>
+                </div>
+              </div>
+              <div className="mt-3 h-1.5 rounded-full bg-[#0A0B0D] overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${widthPercent}%`, backgroundColor: row.color }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function Trends({ scrollRef }) {
   const [range, setRange] = useState("30d");
   const [payload, setPayload] = useState(null);
@@ -250,10 +325,7 @@ export function Trends({ scrollRef }) {
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <FluencyChart series={payload?.fluency_by_language} />
-              <PlaceholderPanel
-                title="Recurring Patterns"
-                body="Pattern counts and trend labels are loaded. The visual list renders in the next task."
-              />
+              <PatternTrendList patternsByLanguage={payload?.pattern_hits_by_language} />
               <PlaceholderPanel
                 title="Filler Words"
                 body="Filler-word totals are loaded by language and range."
