@@ -11,6 +11,9 @@ from app.services.json_io import read_json_file, write_json_file
 from app.services.sessions import discover_session_dirs
 
 
+STREAK_MINIMUM_DURATION_SECONDS = 120
+
+
 def get_index_file_path(config) -> Path:
     return ensure_journal_dir(config) / "_index.json"
 
@@ -78,7 +81,11 @@ def rebuild_index(config, now: datetime | None = None) -> IndexModel:
     metas = [meta for meta in (load_meta(path) for path in session_dirs) if meta is not None]
     metas.sort(key=lambda item: item.created_at, reverse=True)
 
-    active_dates = [_date_from_created_at(meta.created_at) for meta in metas]
+    active_dates = [
+        _date_from_created_at(meta.created_at)
+        for meta in metas
+        if meta.duration_seconds >= STREAK_MINIMUM_DURATION_SECONDS
+    ]
 
     index = IndexModel(
         generated_at=(now or datetime.now().astimezone()).isoformat(timespec="seconds"),

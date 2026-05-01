@@ -9,7 +9,9 @@ import pytest
 from starlette.datastructures import UploadFile
 
 import app.main as main_module
+from app.models import RecurringPatternsModel
 from app.services.json_io import read_json_file
+from app.services.recurring_patterns import save_recurring_patterns
 from app.services.sessions import (
     create_session,
     finalize_session,
@@ -45,7 +47,11 @@ class _FakeWhisperService:
 
 
 class _FakeLlmClient:
+    def __init__(self):
+        self.system_prompt = ""
+
     def analyze_session(self, **kwargs):
+        self.system_prompt = kwargs["system_prompt"]
         return json.dumps(
             {
                 "schema_version": 1,
@@ -80,11 +86,29 @@ class _FakeLlmClient:
 
 @pytest.mark.asyncio
 async def test_process_session_writes_transcript_analysis_waveform_and_progress(config, tmp_path, monkeypatch):
+    fake_llm_client = _FakeLlmClient()
     monkeypatch.setattr(main_module, "load_config", lambda: config)
     monkeypatch.setattr(main_module, "whisper_service", _FakeWhisperService())
-    monkeypatch.setattr(main_module, "llm_client", _FakeLlmClient())
+    monkeypatch.setattr(main_module, "llm_client", fake_llm_client)
 
     meta = create_session(config, language="en", title="pipeline test")
+    save_recurring_patterns(
+        config,
+        RecurringPatternsModel(
+            language="en",
+            updated_at="2026-05-01T10:00:00+00:00",
+            patterns=[
+                {
+                    "name": "weak endings",
+                    "description": "The session trails off instead of landing a clear final point.",
+                    "count": 4,
+                    "first_seen": "2026-04-01",
+                    "last_seen": "2026-04-28",
+                    "recent_sessions": ["previous-session"],
+                }
+            ],
+        ),
+    )
     video_bytes = _generate_webm_chunk(tmp_path / "pipeline.webm", duration_seconds=2)
 
     upload = UploadFile(filename="chunk-0.webm", file=BytesIO(video_bytes))
@@ -124,6 +148,8 @@ async def test_process_session_writes_transcript_analysis_waveform_and_progress(
     assert updated_meta.processing.progress_percent == 100
     assert updated_meta.processing.progress_label == "Analysis ready"
     assert len(updated_meta.processing.terminal_lines) >= 5
+    assert "weak endings" in fake_llm_client.system_prompt
+    assert "The session trails off instead of landing a clear final point." in fake_llm_client.system_prompt
     assert session_bundle["waveform"] == waveform
     assert session_bundle["subtitles"] == [
         {

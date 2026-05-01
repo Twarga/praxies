@@ -26,6 +26,7 @@ from app.services.prompt_builder import (
     build_analysis_system_prompt,
     build_transcript_user_message,
 )
+from app.services.recurring_patterns import load_recurring_patterns
 from app.services.sessions import (
     append_session_processing_event,
     create_session,
@@ -197,10 +198,15 @@ async def process_session(session_id: str) -> None:
         )
         rebuild_index(config)
 
+        recurring_patterns = load_recurring_patterns(config, session_meta.language)
         analysis, last_raw = run_analysis_with_retries(
             client=llm_client,
             config=config,
-            system_prompt=build_analysis_system_prompt(config, language=session_meta.language),
+            system_prompt=build_analysis_system_prompt(
+                config,
+                language=session_meta.language,
+                recurring_patterns=recurring_patterns,
+            ),
             user_message=build_transcript_user_message(transcript_payload["transcript"]),
         )
         write_session_analysis(config, session_id, analysis.model_dump(mode="json"))
@@ -617,10 +623,12 @@ async def get_session_export_prompt(session_id: str) -> PlainTextResponse:
         raise HTTPException(status_code=400, detail="Transcript not available yet.")
 
     meta = load_session_meta(config, session_id)
+    recurring_patterns = load_recurring_patterns(config, meta.language)
     prompt_text = build_analysis_export_prompt(
         config,
         language=meta.language,
         transcript_segments=transcript_segments,
+        recurring_patterns=recurring_patterns,
     )
     return PlainTextResponse(prompt_text)
 
