@@ -1,4 +1,4 @@
-import { Check, FolderOpen, Loader2, RefreshCw } from "lucide-react";
+import { Check, FolderOpen, Loader2, RefreshCw, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   loadOpenRouterModels,
@@ -104,6 +104,163 @@ function Select({ value, onChange, options, disabled }) {
   );
 }
 
+function formatContextLength(value) {
+  const numeric = Number(value) || 0;
+  if (numeric >= 1_000_000) return `${(numeric / 1_000_000).toFixed(1)}M ctx`;
+  if (numeric >= 1000) return `${Math.round(numeric / 1000)}K ctx`;
+  if (numeric > 0) return `${numeric} ctx`;
+  return "ctx n/a";
+}
+
+function modelMatchesQuery(model, query) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) return true;
+
+  return [model.id, model.name, model.canonical_slug, model.description]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase().includes(normalizedQuery));
+}
+
+function getModelBadge(model) {
+  const outputs = model?.output_modalities ?? [];
+  if (outputs.includes("text")) return "text";
+  if (outputs.length > 0) return outputs.join("/");
+  return model?.modality || "model";
+}
+
+function ModelCatalogPicker({
+  disabled,
+  error,
+  loading,
+  models,
+  onChange,
+  onRefresh,
+  query,
+  selectedValue,
+  setQuery,
+}) {
+  const currentModel = models.find((model) => model.id === selectedValue);
+  const filteredModels = models.filter((model) => modelMatchesQuery(model, query));
+  const visibleModels = filteredModels.slice(0, 80);
+  const typedModelId = query.trim();
+  const canUseTypedModel =
+    typedModelId.includes("/") && !models.some((model) => model.id === typedModelId);
+
+  return (
+    <div className="w-[440px] max-w-full space-y-2">
+      <div className="rounded border border-[#2A2C31] bg-[#0A0B0D] p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1] opacity-40">
+              Selected model
+            </div>
+            <div className="mt-1 truncate text-xs font-mono text-white">
+              {selectedValue || "No model selected"}
+            </div>
+            {currentModel ? (
+              <div className="mt-1 truncate text-[10px] text-[#D1D1D1]/55">
+                {currentModel.name} · {formatContextLength(currentModel.context_length)} · {getModelBadge(currentModel)}
+              </div>
+            ) : (
+              <div className="mt-1 text-[10px] text-[#F27D26]/75">
+                Current model is not in the loaded catalog.
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            className="shrink-0 rounded border border-[#2A2C31] bg-[#1C1D21] px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-widest text-white transition-colors hover:bg-[#2A2C31] disabled:opacity-50"
+          >
+            {loading ? <Loader2 size={12} className="animate-spin" /> : "Refresh"}
+          </button>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#D1D1D1]/40" />
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search live OpenRouter catalog..."
+          className="w-full rounded border border-[#2A2C31] bg-[#0A0B0D] py-2 pl-8 pr-3 text-xs text-white placeholder:text-[#D1D1D1]/35 focus:border-[#4ADE80] focus:outline-none"
+        />
+      </div>
+
+      <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/40">
+        <span>
+          {loading
+            ? "Fetching catalog"
+            : `${filteredModels.length}/${models.length} live models`}
+        </span>
+        {error ? <span className="text-[#F27D26]">Catalog fetch failed</span> : null}
+      </div>
+
+      {error ? (
+        <div className="rounded border border-[#F27D26]/30 bg-[#F27D26]/10 px-3 py-2 text-xs text-[#F4B26D]">
+          {error}
+        </div>
+      ) : null}
+
+      <div className="max-h-[280px] overflow-y-auto rounded border border-[#2A2C31] bg-[#0A0B0D]">
+        {canUseTypedModel ? (
+          <button
+            type="button"
+            onClick={() => onChange(typedModelId)}
+            disabled={disabled}
+            className="w-full border-b border-[#2A2C31] px-3 py-2 text-left transition-colors hover:bg-[#1C1D21] disabled:opacity-50"
+          >
+            <div className="text-xs font-mono text-white">Use typed id: {typedModelId}</div>
+            <div className="mt-1 text-[10px] text-[#D1D1D1]/45">
+              Manual override if OpenRouter accepts a model before it appears in catalog.
+            </div>
+          </button>
+        ) : null}
+
+        {visibleModels.map((model) => {
+          const isSelected = model.id === selectedValue;
+          return (
+            <button
+              key={model.id}
+              type="button"
+              onClick={() => onChange(model.id)}
+              disabled={disabled}
+              className={`w-full border-b border-[#2A2C31] px-3 py-2 text-left transition-colors last:border-b-0 disabled:opacity-50 ${
+                isSelected ? "bg-[#4ADE80]/10" : "hover:bg-[#1C1D21]"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-medium text-white">{model.name || model.id}</div>
+                  <div className="mt-1 truncate text-[10px] font-mono text-[#D1D1D1]/50">
+                    {model.id}
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="text-[9px] font-mono uppercase tracking-widest text-[#4ADE80]">
+                    {getModelBadge(model)}
+                  </div>
+                  <div className="mt-1 text-[9px] font-mono text-[#D1D1D1]/35">
+                    {formatContextLength(model.context_length)}
+                  </div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+
+        {!loading && visibleModels.length === 0 && !canUseTypedModel ? (
+          <div className="px-3 py-5 text-center text-xs text-[#D1D1D1]/45">
+            No models match this search.
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function SectionTitle({ children }) {
   return (
     <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 text-white mb-4">
@@ -118,6 +275,9 @@ export function Settings({ scrollRef }) {
   const [activeTab, setActiveTab] = useState("general");
   const [openRouterModels, setOpenRouterModels] = useState([]);
   const [openRouterApiKey, setOpenRouterApiKey] = useState("");
+  const [openRouterModelQuery, setOpenRouterModelQuery] = useState("");
+  const [openRouterModelsError, setOpenRouterModelsError] = useState("");
+  const [openRouterModelsLoading, setOpenRouterModelsLoading] = useState(false);
   const [personalContext, setPersonalContext] = useState("");
   const [personalContextSaveState, setPersonalContextSaveState] = useState("idle");
   const [openRouterTest, setOpenRouterTest] = useState(null);
@@ -177,10 +337,31 @@ export function Settings({ scrollRef }) {
   useEffect(() => {
     if (activeTab !== "ai") return;
     if (openRouterModels.length > 0) return;
-    loadOpenRouterModels()
-      .then((models) => setOpenRouterModels(Array.isArray(models) ? models : []))
-      .catch(() => setOpenRouterModels([]));
+    void refreshOpenRouterModels({ silent: true });
   }, [activeTab, openRouterModels.length]);
+
+  async function refreshOpenRouterModels({ silent = false } = {}) {
+    setOpenRouterModelsLoading(true);
+    setOpenRouterModelsError("");
+
+    try {
+      const models = await loadOpenRouterModels();
+      const nextModels = Array.isArray(models) ? models : [];
+      setOpenRouterModels(nextModels);
+      if (!silent) {
+        pushToast({ kind: "success", message: `Loaded ${nextModels.length} OpenRouter models.` });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to load OpenRouter model catalog.";
+      setOpenRouterModelsError(message);
+      if (!silent) {
+        pushToast({ kind: "error", message });
+      }
+    } finally {
+      setOpenRouterModelsLoading(false);
+    }
+  }
 
   async function applyPatch(patch, successMessage) {
     try {
@@ -448,22 +629,21 @@ export function Settings({ scrollRef }) {
 
                     <Row
                       title="Default Model"
-                      description="The OpenRouter model used for analysis."
+                      description="Fetched live from the OpenRouter catalog. Search and choose any model id."
                     >
-                      <Select
-                        value={config.openrouter?.default_model ?? ""}
-                        options={
-                          openRouterModels.length
-                            ? openRouterModels.map((m) => ({
-                                value: m.id,
-                                label: m.name ? `${m.name}` : m.id,
-                              }))
-                            : [{ value: config.openrouter?.default_model ?? "", label: config.openrouter?.default_model ?? "—" }]
-                        }
+                      <ModelCatalogPicker
+                        selectedValue={config.openrouter?.default_model ?? ""}
+                        models={openRouterModels}
+                        loading={openRouterModelsLoading}
+                        error={openRouterModelsError}
+                        query={openRouterModelQuery}
+                        setQuery={setOpenRouterModelQuery}
+                        disabled={isPatching}
+                        onRefresh={() => void refreshOpenRouterModels()}
                         onChange={(value) =>
                           applyPatch(
                             { openrouter: { default_model: value } },
-                            "Default model updated.",
+                            `OpenRouter model set to ${value}.`,
                           )
                         }
                       />

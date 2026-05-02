@@ -373,6 +373,43 @@ def test_build_trends_payload_calculates_volume_summary(config):
     }
 
 
+def test_build_trends_volume_counts_real_sessions_without_analysis(config):
+    analyzed = create_session(
+        config,
+        language="en",
+        title="analyzed",
+        created_at=datetime(2026, 4, 28, 9, 0, tzinfo=timezone.utc),
+    )
+    video_only = create_session(
+        config,
+        language="fr",
+        title="video only",
+        save_mode="video_only",
+        created_at=datetime(2026, 4, 29, 9, 0, tzinfo=timezone.utc),
+    )
+
+    _write_analysis_with_score(config, analyzed.id, language="en", fluency_score=6, duration_seconds=180)
+    update_session_meta(
+        config,
+        video_only.id,
+        updates={"status": "video_only", "duration_seconds": 240},
+    )
+
+    payload = build_trends_payload(
+        config,
+        trend_range="30d",
+        now=datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc),
+    )
+
+    assert payload["volume_summary"]["sessions"] == 2
+    assert payload["volume_summary"]["total_seconds"] == 420.0
+    assert payload["volume_summary"]["by_language"] == {"en": 1, "fr": 1, "es": 0}
+    assert payload["analysis_summary"] == {
+        "sessions": 1,
+        "by_language": {"en": 1, "fr": 0, "es": 0},
+    }
+
+
 def _write_analysis_with_score(
     config,
     session_id: str,

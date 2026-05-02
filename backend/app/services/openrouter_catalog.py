@@ -8,8 +8,7 @@ from urllib.request import Request, urlopen
 from app.core.settings import APP_VERSION
 
 
-OPENROUTER_MODELS_URL_FILTERED = "https://openrouter.ai/api/v1/models?output_modalities=text"
-OPENROUTER_MODELS_URL_PLAIN = "https://openrouter.ai/api/v1/models"
+OPENROUTER_MODELS_URL = "https://openrouter.ai/api/v1/models"
 OPENROUTER_TIMEOUT_SECONDS = 20
 
 
@@ -20,39 +19,15 @@ class OpenRouterCatalogError(RuntimeError):
 
 
 def fetch_openrouter_models() -> list[dict[str, Any]]:
-    """Fetch the live OpenRouter model catalog.
-
-    First tries the server-side text-modality filter; if that endpoint variant
-    is rejected (e.g. parameter renamed upstream), falls back to the plain
-    catalog and filters client-side. Models without a text output modality
-    (e.g. image-only or audio-only) are dropped.
-    """
-    payload: dict[str, Any] | None = None
-    last_error: Exception | None = None
-
-    for url in (OPENROUTER_MODELS_URL_FILTERED, OPENROUTER_MODELS_URL_PLAIN):
-        try:
-            payload = _fetch_json(url)
-            break
-        except OpenRouterCatalogError as error:
-            last_error = error
-            should_fallback_to_plain = (
-                url == OPENROUTER_MODELS_URL_FILTERED
-                and error.status_code in {400, 404}
-            )
-            if should_fallback_to_plain:
-                continue
-            break
-
-    if payload is None:
-        raise last_error or OpenRouterCatalogError("OpenRouter model catalog request failed.")
+    """Fetch the full live OpenRouter model catalog."""
+    payload = _fetch_json(OPENROUTER_MODELS_URL)
 
     data = payload.get("data")
     if not isinstance(data, list):
         raise OpenRouterCatalogError("OpenRouter model catalog response did not include a valid data array.")
 
     models = [_normalize_model(item) for item in data if isinstance(item, dict)]
-    models = [model for model in models if model is not None and _emits_text(model)]
+    models = [model for model in models if model is not None]
     models.sort(key=lambda model: model["id"])
     return models
 
@@ -81,15 +56,6 @@ def _fetch_json(url: str) -> dict[str, Any]:
         ) from error
     except json.JSONDecodeError as error:
         raise OpenRouterCatalogError("OpenRouter model catalog returned invalid JSON.") from error
-
-
-def _emits_text(model: dict[str, Any]) -> bool:
-    output_modalities = model.get("output_modalities")
-    if isinstance(output_modalities, list) and output_modalities:
-        return any(item == "text" for item in output_modalities)
-    # If the catalog doesn't declare modalities, assume text — most providers
-    # are text-by-default. Filtering aggressively here would drop legit models.
-    return True
 
 
 def _normalize_model(payload: dict[str, Any]) -> dict[str, Any] | None:

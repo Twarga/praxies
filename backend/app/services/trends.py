@@ -25,6 +25,7 @@ def build_trends_payload(
     reference = now or datetime.now().astimezone()
     start_date = _get_range_start_date(normalized_range, reference)
     entries = _load_trend_entries(config, start_date=start_date, reference=reference)
+    volume_metas = _load_volume_metas(config, start_date=start_date, reference=reference)
 
     return {
         "range": normalized_range,
@@ -32,12 +33,20 @@ def build_trends_payload(
         "start_date": start_date.isoformat() if start_date else None,
         "end_date": reference.date().isoformat(),
         "volume_summary": _build_volume_summary(
-            entries,
+            volume_metas,
             trend_range=normalized_range,
             start_date=start_date,
             end_date=reference.date(),
             reference=reference,
         ),
+        "analysis_summary": {
+            "sessions": len(entries),
+            "by_language": {
+                "en": sum(1 for meta, _analysis in entries if meta.language == "en"),
+                "fr": sum(1 for meta, _analysis in entries if meta.language == "fr"),
+                "es": sum(1 for meta, _analysis in entries if meta.language == "es"),
+            },
+        },
         "fluency_by_language": _build_fluency_by_language(entries, reference),
         "pattern_hits_by_language": _build_pattern_hits_by_language(entries),
         "filler_words_by_language": _build_filler_words_by_language(entries),
@@ -56,31 +65,31 @@ def build_trends_payload(
 
 
 def _build_volume_summary(
-    entries: list[tuple[MetaModel, dict[str, Any]]],
+    metas: list[MetaModel],
     *,
     trend_range: str,
     start_date: date | None,
     end_date: date,
     reference: datetime,
 ) -> dict[str, Any]:
-    total_seconds = sum(float(meta.duration_seconds) for meta, _analysis in entries)
+    total_seconds = sum(float(meta.duration_seconds) for meta in metas)
     active_dates = {
         _parse_session_datetime(meta.created_at, reference).date().isoformat()
-        for meta, _analysis in entries
+        for meta in metas
     }
 
     return {
         "range": trend_range,
         "start_date": start_date.isoformat() if start_date else None,
         "end_date": end_date.isoformat(),
-        "sessions": len(entries),
+        "sessions": len(metas),
         "hours": round(total_seconds / 3600, 2),
         "total_seconds": total_seconds,
         "active_days": len(active_dates),
         "by_language": {
-            "en": sum(1 for meta, _analysis in entries if meta.language == "en"),
-            "fr": sum(1 for meta, _analysis in entries if meta.language == "fr"),
-            "es": sum(1 for meta, _analysis in entries if meta.language == "es"),
+            "en": sum(1 for meta in metas if meta.language == "en"),
+            "fr": sum(1 for meta in metas if meta.language == "fr"),
+            "es": sum(1 for meta in metas if meta.language == "es"),
         },
     }
 
@@ -231,6 +240,33 @@ def _load_trend_entries(
         entries.append((meta, read_json_file(analysis_path)))
 
     return sorted(entries, key=lambda item: item[0].created_at)
+
+
+def _load_volume_metas(
+    config: ConfigModel,
+    *,
+    start_date: date | None,
+    reference: datetime,
+) -> list[MetaModel]:
+    metas: list[MetaModel] = []
+
+    for session_dir in discover_session_dirs(config):
+        try:
+            meta = load_session_meta(config, session_dir.name)
+        except Exception:
+            continue
+
+        session_date = _parse_session_datetime(meta.created_at, reference).date()
+        if session_date > reference.date():
+            continue
+        if start_date is not None and session_date < start_date:
+            continue
+        if meta.status == "recording":
+            continue
+
+        metas.append(meta)
+
+    return sorted(metas, key=lambda item: item.created_at)
 
 
 def _get_range_start_date(trend_range: str, reference: datetime) -> date | None:

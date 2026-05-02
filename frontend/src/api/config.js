@@ -12,7 +12,9 @@ export function patchConfig(patch) {
 }
 
 export function loadOpenRouterModels() {
-  return apiFetchJson("/api/openrouter/models");
+  return apiFetchJson(`/api/openrouter/models?ts=${Date.now()}`, {
+    cache: "no-store",
+  });
 }
 
 export function testOpenRouter() {

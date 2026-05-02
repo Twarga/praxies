@@ -52,6 +52,35 @@ function getTodayQualifyingMinutes(sessions) {
   return Math.round(totalSeconds / 60);
 }
 
+function getLastSevenPracticeDays(sessions) {
+  const buckets = new Map();
+
+  for (const session of sessions ?? []) {
+    const key = getLocalDateKey(session.created_at);
+    const durationSeconds = Number(session.duration_seconds) || 0;
+    if (!key || durationSeconds < 120) continue;
+    buckets.set(key, (buckets.get(key) ?? 0) + durationSeconds);
+  }
+
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+
+  return Array.from({ length: 7 }, (_entry, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (6 - index));
+    const key = getLocalDateKey(date);
+    const seconds = buckets.get(key) ?? 0;
+
+    return {
+      key,
+      label: date.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 1),
+      minutes: Math.round(seconds / 60),
+      complete: seconds >= 120,
+      isToday: index === 6,
+    };
+  });
+}
+
 function getNextMilestone(currentStreak) {
   return [3, 7, 14, 30, 60, 100].find((milestone) => milestone > currentStreak) ?? currentStreak + 50;
 }
@@ -64,18 +93,19 @@ function StreakStatusCard({ streak, sessions, onRecord }) {
   const nextMilestone = getNextMilestone(current);
   const progress = Math.min(100, Math.round((current / nextMilestone) * 100));
   const dayLabel = current === 1 ? "day" : "days";
+  const weekDays = getLastSevenPracticeDays(sessions);
 
   return (
     <div className="relative overflow-hidden bg-[#151619] rounded-lg border border-[#2A2C31] p-5 praxis-fade-in">
-      <div className="absolute inset-0 pointer-events-none opacity-70 bg-[radial-gradient(circle_at_18%_0%,rgba(74,222,128,0.14),transparent_34%),radial-gradient(circle_at_90%_20%,rgba(242,125,38,0.13),transparent_30%)]" />
+      <div className="absolute inset-0 pointer-events-none opacity-60 bg-[radial-gradient(circle_at_18%_0%,rgba(74,222,128,0.10),transparent_34%)]" />
       <div className="relative flex items-start justify-between gap-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
             <Flame size={14} className={hasCheckedInToday ? "streak-flame" : ""} />
-            Streak Engine
+            Daily Streak
           </div>
           <div className="mt-3 flex items-end gap-3">
-            <div className="text-6xl sm:text-7xl leading-none font-light text-white tnum tracking-[-0.06em]">
+            <div className="text-5xl leading-none font-light text-white tnum tracking-[-0.05em]">
               {current}
             </div>
             <div className="pb-2">
@@ -87,7 +117,7 @@ function StreakStatusCard({ streak, sessions, onRecord }) {
           </div>
           <p className="mt-4 max-w-[420px] text-sm leading-relaxed text-[#D1D1D1]/75">
             {hasCheckedInToday
-              ? `Locked for today with ${todayMinutes} qualifying minutes. Keep the chain visible.`
+              ? `Today is locked with ${todayMinutes} qualifying minutes.`
               : "Record at least 2 minutes today to protect the chain."}
           </p>
         </div>
@@ -111,6 +141,28 @@ function StreakStatusCard({ streak, sessions, onRecord }) {
             {hasCheckedInToday ? `${todayMinutes} min` : "2 min goal"}
           </div>
         </button>
+      </div>
+
+      <div className="relative mt-5 grid grid-cols-7 gap-1.5">
+        {weekDays.map((day) => (
+          <div key={day.key} className="text-center">
+            <div className="mb-1 text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/35">
+              {day.label}
+            </div>
+            <div
+              className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-mono tnum ${
+                day.complete
+                  ? "border-[#4ADE80]/45 bg-[#4ADE80]/15 text-[#4ADE80]"
+                  : day.isToday
+                    ? "border-[#F27D26]/45 bg-[#F27D26]/10 text-[#F27D26]"
+                    : "border-[#2A2C31] bg-[#1C1D21] text-[#D1D1D1]/35"
+              }`}
+              title={`${day.key} · ${day.minutes} min`}
+            >
+              {day.complete ? "✓" : day.isToday ? "!" : ""}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="relative mt-5 grid grid-cols-3 gap-2 font-mono">

@@ -41,17 +41,6 @@ function SummaryStat({ label, value }) {
   );
 }
 
-function PlaceholderPanel({ title, body }) {
-  return (
-    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
-      <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-3">
-        {title}
-      </h3>
-      <p className="text-sm text-[#D1D1D1] opacity-70 leading-relaxed">{body}</p>
-    </div>
-  );
-}
-
 function FluencyChart({ series }) {
   const points = LANGUAGE_SERIES.flatMap((language) =>
     (series?.[language.id] ?? []).map((point) => ({
@@ -174,6 +163,77 @@ function FluencyChart({ series }) {
           );
         })}
       </svg>
+    </div>
+  );
+}
+
+function LanguageMixPanel({ summary, analysisSummary }) {
+  const counts = summary?.by_language ?? {};
+  const total = Math.max(Number(summary?.sessions) || 0, 0);
+  const analysisCount = Number(analysisSummary?.sessions) || 0;
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+          Language Mix
+        </h3>
+        <span className="text-[10px] font-mono uppercase tracking-widest opacity-40">
+          real sessions
+        </span>
+      </div>
+
+      {total === 0 ? (
+        <p className="text-sm text-[#D1D1D1] opacity-70 leading-relaxed">
+          No recorded sessions are available in this range.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {LANGUAGE_SERIES.map((language) => {
+            const count = Number(counts[language.id]) || 0;
+            const percent = total > 0 ? Math.round((count / total) * 100) : 0;
+            return (
+              <div key={language.id}>
+                <div className="mb-1.5 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: language.color }}
+                    />
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/55">
+                      {language.label}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-white tnum">
+                    {count} · {percent}%
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-[#0A0B0D]">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.max(percent, count > 0 ? 6 : 0)}%`,
+                      backgroundColor: language.color,
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+
+          <div className="rounded border border-[#2A2C31] bg-[#1C1D21] px-3 py-2">
+            <div className="text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/35">
+              Analysis coverage
+            </div>
+            <div className="mt-1 text-sm text-white tnum">
+              {analysisCount}/{total} sessions
+            </div>
+            <div className="mt-1 text-[10px] text-[#D1D1D1]/45">
+              Fluency, fillers, and patterns only appear after analysis exists.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -363,6 +423,7 @@ export function Trends({ scrollRef }) {
   }, [range]);
 
   const summary = payload?.volume_summary;
+  const analysisSummary = payload?.analysis_summary;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -422,10 +483,7 @@ export function Trends({ scrollRef }) {
               <FluencyChart series={payload?.fluency_by_language} />
               <PatternTrendList patternsByLanguage={payload?.pattern_hits_by_language} />
               <FillerWordsPanel fillerWordsByLanguage={payload?.filler_words_by_language} />
-              <PlaceholderPanel
-                title="Language Mix"
-                body={`EN ${summary?.by_language?.en ?? 0} · FR ${summary?.by_language?.fr ?? 0} · ES ${summary?.by_language?.es ?? 0}`}
-              />
+              <LanguageMixPanel summary={summary} analysisSummary={analysisSummary} />
             </div>
           </div>
         )}
