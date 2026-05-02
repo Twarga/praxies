@@ -1,17 +1,21 @@
 import { createContext, useEffect, useRef, useState } from "react";
 import { loadConfig as loadConfigRequest, patchConfig as patchConfigRequest } from "../api/config.js";
+import { useEventSource } from "../hooks/useEventSource.js";
 
 export const ConfigContext = createContext(null);
 
 export function ConfigProvider({ children }) {
+  const { lastEvent } = useEventSource();
   const [config, setConfig] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isPatching, setIsPatching] = useState(false);
   const [error, setError] = useState(null);
   const isMountedRef = useRef(true);
 
-  async function refreshConfig() {
-    setIsLoading(true);
+  async function refreshConfig({ silent = false } = {}) {
+    if (!silent) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
@@ -27,7 +31,9 @@ export function ConfigProvider({ children }) {
       throw caughtError;
     } finally {
       if (isMountedRef.current) {
-        setIsLoading(false);
+        if (!silent) {
+          setIsLoading(false);
+        }
       }
     }
   }
@@ -65,6 +71,16 @@ export function ConfigProvider({ children }) {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (lastEvent?.type !== "config.changed") {
+      return;
+    }
+
+    refreshConfig({ silent: true }).catch(() => {
+      // Error state is stored in context for future UI handling.
+    });
+  }, [lastEvent]);
 
   return (
     <ConfigContext.Provider

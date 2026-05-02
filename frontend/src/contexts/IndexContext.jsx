@@ -1,10 +1,12 @@
 import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import { loadIndex as loadIndexRequest } from "../api/index.js";
+import { useEventSource } from "../hooks/useEventSource.js";
 
 export const IndexContext = createContext(null);
 
 const POLLING_STATUSES = new Set(["queued", "transcribing", "analyzing"]);
 const POLL_INTERVAL_MS = 3000;
+const INDEX_REFRESH_EVENTS = new Set(["index.changed", "session.status", "session.ready"]);
 
 function hasActiveSession(index) {
   if (!index?.sessions) {
@@ -14,13 +16,16 @@ function hasActiveSession(index) {
 }
 
 export function IndexProvider({ children }) {
+  const { lastEvent } = useEventSource();
   const [index, setIndex] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const isMountedRef = useRef(true);
 
-  const refreshIndex = useCallback(async function refreshIndex() {
-    setIsLoading(true);
+  const refreshIndex = useCallback(async function refreshIndex({ silent = false } = {}) {
+    if (!silent) {
+      setIsLoading(true);
+    }
     setError(null);
 
     try {
@@ -36,7 +41,9 @@ export function IndexProvider({ children }) {
       throw caughtError;
     } finally {
       if (isMountedRef.current) {
-        setIsLoading(false);
+        if (!silent) {
+          setIsLoading(false);
+        }
       }
     }
   }, []);
@@ -76,6 +83,16 @@ export function IndexProvider({ children }) {
     };
   }, [index]);
 
+  useEffect(() => {
+    if (!INDEX_REFRESH_EVENTS.has(lastEvent?.type)) {
+      return;
+    }
+
+    refreshIndex({ silent: true }).catch(() => {
+      // Error state is stored in context for future UI handling.
+    });
+  }, [lastEvent, refreshIndex]);
+
   return (
     <IndexContext.Provider
       value={{
@@ -89,4 +106,3 @@ export function IndexProvider({ children }) {
     </IndexContext.Provider>
   );
 }
-

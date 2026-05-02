@@ -18,15 +18,15 @@ import "./styles/globals.css";
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ThemeProvider>
-      <ConfigProvider>
-        <IndexProvider>
-          <EventSourceProvider>
+      <EventSourceProvider>
+        <ConfigProvider>
+          <IndexProvider>
             <ToastProvider>
               <App />
             </ToastProvider>
-          </EventSourceProvider>
-        </IndexProvider>
-      </ConfigProvider>
+          </IndexProvider>
+        </ConfigProvider>
+      </EventSourceProvider>
     </ThemeProvider>
   </React.StrictMode>,
 );
