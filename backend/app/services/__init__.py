@@ -20,9 +20,13 @@ from app.services.json_io import overwrite_json_file, read_json_file, write_json
 from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
 from app.services.processing_queue import SessionProcessingQueue
 from app.services.retention import (
+    RETAINED_AUDIO_FILENAME,
     RETENTION_INTERVAL_SECONDS,
+    compress_session_to_audio_only,
+    get_retained_audio_path,
     get_retention_deadline,
     is_retention_due,
+    run_retention_pass,
     scan_retention_due_sessions,
 )
 from app.services.sse import SSEBroadcaster, ServerSentEvent
@@ -115,6 +119,7 @@ __all__ = [
     "AnalysisRetryExhaustedError",
     "LiteLLMOpenRouterClient",
     "OpenRouterClientError",
+    "RETAINED_AUDIO_FILENAME",
     "RETENTION_INTERVAL_SECONDS",
     "build_analysis_export_prompt",
     "build_analysis_system_prompt",
@@ -123,6 +128,7 @@ __all__ = [
     "cleanup_recurring_patterns",
     "cleanup_recurring_patterns_if_due",
     "build_transcript_user_message",
+    "compress_session_to_audio_only",
     "parse_and_validate_analysis_response",
     "run_analysis_with_retries",
     "validate_analysis_payload",
@@ -155,6 +161,7 @@ __all__ = [
     "get_index_file_path",
     "get_patterns_dir",
     "get_patterns_file_path",
+    "get_retained_audio_path",
     "get_retention_deadline",
     "is_retention_due",
     "list_sessions",
@@ -175,6 +182,7 @@ __all__ = [
     "read_json_file",
     "rebuild_index",
     "resolve_journal_dir",
+    "run_retention_pass",
     "save_session_meta",
     "save_recurring_patterns",
     "scan_retention_due_sessions",

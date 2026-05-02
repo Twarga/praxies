@@ -28,7 +28,7 @@ from app.services.prompt_builder import (
     build_transcript_user_message,
 )
 from app.services.recurring_patterns import load_recurring_patterns
-from app.services.retention import RETENTION_INTERVAL_SECONDS, scan_retention_due_sessions
+from app.services.retention import RETENTION_INTERVAL_SECONDS, run_retention_pass
 from app.services.sessions import (
     append_session_processing_event,
     create_session,
@@ -76,7 +76,11 @@ retention_task: asyncio.Task | None = None
 
 
 async def run_retention_check_once() -> dict[str, object]:
-    return await asyncio.to_thread(scan_retention_due_sessions, load_config())
+    config = load_config()
+    summary = await asyncio.to_thread(run_retention_pass, config)
+    if summary.get("compressed"):
+        await rebuild_index_and_emit(config, "retention.compressed")
+    return summary
 
 
 async def _retention_loop(interval_seconds: int = RETENTION_INTERVAL_SECONDS) -> None:
