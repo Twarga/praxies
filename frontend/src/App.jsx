@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { LiveUpdateEffects } from "./components/LiveUpdateEffects.jsx";
 import { Sidebar } from "./components/Sidebar.jsx";
 import {
   getElementScrollTop,
@@ -57,6 +58,8 @@ export default function App() {
 
   return (
     <div className="flex bg-[#0F1012] text-[#E0E0E0] h-screen overflow-hidden font-sans">
+      <LiveUpdateEffects />
+
       {currentPage !== "record" ? (
         <Sidebar currentPage={currentPage} onNavigate={handleNavigate} />
       ) : null}

@@ -7,7 +7,6 @@ import { useRecorder } from "../hooks/useRecorder.js";
 import { useToast } from "../hooks/useToast.js";
 import {
   isPermissionDeniedError,
-  playReadySound,
   requestRecordingStream,
   stopMediaStream,
 } from "../lib/media.js";
@@ -193,7 +192,6 @@ export function Record({ onNavigate }) {
       }
       setPermissionState("granted");
       await recorder.startRecording({ recordingStream: nextStream });
-      if (config?.ready_sound_enabled) void playReadySound().catch(() => {});
     } catch (error) {
       if (createdStream && nextStream) {
         stopMediaStream(nextStream);
