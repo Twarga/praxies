@@ -2,7 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from typing import Any, Literal
 
-from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
@@ -562,9 +562,19 @@ async def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def get_request_port(request: Request) -> int | None:
+    if request.url.port:
+        return request.url.port
+    if request.url.scheme == "https":
+        return 443
+    if request.url.scheme == "http":
+        return 80
+    return None
+
+
 @app.get("/api/config")
-async def get_config() -> dict[str, object]:
-    return dump_config_for_api(load_config())
+async def get_config(request: Request) -> dict[str, object]:
+    return dump_config_for_api(load_config(), upload_port=get_request_port(request))
 
 
 @app.get("/api/openrouter/models")
@@ -576,13 +586,13 @@ async def get_openrouter_models() -> list[dict[str, object]]:
 
 
 @app.patch("/api/config")
-async def patch_config(payload: dict[str, Any]) -> dict[str, object]:
+async def patch_config(request: Request, payload: dict[str, Any]) -> dict[str, object]:
     try:
         updated = update_config(payload)
     except ValidationError as error:
         raise HTTPException(status_code=400, detail=error.errors()) from None
     await emit_config_changed()
-    return dump_config_for_api(updated)
+    return dump_config_for_api(updated, upload_port=get_request_port(request))
 
 
 @app.post("/api/config/test-openrouter")

@@ -284,7 +284,7 @@ Goal: complete live-update and operational behavior for daily use.
 - [x] T147 Compress expired sessions to audio-only and update retention fields.
 - [x] T148 Keep transcript, analysis, thumbnail, and meta after retention compression.
 - [x] T149 Phone upload enable/disable config behavior.
-- [ ] T150 Detect LAN IP for upload URL caption.
+- [x] T150 Detect LAN IP for upload URL caption.
 - [ ] T151 `GET /upload` minimal HTML form.
 - [ ] T152 `POST /upload` creates upload sessions and queues them.
 - [ ] T153 Render QR code in Settings.
@@ -418,3 +418,4 @@ Additional current tests:
 - 2026-05-02: Implemented `T146` daily retention scan task scaffold.
 - 2026-05-02: Implemented `T147` retention compression from expired video to audio-only archive with metadata updates.
 - 2026-05-02: Implemented `T148` retention artifact preservation coverage for transcript, analysis, thumbnail, and meta.
+- 2026-05-02: Implemented `T150` LAN IP detection and upload URL exposure in config API.

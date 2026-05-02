@@ -18,6 +18,7 @@ from app.services.index import (
 )
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
 from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
+from app.services.network import build_upload_url, detect_lan_ip
 from app.services.processing_queue import SessionProcessingQueue
 from app.services.retention import (
     RETAINED_AUDIO_FILENAME,
@@ -125,6 +126,7 @@ __all__ = [
     "build_analysis_system_prompt",
     "build_recurring_patterns_prompt_block",
     "build_empty_recurring_patterns",
+    "build_upload_url",
     "cleanup_recurring_patterns",
     "cleanup_recurring_patterns_if_due",
     "build_transcript_user_message",
@@ -135,6 +137,7 @@ __all__ = [
     "append_session_processing_event",
     "create_session",
     "delete_session_dir",
+    "detect_lan_ip",
     "discover_session_dirs",
     "ensure_journal_dir",
     "assemble_session_video",
