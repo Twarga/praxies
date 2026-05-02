@@ -19,6 +19,7 @@ from app.services.index import (
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
 from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
 from app.services.processing_queue import SessionProcessingQueue
+from app.services.sse import SSEBroadcaster, ServerSentEvent
 from app.services.recurring_patterns import (
     build_empty_recurring_patterns,
     cleanup_recurring_patterns,
@@ -163,6 +164,8 @@ __all__ = [
     "save_recurring_patterns",
     "should_skip_processing_pipeline",
     "SessionProcessingQueue",
+    "SSEBroadcaster",
+    "ServerSentEvent",
     "store_session_chunk",
     "update_session_meta",
     "validate_session_video",

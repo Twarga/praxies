@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, ValidationError, field_validator
 
 from app.core.settings import APP_VERSION
@@ -54,6 +54,7 @@ from app.services.sessions import (
     write_session_transcript_text,
     write_session_waveform,
 )
+from app.services.sse import SSEBroadcaster
 from app.services.subtitle_service import (
     export_burned_subtitle_video,
     load_subtitle_segments,
@@ -68,6 +69,7 @@ from app.services.whisper_service import WhisperService
 
 whisper_service = WhisperService()
 llm_client = LiteLLMOpenRouterClient()
+sse_broadcaster = SSEBroadcaster()
 
 
 async def process_session(session_id: str) -> None:
@@ -75,7 +77,8 @@ async def process_session(session_id: str) -> None:
     session_meta = load_session_meta(config, session_id)
     try:
         if should_skip_processing_pipeline(session_meta):
-            rebuild_index(config)
+            await emit_session_status(session_meta)
+            await rebuild_index_and_emit(config, "session.skip_processing")
             return
 
         started_at = datetime_now_iso()
@@ -101,7 +104,8 @@ async def process_session(session_id: str) -> None:
             progress_label="Loading Whisper runtime",
             progress_percent=8,
         )
-        rebuild_index(config)
+        await emit_session_status_from_id(config, session_id)
+        await rebuild_index_and_emit(config, "session.status")
 
         whisper_service.get_model(config)
         append_session_processing_event(
@@ -175,7 +179,8 @@ async def process_session(session_id: str) -> None:
                 progress_label="Transcript ready",
                 progress_percent=100,
             )
-            rebuild_index(config)
+            await emit_session_status_from_id(config, session_id)
+            await rebuild_index_and_emit(config, "session.ready")
             return
 
         analyze_started_at = datetime_now_iso()
@@ -199,7 +204,8 @@ async def process_session(session_id: str) -> None:
             progress_percent=72,
             model_used=config.openrouter.default_model,
         )
-        rebuild_index(config)
+        await emit_session_status_from_id(config, session_id)
+        await rebuild_index_and_emit(config, "session.status")
 
         recurring_patterns = load_recurring_patterns(config, session_meta.language)
         analysis, last_raw = run_analysis_with_retries(
@@ -235,7 +241,8 @@ async def process_session(session_id: str) -> None:
             progress_label="Analysis ready",
             progress_percent=100,
         )
-        rebuild_index(config)
+        await emit_session_status_from_id(config, session_id)
+        await rebuild_index_and_emit(config, "session.ready")
     except (AnalysisNeedsAttentionError, OpenRouterClientError) as error:
         finished_at = datetime_now_iso()
         update_session_meta(
@@ -256,7 +263,8 @@ async def process_session(session_id: str) -> None:
             progress_label="Needs attention",
             progress_percent=100,
         )
-        rebuild_index(config)
+        await emit_session_status_from_id(config, session_id)
+        await rebuild_index_and_emit(config, "session.needs_attention")
     except AnalysisRetryExhaustedError as error:
         finished_at = datetime_now_iso()
         if error.last_raw:
@@ -279,7 +287,8 @@ async def process_session(session_id: str) -> None:
             progress_label="Analysis failed",
             progress_percent=100,
         )
-        rebuild_index(config)
+        await emit_session_status_from_id(config, session_id)
+        await rebuild_index_and_emit(config, "session.failed")
     except Exception as error:
         failed_at = datetime_now_iso()
         current_meta = load_session_meta(config, session_id)
@@ -307,13 +316,44 @@ async def process_session(session_id: str) -> None:
             progress_label="Processing failed",
             progress_percent=100,
         )
-        rebuild_index(config)
+        await emit_session_status_from_id(config, session_id)
+        await rebuild_index_and_emit(config, "session.failed")
 
 
 def datetime_now_iso() -> str:
     from datetime import datetime
 
     return datetime.now().astimezone().isoformat()
+
+
+async def emit_config_changed() -> None:
+    await sse_broadcaster.publish("config.changed", {})
+
+
+async def emit_index_changed(reason: str) -> None:
+    await sse_broadcaster.publish("index.changed", {"reason": reason})
+
+
+async def emit_session_status_from_id(config, session_id: str) -> None:
+    meta = load_session_meta(config, session_id)
+    await emit_session_status(meta)
+
+
+async def emit_session_status(meta) -> None:
+    payload = {
+        "session_id": meta.id,
+        "status": meta.status,
+        "save_mode": meta.save_mode,
+        "error": meta.error,
+    }
+    await sse_broadcaster.publish("session.status", payload)
+    if meta.status == "ready":
+        await sse_broadcaster.publish("session.ready", payload)
+
+
+async def rebuild_index_and_emit(config, reason: str) -> None:
+    rebuild_index(config)
+    await emit_index_changed(reason)
 
 
 processing_queue = SessionProcessingQueue(worker=process_session)
@@ -398,7 +438,7 @@ async def _recover_stuck_sessions() -> None:
             recovered = True
 
     if recovered:
-        rebuild_index(config)
+        await rebuild_index_and_emit(config, "startup.recovery")
 
 
 @asynccontextmanager
@@ -476,6 +516,7 @@ async def patch_config(payload: dict[str, Any]) -> dict[str, object]:
         updated = update_config(payload)
     except ValidationError as error:
         raise HTTPException(status_code=400, detail=error.errors()) from None
+    await emit_config_changed()
     return dump_config_for_api(updated)
 
 
@@ -586,7 +627,8 @@ async def post_session_finalize(session_id: str, payload: FinalizeSessionPayload
         )
         await processing_queue.enqueue(session_id)
 
-    rebuild_index(config)
+    await emit_session_status(meta)
+    await rebuild_index_and_emit(config, "session.finalize")
     return {"session_id": meta.id, "status": meta.status, "save_mode": meta.save_mode}
 
 
@@ -640,6 +682,22 @@ async def get_weekly_rollup(week: str) -> dict[str, object]:
         raise HTTPException(status_code=404, detail="Weekly rollup not found.") from None
 
     return rollup.model_dump(mode="json")
+
+
+@app.get("/api/events")
+async def get_events() -> StreamingResponse:
+    async def event_stream():
+        async for event in sse_broadcaster.subscribe():
+            yield event.format()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @app.get("/api/sessions/{session_id}")
@@ -825,7 +883,7 @@ async def post_session_mark_read(session_id: str) -> dict[str, object]:
     if meta is None:
         raise HTTPException(status_code=404, detail="Session not found.")
 
-    rebuild_index(config)
+    await rebuild_index_and_emit(config, "session.mark_read")
     return {"id": meta.id, "read": meta.read}
 
 
@@ -841,7 +899,7 @@ async def post_session_retry(session_id: str) -> dict[str, object]:
         raise HTTPException(status_code=400, detail="Session does not support retry.") from None
 
     if meta.status in {"queued", "transcribing", "analyzing"}:
-        rebuild_index(config)
+        await rebuild_index_and_emit(config, "session.retry.noop")
         return {"session_id": meta.id, "status": meta.status, "enqueued": False}
 
     queued_meta = update_session_meta(
@@ -862,7 +920,8 @@ async def post_session_retry(session_id: str) -> dict[str, object]:
         progress_percent=2,
     )
     enqueued = await processing_queue.enqueue(session_id)
-    rebuild_index(config)
+    await emit_session_status(queued_meta)
+    await rebuild_index_and_emit(config, "session.retry")
     return {"session_id": queued_meta.id, "status": queued_meta.status, "enqueued": enqueued}
 
 
@@ -895,7 +954,8 @@ async def post_session_import_analysis(session_id: str, payload: ImportAnalysisP
         updates={"status": "ready", "error": None},
         processing_updates={"analyze_finished_at": finished_at},
     )
-    rebuild_index(config)
+    await emit_session_status(updated_meta)
+    await rebuild_index_and_emit(config, "session.import_analysis")
     return {"session_id": updated_meta.id, "status": updated_meta.status}
 
 
@@ -906,5 +966,5 @@ async def delete_session(session_id: str) -> dict[str, object]:
     if not deleted:
         raise HTTPException(status_code=404, detail="Session not found.")
 
-    rebuild_index(config)
+    await rebuild_index_and_emit(config, "session.delete")
     return {"deleted": True, "id": session_id}

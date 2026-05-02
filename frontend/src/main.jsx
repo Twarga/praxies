@@ -9,6 +9,7 @@ import "@fontsource/jetbrains-mono/latin-400.css";
 import "@fontsource/jetbrains-mono/latin-500.css";
 import App from "./App.jsx";
 import { ConfigProvider } from "./contexts/ConfigContext.jsx";
+import { EventSourceProvider } from "./contexts/EventSourceContext.jsx";
 import { IndexProvider } from "./contexts/IndexContext.jsx";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
@@ -19,9 +20,11 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <ThemeProvider>
       <ConfigProvider>
         <IndexProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
+          <EventSourceProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </EventSourceProvider>
         </IndexProvider>
       </ConfigProvider>
     </ThemeProvider>
