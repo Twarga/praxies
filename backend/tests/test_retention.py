@@ -21,11 +21,17 @@ from app.services.retention import (
 from app.services.sessions import (
     create_session,
     finalize_session,
+    get_session_analysis_path,
     get_session_chunks_dir,
+    get_session_dir,
+    get_session_thumbnail_path,
+    get_session_transcript_json_path,
+    get_session_transcript_text_path,
     get_session_video_path,
     load_session_meta,
     store_session_chunk,
     update_session_meta,
+    write_session_analysis,
 )
 
 
@@ -55,6 +61,37 @@ def _generate_webm_chunk(output_path: Path, duration_seconds: int) -> bytes:
     if result.returncode != 0:
         raise RuntimeError(result.stderr)
     return output_path.read_bytes()
+
+
+def _analysis_payload(language: str = "en") -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "language": language,
+        "prose_verdict": "Useful practice session.",
+        "session_summary": "The speaker practiced one clear idea.",
+        "main_topics": ["practice"],
+        "grammar_and_language": {
+            "errors": [],
+            "fluency_score": 7,
+            "vocabulary_level": "B2",
+            "filler_words": {"um": 1},
+        },
+        "speaking_quality": {
+            "clarity": 7,
+            "pace": "steady",
+            "structure": "clear",
+            "executive_presence_notes": "direct",
+        },
+        "ideas_and_reasoning": {
+            "strong_points": ["Clear point."],
+            "weak_points": [],
+            "logical_flaws": [],
+            "factual_errors": [],
+            "philosophical_pushback": "",
+        },
+        "recurring_patterns_hit": ["soft ending"],
+        "actionable_improvements": ["Land the final sentence."],
+    }
 
 
 def test_retention_scan_finds_expired_video_sessions(config: ConfigModel):
@@ -171,3 +208,65 @@ async def test_retention_pass_compresses_expired_video_to_audio_only(config: Con
     assert not chunks_dir.exists()
     assert updated.processing.progress_label == "Retention compressed"
     assert any("audio-only archive" in line.message for line in updated.processing.terminal_lines)
+
+
+@pytest.mark.skipif(
+    shutil.which("ffmpeg") is None or shutil.which("ffprobe") is None,
+    reason="ffmpeg/ffprobe required for retention preservation test",
+)
+@pytest.mark.asyncio
+async def test_retention_compression_keeps_session_artifacts(config: ConfigModel, tmp_path):
+    session = create_session(
+        config,
+        language="en",
+        title="artifact retention",
+        created_at=datetime(2026, 4, 1, 9, 0, tzinfo=timezone.utc),
+    )
+    video_bytes = _generate_webm_chunk(tmp_path / "artifact.webm", duration_seconds=2)
+    upload = UploadFile(filename="chunk-0.webm", file=BytesIO(video_bytes))
+    await store_session_chunk(config, session.id, 0, upload)
+    await finalize_session(
+        config,
+        session.id,
+        save_mode="full",
+        duration_seconds_hint=2,
+    )
+    update_session_meta(config, session.id, updates={"status": "ready"})
+
+    transcript_text_path = get_session_transcript_text_path(config, session.id)
+    transcript_json_path = get_session_transcript_json_path(config, session.id)
+    analysis_path = get_session_analysis_path(config, session.id)
+    thumbnail_path = get_session_thumbnail_path(config, session.id)
+    meta_path = get_session_dir(config, session.id) / "meta.json"
+
+    transcript_text_path.write_text("Hello retained transcript.\n", encoding="utf-8")
+    transcript_json_path.write_text(
+        '[{"start_seconds":0.0,"end_seconds":1.5,"text":"Hello retained transcript."}]\n',
+        encoding="utf-8",
+    )
+    write_session_analysis(config, session.id, _analysis_payload("en"))
+    before_meta = load_session_meta(config, session.id)
+
+    assert thumbnail_path is not None
+    assert meta_path.exists()
+    assert transcript_text_path.exists()
+    assert transcript_json_path.exists()
+    assert analysis_path.exists()
+
+    summary = run_retention_pass(
+        config,
+        now=datetime(2026, 5, 2, 12, 0, tzinfo=timezone.utc),
+    )
+    after_meta = load_session_meta(config, session.id)
+
+    assert summary["compressed"] == 1
+    assert meta_path.exists()
+    assert transcript_text_path.read_text(encoding="utf-8") == "Hello retained transcript.\n"
+    assert "Hello retained transcript" in transcript_json_path.read_text(encoding="utf-8")
+    assert analysis_path.exists()
+    assert '"prose_verdict": "Useful practice session."' in analysis_path.read_text(encoding="utf-8")
+    assert thumbnail_path.exists()
+    assert after_meta.id == before_meta.id
+    assert after_meta.created_at == before_meta.created_at
+    assert after_meta.title == before_meta.title
+    assert after_meta.retention.compressed is True
