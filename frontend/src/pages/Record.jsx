@@ -216,6 +216,7 @@ export function Record({ onNavigate }) {
       await finalizeSession(recorder.sessionId, {
         title: reviewTitle.trim() || null,
         save_mode: saveMode,
+        duration_seconds: recorder.elapsedSeconds,
       });
       await refreshIndex();
       pushToast({

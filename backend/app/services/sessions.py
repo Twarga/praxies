@@ -315,6 +315,55 @@ def write_session_transcript_json(config: ConfigModel, session_id: str, segments
     return transcript_path
 
 
+def infer_duration_from_transcript_segments(segments: list[Any]) -> float:
+    duration_seconds = 0.0
+
+    for segment in segments:
+        if isinstance(segment, dict):
+            raw_end = segment.get("end_seconds", segment.get("end", 0.0))
+        else:
+            raw_end = getattr(segment, "end_seconds", getattr(segment, "end", 0.0))
+
+        try:
+            end_seconds = float(raw_end or 0.0)
+        except (TypeError, ValueError):
+            continue
+
+        duration_seconds = max(duration_seconds, end_seconds)
+
+    return duration_seconds
+
+
+def infer_session_duration_from_transcript(config: ConfigModel, session_id: str) -> float:
+    transcript_path = get_session_transcript_json_path(config, session_id)
+    if not transcript_path.exists():
+        return 0.0
+
+    payload = read_json_file(transcript_path)
+    if isinstance(payload, dict):
+        segments = payload.get("segments") or payload.get("transcript") or []
+    elif isinstance(payload, list):
+        segments = payload
+    else:
+        segments = []
+
+    return infer_duration_from_transcript_segments(segments)
+
+
+def repair_session_duration_from_transcript(config: ConfigModel, session_id: str) -> MetaModel:
+    meta = load_session_meta(config, session_id)
+    inferred_duration = infer_session_duration_from_transcript(config, session_id)
+
+    if inferred_duration > float(meta.duration_seconds or 0.0) + 0.5:
+        return update_session_meta(
+            config,
+            session_id,
+            updates={"duration_seconds": inferred_duration},
+        )
+
+    return meta
+
+
 def write_session_analysis(config: ConfigModel, session_id: str, payload: dict[str, Any]) -> Path:
     analysis = validate_analysis_payload(payload)
     analysis_path = get_session_analysis_path(config, session_id)
@@ -643,10 +692,13 @@ async def finalize_session(
     *,
     title: str | None = None,
     save_mode: str | None = None,
+    duration_seconds_hint: float | None = None,
 ) -> MetaModel:
     meta = load_session_meta(config, session_id)
     video_path = await assemble_session_video(config, session_id)
     duration_seconds = await probe_session_video(video_path)
+    if duration_seconds <= 0 and duration_seconds_hint and duration_seconds_hint > 0:
+        duration_seconds = float(duration_seconds_hint)
     file_size_bytes = video_path.stat().st_size
     final_save_mode = resolve_final_save_mode(meta, save_mode)
     final_status = "video_only" if final_save_mode == "video_only" else "saved"

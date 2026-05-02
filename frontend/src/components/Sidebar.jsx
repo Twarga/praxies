@@ -1,6 +1,7 @@
 import {
   AlertCircle,
   CheckCircle2,
+  Flame,
   LayoutDashboard,
   Loader2,
   Mic,
@@ -219,11 +220,12 @@ export function Sidebar({ currentPage, onNavigate }) {
           </span>
         </button>
         <div className="hidden sm:grid mt-3 grid-cols-2 gap-2 sm:px-1 font-mono">
-          <div className="rounded border border-[#2A2C31] bg-[#1C1D21] px-2 py-2">
-            <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1] opacity-35">
+          <div className="rounded border border-[#4ADE80]/30 bg-[#4ADE80]/10 px-2 py-2">
+            <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-[#4ADE80] opacity-80">
+              <Flame size={10} className={currentStreak > 0 ? "streak-flame" : ""} />
               Streak
             </div>
-            <div className="text-sm text-white tnum">{currentStreak}</div>
+            <div className="mt-1 text-sm text-white tnum">{currentStreak}d</div>
           </div>
           <div className="rounded border border-[#2A2C31] bg-[#1C1D21] px-2 py-2">
             <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1] opacity-35">

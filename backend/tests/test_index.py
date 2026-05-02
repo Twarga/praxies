@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.services.index import rebuild_index
-from app.services.sessions import create_session, update_session_meta
+from app.services.json_io import write_json_file
+from app.services.sessions import create_session, get_session_transcript_json_path, update_session_meta
 
 
 def test_streak_uses_strict_two_minute_minimum(config):
@@ -60,4 +61,28 @@ def test_video_only_session_counts_for_streak_when_duration_qualifies(config):
 
     assert index.streak.current == 2
     assert index.streak.longest == 2
+    assert index.streak.last_active_date == "2026-05-01"
+
+
+def test_rebuild_repairs_zero_duration_from_transcript_timestamps(config):
+    session = create_session(
+        config,
+        language="en",
+        title="transcribed",
+        created_at=datetime(2026, 5, 1, 9, 0, tzinfo=timezone.utc),
+    )
+    update_session_meta(config, session.id, updates={"status": "ready", "duration_seconds": 0})
+    write_json_file(
+        get_session_transcript_json_path(config, session.id),
+        [
+            {"start_seconds": 0, "end_seconds": 55, "text": "first"},
+            {"start_seconds": 55, "end_seconds": 181.4, "text": "second"},
+        ],
+    )
+
+    index = rebuild_index(config, now=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc))
+
+    indexed_session = next(item for item in index.sessions if item.id == session.id)
+    assert indexed_session.duration_seconds == 181.4
+    assert index.streak.current == 1
     assert index.streak.last_active_date == "2026-05-01"

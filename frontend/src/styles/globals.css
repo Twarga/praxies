@@ -143,3 +143,61 @@ textarea,
 .praxis-fade-in {
   animation: praxis-fade-in 220ms ease-out;
 }
+
+@keyframes streak-cell-arrive {
+  from {
+    opacity: 0.35;
+    transform: scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes streak-flame-pulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.35));
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(242, 125, 38, 0.5));
+    transform: translateY(-1px) scale(1.08);
+  }
+}
+
+@keyframes streak-progress-shine {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 100% 50%;
+  }
+}
+
+.streak-cell {
+  animation: streak-cell-arrive 180ms ease-out both;
+}
+
+.streak-cell-active {
+  position: relative;
+}
+
+.streak-flame {
+  animation: streak-flame-pulse 1.8s ease-in-out infinite;
+}
+
+.streak-progress {
+  background-size: 180% 100%;
+  animation: streak-progress-shine 2.4s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .praxis-fade-in,
+  .streak-cell,
+  .streak-flame,
+  .streak-progress {
+    animation: none;
+  }
+}

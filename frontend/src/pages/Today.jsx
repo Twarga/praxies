@@ -1,4 +1,4 @@
-import { AlertCircle, Loader2, Mic, PlayCircle } from "lucide-react";
+import { AlertCircle, Flame, Loader2, Mic, PlayCircle, Trophy } from "lucide-react";
 import { useEffect, useState } from "react";
 import { loadSession, loadTodayDigest } from "../api/sessions.js";
 import { StreakGrid } from "../components/StreakGrid.jsx";
@@ -28,6 +28,133 @@ function getPrimaryLanguage(byLanguage) {
   if (code === "fr") return "FR-FR";
   if (code === "es") return "ES-ES";
   return code.toUpperCase();
+}
+
+function getLocalDateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getTodayQualifyingMinutes(sessions) {
+  const todayKey = getLocalDateKey();
+  const totalSeconds = (sessions ?? []).reduce((sum, session) => {
+    const sessionKey = getLocalDateKey(session.created_at);
+    const durationSeconds = Number(session.duration_seconds) || 0;
+    if (sessionKey !== todayKey || durationSeconds < 120) return sum;
+    return sum + durationSeconds;
+  }, 0);
+
+  return Math.round(totalSeconds / 60);
+}
+
+function getNextMilestone(currentStreak) {
+  return [3, 7, 14, 30, 60, 100].find((milestone) => milestone > currentStreak) ?? currentStreak + 50;
+}
+
+function StreakStatusCard({ streak, sessions, onRecord }) {
+  const current = Number(streak?.current) || 0;
+  const longest = Number(streak?.longest) || 0;
+  const todayMinutes = getTodayQualifyingMinutes(sessions);
+  const hasCheckedInToday = todayMinutes >= 2;
+  const nextMilestone = getNextMilestone(current);
+  const progress = Math.min(100, Math.round((current / nextMilestone) * 100));
+  const dayLabel = current === 1 ? "day" : "days";
+
+  return (
+    <div className="relative overflow-hidden bg-[#151619] rounded-lg border border-[#2A2C31] p-5 praxis-fade-in">
+      <div className="absolute inset-0 pointer-events-none opacity-70 bg-[radial-gradient(circle_at_18%_0%,rgba(74,222,128,0.14),transparent_34%),radial-gradient(circle_at_90%_20%,rgba(242,125,38,0.13),transparent_30%)]" />
+      <div className="relative flex items-start justify-between gap-5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
+            <Flame size={14} className={hasCheckedInToday ? "streak-flame" : ""} />
+            Streak Engine
+          </div>
+          <div className="mt-3 flex items-end gap-3">
+            <div className="text-6xl sm:text-7xl leading-none font-light text-white tnum tracking-[-0.06em]">
+              {current}
+            </div>
+            <div className="pb-2">
+              <div className="text-sm uppercase tracking-widest text-white">{dayLabel}</div>
+              <div className="mt-1 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+                Longest {longest}
+              </div>
+            </div>
+          </div>
+          <p className="mt-4 max-w-[420px] text-sm leading-relaxed text-[#D1D1D1]/75">
+            {hasCheckedInToday
+              ? `Locked for today with ${todayMinutes} qualifying minutes. Keep the chain visible.`
+              : "Record at least 2 minutes today to protect the chain."}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={onRecord}
+          className={`shrink-0 rounded-lg border px-4 py-3 text-left transition-colors ${
+            hasCheckedInToday
+              ? "border-[#4ADE80]/35 bg-[#4ADE80]/10 hover:bg-[#4ADE80]/15"
+              : "border-[#F27D26]/35 bg-[#F27D26]/10 hover:bg-[#F27D26]/15"
+          }`}
+        >
+          <div className="text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/55">
+            Today
+          </div>
+          <div className="mt-1 text-xs font-semibold uppercase tracking-widest text-white">
+            {hasCheckedInToday ? "Checked" : "Start"}
+          </div>
+          <div className="mt-1 text-[10px] text-[#D1D1D1]/55">
+            {hasCheckedInToday ? `${todayMinutes} min` : "2 min goal"}
+          </div>
+        </button>
+      </div>
+
+      <div className="relative mt-5 grid grid-cols-3 gap-2 font-mono">
+        <div className="rounded border border-[#2A2C31] bg-[#1C1D21]/80 px-3 py-2">
+          <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1]/35">
+            Next
+          </div>
+          <div className="mt-1 text-sm text-white tnum">{nextMilestone}d</div>
+        </div>
+        <div className="rounded border border-[#2A2C31] bg-[#1C1D21]/80 px-3 py-2">
+          <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1]/35">
+            Left
+          </div>
+          <div className="mt-1 text-sm text-white tnum">{Math.max(nextMilestone - current, 0)}d</div>
+        </div>
+        <div className="rounded border border-[#2A2C31] bg-[#1C1D21]/80 px-3 py-2">
+          <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1]/35">
+            Status
+          </div>
+          <div className={`mt-1 text-sm tnum ${hasCheckedInToday ? "text-[#4ADE80]" : "text-[#F27D26]"}`}>
+            {hasCheckedInToday ? "safe" : "open"}
+          </div>
+        </div>
+      </div>
+
+      <div className="relative mt-4">
+        <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/40">
+          <span>Milestone progress</span>
+          <span>{progress}%</span>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#0F1012] border border-[#2A2C31]">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#F27D26] to-[#4ADE80] streak-progress"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="relative mt-4 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+        <Trophy size={13} className="text-[#F4B26D]" />
+        Streak counts only sessions of 2+ minutes.
+      </div>
+    </div>
+  );
 }
 
 function getFallbackBannerCopy(session, bundle) {
@@ -167,6 +294,7 @@ export function Today({ onNavigate, scrollRef }) {
   );
   const totalsByLang = index?.totals?.by_language ?? {};
   const primaryLanguage = getPrimaryLanguage(totalsByLang);
+  const streak = index?.streak ?? {};
 
   const fallbackBanner = getFallbackBannerCopy(fallbackSession, fallbackBundle);
   const digestSession = todayDigest?.session ?? null;
@@ -323,6 +451,12 @@ export function Today({ onNavigate, scrollRef }) {
 
         {/* Side column */}
         <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
+          <StreakStatusCard
+            streak={streak}
+            sessions={sessions}
+            onRecord={() => onNavigate("record")}
+          />
+
           {/* Queue */}
           <div className="bg-[#151619] border border-[#2A2C31] rounded-lg p-5">
             <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-4">
@@ -398,9 +532,7 @@ export function Today({ onNavigate, scrollRef }) {
                 <div className="text-[10px] opacity-40 uppercase mb-1 font-mono">
                   Streak
                 </div>
-                <div className="text-xl font-light text-white tnum">
-                  {index?.streak?.current ?? 0}
-                </div>
+                <div className="text-xl font-light text-white tnum">{streak.current ?? 0}</div>
               </div>
               <div className="border border-[#2A2C31] bg-[#1C1D21] p-3 rounded">
                 <div className="text-[10px] opacity-40 uppercase mb-1 font-mono">
@@ -419,7 +551,7 @@ export function Today({ onNavigate, scrollRef }) {
                 Streak Grid
               </h3>
               <div className="text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
-                {index?.streak?.current ?? 0} day
+                {streak.current ?? 0} day
               </div>
             </div>
             <StreakGrid sessions={sessions} />

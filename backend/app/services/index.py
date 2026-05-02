@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from app.models import IndexModel, MetaModel
 from app.services.config import ensure_journal_dir
 from app.services.json_io import read_json_file, write_json_file
-from app.services.sessions import discover_session_dirs
+from app.services.sessions import discover_session_dirs, repair_session_duration_from_transcript
 
 
 STREAK_MINIMUM_DURATION_SECONDS = 120
@@ -79,6 +79,12 @@ def _build_streak(active_dates: list[date]) -> dict[str, int | str | None]:
 def rebuild_index(config, now: datetime | None = None) -> IndexModel:
     session_dirs = discover_session_dirs(config)
     metas = [meta for meta in (load_meta(path) for path in session_dirs) if meta is not None]
+    metas = [
+        repair_session_duration_from_transcript(config, meta.id)
+        if float(meta.duration_seconds or 0.0) <= 0
+        else meta
+        for meta in metas
+    ]
     metas.sort(key=lambda item: item.created_at, reverse=True)
 
     active_dates = [

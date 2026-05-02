@@ -7,8 +7,8 @@ const INTENSITY_CLASSES = [
   "bg-[#1C1D21] border-[#2A2C31]",
   "bg-[#3A2A1F] border-[#5A3A25]",
   "bg-[#7A431F] border-[#9A5425]",
-  "bg-[#F27D26] border-[#F4B26D]",
-  "bg-[#4ADE80] border-[#7AF0A2]",
+  "bg-[#F27D26] border-[#F4B26D] shadow-[0_0_10px_rgba(242,125,38,0.22)]",
+  "bg-[#4ADE80] border-[#7AF0A2] shadow-[0_0_12px_rgba(74,222,128,0.24)]",
 ];
 
 function toLocalDateKey(value) {
@@ -71,6 +71,7 @@ function buildGridDays(sessions, endDate) {
       count: bucket.count,
       totalSeconds: bucket.totalSeconds,
       intensity: getIntensity(bucket.totalSeconds),
+      isToday: key === dateKeyFromDate(new Date()),
     });
   }
 
@@ -92,25 +93,34 @@ function formatSummary(day) {
 export function StreakGrid({ sessions, endDate = new Date() }) {
   const days = buildGridDays(sessions, endDate);
   const [activeDay, setActiveDay] = useState(null);
+  const activeCount = days.filter((day) => day.intensity > 0).length;
 
   return (
     <div>
-      <div className="mb-3 min-h-4 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/50">
-        {formatSummary(activeDay)}
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="min-h-4 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/50">
+          {formatSummary(activeDay)}
+        </div>
+        <div className="shrink-0 text-[9px] font-mono uppercase tracking-widest text-[#4ADE80]/80">
+          {activeCount} active days
+        </div>
       </div>
       <div className="overflow-x-auto pb-1" onMouseLeave={() => setActiveDay(null)}>
         <div
           className="grid grid-flow-col grid-rows-7 gap-[3px] w-max"
           aria-label="365 day streak activity grid"
         >
-          {days.map((day) => (
+          {days.map((day, index) => (
             <button
               key={day.key}
               type="button"
               onMouseEnter={() => setActiveDay(day)}
               onFocus={() => setActiveDay(day)}
               onBlur={() => setActiveDay(null)}
-              className={`h-2.5 w-2.5 rounded-[2px] border outline-none transition-transform hover:scale-125 focus:scale-125 focus:ring-1 focus:ring-[#D1D1D1]/40 ${INTENSITY_CLASSES[day.intensity]}`}
+              className={`streak-cell h-2.5 w-2.5 rounded-[2px] border outline-none transition-transform hover:scale-125 focus:scale-125 focus:ring-1 focus:ring-[#D1D1D1]/40 ${
+                day.isToday ? "ring-1 ring-[#D1D1D1]/50" : ""
+              } ${day.intensity > 0 ? "streak-cell-active" : ""} ${INTENSITY_CLASSES[day.intensity]}`}
+              style={{ animationDelay: `${Math.min(index, 60) * 8}ms` }}
               title={`${day.key}: ${day.count} qualifying session${day.count === 1 ? "" : "s"}`}
               aria-label={formatSummary(day)}
             />

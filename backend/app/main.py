@@ -5,7 +5,7 @@ from typing import Any, Literal
 from fastapi import FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from app.core.settings import APP_VERSION
 from app.services.analysis_service import (
@@ -40,6 +40,7 @@ from app.services.sessions import (
     load_session_meta,
     load_session_bundle,
     mark_session_read,
+    repair_session_duration_from_transcript,
     store_session_chunk,
     get_session_thumbnail_path,
     get_session_subtitle_path,
@@ -142,6 +143,7 @@ async def process_session(session_id: str) -> None:
         segment_list = list(segments)
         write_session_transcript_text(config, session_id, segment_list)
         write_session_transcript_json(config, session_id, segment_list)
+        repair_session_duration_from_transcript(config, session_id)
         transcript_payload = load_session_transcript_payload(config, session_id)
         write_subtitle_files(
             config,
@@ -471,6 +473,7 @@ class CreateSessionPayload(BaseModel):
 class FinalizeSessionPayload(BaseModel):
     title: str | None = None
     save_mode: Literal["full", "transcribe_only", "video_only"]
+    duration_seconds: float | None = Field(default=None, ge=0)
 
 
 class ImportAnalysisPayload(BaseModel):
@@ -601,6 +604,7 @@ async def post_session_finalize(session_id: str, payload: FinalizeSessionPayload
             session_id,
             title=payload.title,
             save_mode=payload.save_mode,
+            duration_seconds_hint=payload.duration_seconds,
         )
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail="Session not found.") from None
