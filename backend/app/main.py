@@ -28,6 +28,7 @@ from app.services.prompt_builder import (
     build_transcript_user_message,
 )
 from app.services.recurring_patterns import load_recurring_patterns
+from app.services.retention import RETENTION_INTERVAL_SECONDS, scan_retention_due_sessions
 from app.services.sessions import (
     append_session_processing_event,
     create_session,
@@ -71,6 +72,20 @@ from app.services.whisper_service import WhisperService
 whisper_service = WhisperService()
 llm_client = LiteLLMOpenRouterClient()
 sse_broadcaster = SSEBroadcaster()
+retention_task: asyncio.Task | None = None
+
+
+async def run_retention_check_once() -> dict[str, object]:
+    return await asyncio.to_thread(scan_retention_due_sessions, load_config())
+
+
+async def _retention_loop(interval_seconds: int = RETENTION_INTERVAL_SECONDS) -> None:
+    while True:
+        try:
+            await run_retention_check_once()
+        except Exception:
+            pass
+        await asyncio.sleep(interval_seconds)
 
 
 async def process_session(session_id: str) -> None:
@@ -479,11 +494,20 @@ async def _recover_stuck_sessions() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    global retention_task
     await processing_queue.start()
     await _recover_stuck_sessions()
+    retention_task = asyncio.create_task(_retention_loop(), name="daily-retention-task")
     try:
         yield
     finally:
+        if retention_task:
+            retention_task.cancel()
+            try:
+                await retention_task
+            except asyncio.CancelledError:
+                pass
+            retention_task = None
         await processing_queue.stop()
 
 

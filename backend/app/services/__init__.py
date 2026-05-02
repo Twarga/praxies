@@ -19,6 +19,12 @@ from app.services.index import (
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
 from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
 from app.services.processing_queue import SessionProcessingQueue
+from app.services.retention import (
+    RETENTION_INTERVAL_SECONDS,
+    get_retention_deadline,
+    is_retention_due,
+    scan_retention_due_sessions,
+)
 from app.services.sse import SSEBroadcaster, ServerSentEvent
 from app.services.recurring_patterns import (
     build_empty_recurring_patterns,
@@ -109,6 +115,7 @@ __all__ = [
     "AnalysisRetryExhaustedError",
     "LiteLLMOpenRouterClient",
     "OpenRouterClientError",
+    "RETENTION_INTERVAL_SECONDS",
     "build_analysis_export_prompt",
     "build_analysis_system_prompt",
     "build_recurring_patterns_prompt_block",
@@ -148,6 +155,8 @@ __all__ = [
     "get_index_file_path",
     "get_patterns_dir",
     "get_patterns_file_path",
+    "get_retention_deadline",
+    "is_retention_due",
     "list_sessions",
     "load_config",
     "load_session_chunk_manifest",
@@ -168,6 +177,7 @@ __all__ = [
     "resolve_journal_dir",
     "save_session_meta",
     "save_recurring_patterns",
+    "scan_retention_due_sessions",
     "should_skip_processing_pipeline",
     "SessionProcessingQueue",
     "SSEBroadcaster",
