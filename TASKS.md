@@ -285,7 +285,7 @@ Goal: complete live-update and operational behavior for daily use.
 - [x] T148 Keep transcript, analysis, thumbnail, and meta after retention compression.
 - [x] T149 Phone upload enable/disable config behavior.
 - [x] T150 Detect LAN IP for upload URL caption.
-- [ ] T151 `GET /upload` minimal HTML form.
+- [x] T151 `GET /upload` minimal HTML form.
 - [ ] T152 `POST /upload` creates upload sessions and queues them.
 - [ ] T153 Render QR code in Settings.
 - [ ] T154 Show real upload URL under QR code.
@@ -419,3 +419,4 @@ Additional current tests:
 - 2026-05-02: Implemented `T147` retention compression from expired video to audio-only archive with metadata updates.
 - 2026-05-02: Implemented `T148` retention artifact preservation coverage for transcript, analysis, thumbnail, and meta.
 - 2026-05-02: Implemented `T150` LAN IP detection and upload URL exposure in config API.
+- 2026-05-02: Implemented `T151` minimal phone upload HTML form gated by phone-upload settings.

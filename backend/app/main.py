@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from fastapi import FastAPI, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from app.core.settings import APP_VERSION
@@ -570,6 +570,66 @@ def get_request_port(request: Request) -> int | None:
     if request.url.scheme == "http":
         return 80
     return None
+
+
+def render_upload_form() -> str:
+    return """<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Praxis phone upload</title>
+    <style>
+      :root { color-scheme: dark; background: #0f1012; color: #f5f5f0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+      main { width: min(100%, 520px); border: 1px solid #2a2c31; background: #151619; padding: 22px; }
+      h1 { margin: 0 0 8px; font-size: 16px; letter-spacing: .16em; text-transform: uppercase; }
+      p { margin: 0 0 22px; color: #a8a8a8; font-size: 12px; line-height: 1.55; }
+      label { display: block; margin-top: 14px; color: #a8a8a8; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; }
+      input, select, button { width: 100%; box-sizing: border-box; margin-top: 7px; border: 1px solid #2a2c31; background: #0f1012; color: #f5f5f0; padding: 12px; font: inherit; }
+      button { margin-top: 20px; background: #f5f5f0; color: #0f1012; border-color: #f5f5f0; font-weight: 700; text-transform: uppercase; letter-spacing: .16em; }
+      .hint { margin-top: 14px; color: #777; font-size: 11px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Praxis Upload</h1>
+      <p>Send a recording from your phone to this Praxis journal. Keep this device on the same Wi-Fi network.</p>
+      <form method="post" action="/upload" enctype="multipart/form-data">
+        <label for="file">Video file</label>
+        <input id="file" name="file" type="file" accept="video/*,audio/*" required>
+        <label for="language">Language</label>
+        <select id="language" name="language">
+          <option value="en">English</option>
+          <option value="fr">French</option>
+          <option value="es">Spanish</option>
+        </select>
+        <label for="title">Title</label>
+        <input id="title" name="title" type="text" maxlength="120" placeholder="Optional">
+        <label for="save_mode">Processing</label>
+        <select id="save_mode" name="save_mode">
+          <option value="full">Save and process</option>
+          <option value="transcribe_only">Transcribe only</option>
+          <option value="video_only">Video only</option>
+        </select>
+        <button type="submit">Upload</button>
+      </form>
+      <div class="hint">Uploads stay local on your machine.</div>
+    </main>
+  </body>
+</html>
+"""
+
+
+@app.get("/upload")
+async def get_upload_form() -> HTMLResponse:
+    config = load_config()
+    if not config.phone_upload_enabled:
+        return HTMLResponse(
+            "<!doctype html><title>Praxis upload disabled</title><p>Phone upload is disabled in Praxis settings.</p>",
+            status_code=403,
+        )
+    return HTMLResponse(render_upload_form())
 
 
 @app.get("/api/config")
