@@ -1,4 +1,4 @@
-import { AlertCircle, Flame, Loader2, Mic, PlayCircle, Trophy } from "lucide-react";
+import { AlertCircle, Flame, Loader2, Mic, PlayCircle, Trophy, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { loadSession, loadTodayDigest } from "../api/sessions.js";
 import { StreakGrid } from "../components/StreakGrid.jsx";
@@ -12,10 +12,29 @@ import {
   isProcessingStatus,
 } from "../lib/sessionUi.js";
 
+const RECOVERY_BANNER_DISMISSED_KEY = "praxis.dismissedRecoveryBannerSessionIds";
+
 function isInLastSevenDays(value) {
   const ts = new Date(value).getTime();
   if (Number.isNaN(ts)) return false;
   return Date.now() - ts <= 7 * 24 * 60 * 60 * 1000;
+}
+
+function readDismissedRecoveryIds() {
+  try {
+    return new Set(JSON.parse(window.localStorage.getItem(RECOVERY_BANNER_DISMISSED_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function dismissRecoveryId(sessionId) {
+  const dismissed = readDismissedRecoveryIds();
+  dismissed.add(sessionId);
+  window.localStorage.setItem(
+    RECOVERY_BANNER_DISMISSED_KEY,
+    JSON.stringify(Array.from(dismissed).slice(-100)),
+  );
 }
 
 function getPrimaryLanguage(byLanguage) {
@@ -287,6 +306,42 @@ function getFallbackBannerCopy(session, bundle) {
   return null;
 }
 
+function getRecoveryBannerCopy(session, bundle) {
+  const meta = bundle?.meta;
+  const terminalLines = meta?.processing?.terminal_lines ?? [];
+  const terminalText = terminalLines.map((line) => line.message).join("\n").toLowerCase();
+  const progressLabel = String(meta?.processing?.progress_label || "").toLowerCase();
+  const errorText = String(meta?.error || session?.error || "").toLowerCase();
+  const isRecoverySession =
+    terminalText.includes("startup recovery") ||
+    progressLabel.includes("recovered for review") ||
+    progressLabel.includes("startup recovery failed") ||
+    errorText.includes("corrupt unfinished recording") ||
+    errorText.includes("interrupted before finalize");
+
+  if (!isRecoverySession) {
+    return null;
+  }
+
+  if (meta?.status === "video_only" || session?.status === "video_only") {
+    return {
+      tone: "warning",
+      eyebrow: "startup recovery",
+      title: "Recovered an unfinished recording",
+      body: "Praxis found a recording from a previous interrupted session and saved the playable video for review.",
+      action: "Open recovered video",
+    };
+  }
+
+  return {
+    tone: "danger",
+    eyebrow: "startup recovery",
+    title: "A recording could not be recovered",
+    body: meta?.error || session?.error || "Praxis found an unfinished recording, but the saved chunks were not playable.",
+    action: "Inspect recovery log",
+  };
+}
+
 export function Today({ onNavigate, scrollRef }) {
   const { index } = useIndex();
   const sessions = index?.sessions ?? [];
@@ -299,6 +354,7 @@ export function Today({ onNavigate, scrollRef }) {
   const [todayDigest, setTodayDigest] = useState(null);
   const [digestLoading, setDigestLoading] = useState(true);
   const [fallbackBundle, setFallbackBundle] = useState(null);
+  const [recoveryBanner, setRecoveryBanner] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -339,6 +395,43 @@ export function Today({ onNavigate, scrollRef }) {
     };
   }, [fallbackSession?.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const dismissedIds = readDismissedRecoveryIds();
+    const candidates = sessions
+      .filter((session) => ["video_only", "failed"].includes(session.status))
+      .filter((session) => !dismissedIds.has(session.id))
+      .slice(0, 12);
+
+    if (candidates.length === 0) {
+      setRecoveryBanner(null);
+      return undefined;
+    }
+
+    Promise.all(
+      candidates.map((session) =>
+        loadSession(session.id)
+          .then((bundle) => ({ session, bundle }))
+          .catch(() => null),
+      ),
+    ).then((results) => {
+      if (cancelled) return;
+      const match = results
+        .filter(Boolean)
+        .map((entry) => ({
+          ...entry,
+          banner: getRecoveryBannerCopy(entry.session, entry.bundle),
+        }))
+        .find((entry) => entry.banner);
+
+      setRecoveryBanner(match ?? null);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [index?.generated_at, sessions]);
+
   const recentSessions = sessions.filter((s) => isInLastSevenDays(s.created_at));
   const weeklyCount = recentSessions.length;
   const weeklyMinutes = Math.round(
@@ -349,6 +442,10 @@ export function Today({ onNavigate, scrollRef }) {
   const streak = index?.streak ?? {};
 
   const fallbackBanner = getFallbackBannerCopy(fallbackSession, fallbackBundle);
+  const visibleFallbackSession =
+    fallbackSession?.id && fallbackSession.id !== recoveryBanner?.session?.id
+      ? fallbackSession
+      : null;
   const digestSession = todayDigest?.session ?? null;
   const digestAnalysis = todayDigest?.analysis ?? null;
   const digestActions = (digestAnalysis?.actionable_improvements ?? []).slice(0, 3);
@@ -365,10 +462,67 @@ export function Today({ onNavigate, scrollRef }) {
       <div className="px-8 max-w-5xl w-full mx-auto grid grid-cols-12 gap-6 py-8">
         {/* Main column */}
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
-          {fallbackSession && fallbackBanner ? (
+          {recoveryBanner ? (
+            <div
+              className={`bg-[#151619] border rounded-lg p-5 transition-colors ${
+                recoveryBanner.banner.tone === "danger"
+                  ? "border-red-500/40"
+                  : "border-[#F27D26]/50"
+              }`}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className={`w-9 h-9 rounded flex items-center justify-center shrink-0 ${
+                    recoveryBanner.banner.tone === "danger"
+                      ? "bg-red-500/10 text-red-300"
+                      : "bg-[#F27D26]/10 text-[#F27D26]"
+                  }`}
+                >
+                  <AlertCircle size={16} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[10px] font-mono uppercase tracking-widest opacity-50 mb-1">
+                    {recoveryBanner.banner.eyebrow}
+                  </div>
+                  <h3 className="text-sm font-semibold text-white mb-1">
+                    {recoveryBanner.banner.title}
+                  </h3>
+                  <p className="text-xs text-[#D1D1D1] opacity-75 leading-relaxed">
+                    {recoveryBanner.banner.body}
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dismissRecoveryId(recoveryBanner.session.id);
+                        onNavigate("session", { sessionId: recoveryBanner.session.id });
+                      }}
+                      className="text-[10px] font-mono uppercase tracking-widest text-[#4ADE80] hover:text-white transition-colors"
+                    >
+                      {recoveryBanner.banner.action} · {getSessionTitle(recoveryBanner.session)}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        dismissRecoveryId(recoveryBanner.session.id);
+                        setRecoveryBanner(null);
+                      }}
+                      className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45 hover:text-white transition-colors"
+                      aria-label="Dismiss recovery banner"
+                    >
+                      <X size={11} />
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {visibleFallbackSession && fallbackBanner ? (
             <button
               type="button"
-              onClick={() => onNavigate("session", { sessionId: fallbackSession.id })}
+              onClick={() => onNavigate("session", { sessionId: visibleFallbackSession.id })}
               className={`bg-[#151619] border rounded-lg p-5 text-left transition-colors ${
                 fallbackBanner.tone === "danger"
                   ? "border-red-500/40 hover:border-red-400/70"
@@ -400,7 +554,7 @@ export function Today({ onNavigate, scrollRef }) {
                     {fallbackBanner.body}
                   </p>
                   <div className="mt-4 text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
-                    {fallbackBanner.action} · {getSessionTitle(fallbackSession)}
+                    {fallbackBanner.action} · {getSessionTitle(visibleFallbackSession)}
                   </div>
                 </div>
               </div>

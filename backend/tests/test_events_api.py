@@ -6,12 +6,13 @@ import app.main as main_module
 from app.services.sse import ServerSentEvent
 
 
-def test_get_events_streams_sse_events(monkeypatch):
+def test_get_events_streams_sse_events(config, monkeypatch):
     class FakeBroadcaster:
         async def subscribe(self):
             yield ServerSentEvent(event="index.changed", data={"reason": "test"})
 
     monkeypatch.setattr(main_module, "sse_broadcaster", FakeBroadcaster())
+    monkeypatch.setattr(main_module, "load_config", lambda: config)
 
     with TestClient(main_module.app) as client:
         response = client.get("/api/events")

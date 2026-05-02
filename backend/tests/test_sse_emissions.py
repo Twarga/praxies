@@ -62,6 +62,7 @@ async def test_rebuild_index_and_emit_publishes_index_changed(config, monkeypatc
 def test_patch_config_emits_config_changed(config, monkeypatch):
     broadcaster = FakeBroadcaster()
     monkeypatch.setattr(main_module, "sse_broadcaster", broadcaster)
+    monkeypatch.setattr(main_module, "load_config", lambda: config)
     monkeypatch.setattr(main_module, "update_config", lambda _payload: config)
 
     with TestClient(main_module.app) as client:

@@ -383,12 +383,46 @@ async def _recover_stuck_sessions() -> None:
             meta = load_session_meta(config, session_id)
 
         if meta.status == "recording":
-            video_path = get_session_video_path(config, session_id)
-            if video_path is None:
+            try:
+                recovered_meta = await finalize_session(
+                    config,
+                    session_id,
+                    save_mode="video_only",
+                )
+            except Exception as error:
+                recovery_error = str(error).strip()
+                failure_reason = (
+                    "interrupted before finalize"
+                    if isinstance(error, ValueError) and "No uploaded chunks" in recovery_error
+                    else "corrupt unfinished recording"
+                )
+                log_detail = recovery_error or failure_reason
                 update_session_meta(
                     config,
                     session_id,
-                    updates={"status": "failed", "error": "interrupted before finalize"},
+                    updates={"status": "failed", "error": failure_reason},
+                    processing_updates={
+                        "progress_label": "Startup recovery failed",
+                        "progress_percent": 100,
+                    },
+                )
+                append_session_processing_event(
+                    config,
+                    session_id,
+                    message=f"Startup recovery failed: {log_detail}",
+                    level="error",
+                    progress_label="Startup recovery failed",
+                    progress_percent=100,
+                )
+                recovered = True
+            else:
+                append_session_processing_event(
+                    config,
+                    session_id,
+                    message="Startup recovery assembled an unfinished recording and saved it for review.",
+                    level="warning",
+                    progress_label="Recovered for review",
+                    progress_percent=100,
                 )
                 recovered = True
         elif meta.status == "saved":
