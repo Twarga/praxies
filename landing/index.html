@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Praxis - Private AI video journaling</title>
+    <meta
+      name="description"
+      content="Praxis is a private desktop video journal for recording yourself, transcribing with Whisper, analyzing with AI, and tracking recurring speaking patterns."
+    >
+    <meta name="theme-color" content="#08090a">
+    <meta property="og:title" content="Praxis - Private AI video journaling">
+    <meta
+      property="og:description"
+      content="Record yourself. Get the transcript, the critique, the patterns, and the proof that you are improving."
+    >
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://twarga.github.io/praxies/">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="canonical" href="https://twarga.github.io/praxies/">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="site-noise" aria-hidden="true"></div>
+    <header class="site-header">
+      <nav class="nav-shell" aria-label="Primary navigation">
+        <a class="brand" href="#top" aria-label="Praxis home">
+          <span class="brand-mark" aria-hidden="true">PX</span>
+          <span>Praxis</span>
+        </a>
+        <div class="nav-links">
+          <a href="#workflow">Workflow</a>
+          <a href="#features">Features</a>
+          <a href="#roadmap">Roadmap</a>
+        </div>
+        <a class="nav-cta" href="https://github.com/Twarga/praxies">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section id="top" class="hero section-shell">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">Private AI Video Journal</p>
+          <h1>Train your speaking with evidence, not vibes.</h1>
+          <p class="hero-lede">
+            Praxis records your sessions, transcribes them with Whisper, analyzes them with an LLM,
+            and tracks the patterns that keep repeating.
+          </p>
+          <div class="hero-actions" aria-label="Primary actions">
+            <a class="button button-primary" href="https://github.com/Twarga/praxies">View on GitHub</a>
+            <a class="button button-secondary" href="#roadmap">Read the roadmap</a>
+          </div>
+          <div class="hero-proof" aria-label="Project signals">
+            <span>Local files</span>
+            <span>Whisper transcript</span>
+            <span>AI critique</span>
+          </div>
+        </div>
+
+        <div class="console-shell reveal" aria-label="Praxis product preview">
+          <div class="console-topbar">
+            <span class="dot dot-live"></span>
+            <span>session_2026-05-03_en_take.webm</span>
+            <span class="timecode">00:04:12</span>
+          </div>
+          <div class="console-grid">
+            <article class="video-panel panel">
+              <div class="panel-label">Camera Preview</div>
+              <div class="video-frame">
+                <div class="face-grid" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span>
+                </div>
+                <div class="record-pill"><span></span> recording</div>
+              </div>
+            </article>
+
+            <article class="streak-panel panel">
+              <div class="panel-label">Momentum</div>
+              <strong>11 day streak</strong>
+              <div class="streak-row" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <p>4 sessions this week</p>
+            </article>
+
+            <article class="wave-panel panel">
+              <div class="panel-label">Voice Waveform</div>
+              <div class="waveform" aria-hidden="true">
+                <span style="--h: 28%"></span><span style="--h: 44%"></span><span style="--h: 34%"></span>
+                <span style="--h: 58%"></span><span style="--h: 42%"></span><span style="--h: 67%"></span>
+                <span style="--h: 35%"></span><span style="--h: 51%"></span><span style="--h: 76%"></span>
+                <span style="--h: 39%"></span><span style="--h: 54%"></span><span style="--h: 31%"></span>
+                <span style="--h: 62%"></span><span style="--h: 46%"></span><span style="--h: 71%"></span>
+                <span style="--h: 40%"></span><span style="--h: 55%"></span><span style="--h: 33%"></span>
+              </div>
+            </article>
+
+            <article class="transcript-panel panel">
+              <div class="panel-label">Transcript</div>
+              <p><span>01:18</span> I keep explaining the plan, but I don't define the next shipped action.</p>
+              <p><span>02:44</span> The argument gets stronger when I stop qualifying every sentence.</p>
+            </article>
+
+            <article class="terminal-panel panel">
+              <div class="panel-label">AI Analysis Terminal</div>
+              <pre aria-label="Analysis preview"><code data-terminal>whisper: transcript ready
+analysis: recurring pattern hit
+pattern: plan without ship
+action: state the next visible deliverable</code></pre>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="workflow" class="section-shell section-block">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Workflow</p>
+          <h2>Four steps, every session.</h2>
+        </div>
+        <div class="workflow-grid">
+          <article class="workflow-card reveal">
+            <span>01</span>
+            <h3>Record</h3>
+            <p>Capture webcam and microphone sessions from the desktop app.</p>
+          </article>
+          <article class="workflow-card reveal">
+            <span>02</span>
+            <h3>Transcribe</h3>
+            <p>Generate timestamped Whisper transcripts and subtitle tracks.</p>
+          </article>
+          <article class="workflow-card reveal">
+            <span>03</span>
+            <h3>Analyze</h3>
+            <p>Send the transcript to your selected model for structured critique.</p>
+          </article>
+          <article class="workflow-card reveal">
+            <span>04</span>
+            <h3>Track</h3>
+            <p>Keep streaks, trends, recurring patterns, and weekly rollups.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="features" class="section-shell section-block">
+        <div class="section-heading reveal">
+          <p class="eyebrow">System</p>
+          <h2>A private archive for deliberate practice.</h2>
+        </div>
+        <div class="feature-layout">
+          <article class="feature-card feature-large reveal">
+            <span class="feature-index">01</span>
+            <h3>Video journal</h3>
+            <p>Record, review, save, and browse sessions without leaving the desktop app.</p>
+          </article>
+          <article class="feature-card reveal">
+            <span class="feature-index">02</span>
+            <h3>Whisper transcript</h3>
+            <p>Timestamped segments become transcripts, subtitle files, and clickable review anchors.</p>
+          </article>
+          <article class="feature-card reveal">
+            <span class="feature-index">03</span>
+            <h3>AI critique</h3>
+            <p>Grammar, fluency, clarity, reasoning, factual issues, and actionable improvements.</p>
+          </article>
+          <article class="feature-card reveal">
+            <span class="feature-index">04</span>
+            <h3>Progress memory</h3>
+            <p>Recurring patterns, streaks, trend lines, and weekly rollups make progress visible.</p>
+          </article>
+          <article class="feature-card feature-wide reveal">
+            <span class="feature-index">05</span>
+            <h3>Local-first archive</h3>
+            <p>Sessions live in your journal folder as video, transcript, analysis, subtitles, thumbnails, and metadata.</p>
+          </article>
+          <article class="feature-card reveal">
+            <span class="feature-index">06</span>
+            <h3>Export tools</h3>
+            <p>Generate subtitle tracks and export burned-in subtitled videos for later review.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-shell proof-section">
+        <div class="analysis-card reveal">
+          <div class="analysis-header">
+            <div>
+              <p class="eyebrow">Session Analysis</p>
+              <h2>Feedback that leaves a trace.</h2>
+            </div>
+            <span class="score">7.8 / 10</span>
+          </div>
+          <div class="analysis-grid">
+            <div>
+              <span class="mini-label">Pattern Hit</span>
+              <strong>Plan without ship</strong>
+              <p>You described the strategy clearly, but avoided naming the next visible deliverable.</p>
+            </div>
+            <div>
+              <span class="mini-label">Correction</span>
+              <strong>"I have went" -&gt; "I have gone"</strong>
+              <p>Timestamp 02:11. Repeat the corrected phrase once before the next session.</p>
+            </div>
+            <div>
+              <span class="mini-label">Action</span>
+              <strong>End with a concrete shipped artifact.</strong>
+              <p>One sentence. One deliverable. One deadline.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="roadmap" class="section-shell section-block">
+        <div class="section-heading reveal">
+          <p class="eyebrow">Roadmap</p>
+          <h2>Built in public, shipping toward v1.</h2>
+        </div>
+        <div class="roadmap-list">
+          <article class="roadmap-item reveal">
+            <span class="status built">built</span>
+            <h3>Core recording pipeline</h3>
+            <p>Record, finalize, review, and store webcam sessions.</p>
+          </article>
+          <article class="roadmap-item reveal">
+            <span class="status built">built</span>
+            <h3>Whisper transcription</h3>
+            <p>Audio extraction, timestamped transcript, and subtitle generation.</p>
+          </article>
+          <article class="roadmap-item reveal">
+            <span class="status built">built</span>
+            <h3>LLM analysis</h3>
+            <p>OpenRouter model selection, structured feedback, fallback import/export.</p>
+          </article>
+          <article class="roadmap-item reveal">
+            <span class="status progress">in progress</span>
+            <h3>Phone upload</h3>
+            <p>Upload recordings from another device on the local network.</p>
+          </article>
+          <article class="roadmap-item reveal">
+            <span class="status next">next</span>
+            <h3>Packaging</h3>
+            <p>Prepare the desktop build and Linux release artifact.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-shell final-cta reveal">
+        <p class="eyebrow">Release Track</p>
+        <h2>Praxis is for people who want their speaking practice to leave a trace.</h2>
+        <div class="hero-actions">
+          <a class="button button-primary" href="https://github.com/Twarga/praxies">View source on GitHub</a>
+          <a class="button button-secondary" href="https://github.com/Twarga/praxies/blob/main/TASKS.md">Follow release progress</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="section-shell footer-inner">
+        <span>Praxis</span>
+        <span>Private AI video journaling for deliberate practice.</span>
+      </div>
+    </footer>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
