@@ -26,7 +26,12 @@
     <header class="site-header">
       <nav class="nav-shell" aria-label="Primary navigation">
         <a class="brand" href="#top" aria-label="Praxis home">
-          <span class="brand-mark" aria-hidden="true">PX</span>
+          <span class="hex-logo" aria-hidden="true">
+            <svg viewBox="0 0 64 64" role="img">
+              <path d="M32 3 57 17.5v29L32 61 7 46.5v-29L32 3Z"></path>
+              <path d="M24 44V18h11.5c6.2 0 10.5 3.7 10.5 9.2 0 5.7-4.3 9.4-10.7 9.4H30v7.4h-6Zm6-13h5.1c2.9 0 4.8-1.4 4.8-3.8 0-2.3-1.8-3.6-4.8-3.6H30V31Z"></path>
+            </svg>
+          </span>
           <span>Praxis</span>
         </a>
         <div class="nav-links">
@@ -34,40 +39,53 @@
           <a href="#features">Features</a>
           <a href="#roadmap">Roadmap</a>
         </div>
-        <a class="nav-cta" href="https://github.com/Twarga/praxies">GitHub</a>
+        <a class="nav-cta" href="https://github.com/Twarga/praxies" aria-label="Open Praxis on GitHub">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .8a11.2 11.2 0 0 0-3.5 21.8c.56.1.77-.24.77-.54v-2c-3.12.68-3.78-1.34-3.78-1.34-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.68.08-.68 1.13.08 1.73 1.16 1.73 1.16 1 1.72 2.63 1.22 3.27.94.1-.73.39-1.22.71-1.5-2.49-.28-5.1-1.24-5.1-5.54 0-1.23.44-2.23 1.16-3.01-.12-.28-.5-1.43.11-2.98 0 0 .94-.3 3.08 1.15a10.6 10.6 0 0 1 5.6 0c2.13-1.45 3.07-1.15 3.07-1.15.61 1.55.23 2.7.11 2.98.72.78 1.16 1.78 1.16 3.01 0 4.31-2.62 5.25-5.12 5.53.4.35.76 1.03.76 2.08v3.08c0 .3.2.65.78.54A11.2 11.2 0 0 0 12 .8Z"></path></svg>
+          GitHub
+        </a>
       </nav>
     </header>
 
     <main id="main">
       <section id="top" class="hero section-shell">
         <div class="hero-copy reveal">
-          <p class="eyebrow">Private AI Video Journal</p>
-          <h1>Train your speaking with evidence, not vibes.</h1>
-          <p class="hero-lede">
-            Praxis records your sessions, transcribes them with Whisper, analyzes them with an LLM,
-            and tracks the patterns that keep repeating.
-          </p>
+          <div class="hero-badge">
+            <span class="hex-logo hero-logo" aria-hidden="true">
+              <svg viewBox="0 0 64 64">
+                <path d="M32 3 57 17.5v29L32 61 7 46.5v-29L32 3Z"></path>
+                <path d="M24 44V18h11.5c6.2 0 10.5 3.7 10.5 9.2 0 5.7-4.3 9.4-10.7 9.4H30v7.4h-6Zm6-13h5.1c2.9 0 4.8-1.4 4.8-3.8 0-2.3-1.8-3.6-4.8-3.6H30V31Z"></path>
+              </svg>
+            </span>
+            <span>Private AI Video Journal</span>
+          </div>
+          <h1>Practice speaking with proof.</h1>
+          <p class="hero-lede">Record. Transcribe. Get hard feedback. Track what repeats.</p>
           <div class="hero-actions" aria-label="Primary actions">
-            <a class="button button-primary" href="https://github.com/Twarga/praxies">View on GitHub</a>
+            <a class="button button-primary" href="https://github.com/Twarga/praxies">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .8a11.2 11.2 0 0 0-3.5 21.8c.56.1.77-.24.77-.54v-2c-3.12.68-3.78-1.34-3.78-1.34-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.68.08-.68 1.13.08 1.73 1.16 1.73 1.16 1 1.72 2.63 1.22 3.27.94.1-.73.39-1.22.71-1.5-2.49-.28-5.1-1.24-5.1-5.54 0-1.23.44-2.23 1.16-3.01-.12-.28-.5-1.43.11-2.98 0 0 .94-.3 3.08 1.15a10.6 10.6 0 0 1 5.6 0c2.13-1.45 3.07-1.15 3.07-1.15.61 1.55.23 2.7.11 2.98.72.78 1.16 1.78 1.16 3.01 0 4.31-2.62 5.25-5.12 5.53.4.35.76 1.03.76 2.08v3.08c0 .3.2.65.78.54A11.2 11.2 0 0 0 12 .8Z"></path></svg>
+              GitHub
+            </a>
             <a class="button button-secondary" href="#roadmap">Read the roadmap</a>
           </div>
           <div class="hero-proof" aria-label="Project signals">
-            <span>Local files</span>
-            <span>Whisper transcript</span>
-            <span>AI critique</span>
+            <span><i>01</i> Local files</span>
+            <span><i>02</i> Whisper</span>
+            <span><i>03</i> AI critique</span>
           </div>
         </div>
 
         <div class="console-shell reveal" aria-label="Praxis product preview">
+          <div class="console-glow" aria-hidden="true"></div>
           <div class="console-topbar">
             <span class="dot dot-live"></span>
-            <span>session_2026-05-03_en_take.webm</span>
+            <span>today_en_take.webm</span>
             <span class="timecode">00:04:12</span>
           </div>
           <div class="console-grid">
             <article class="video-panel panel">
               <div class="panel-label">Camera Preview</div>
               <div class="video-frame">
+                <div class="video-orb" aria-hidden="true"></div>
                 <div class="face-grid" aria-hidden="true">
                   <span></span><span></span><span></span><span></span>
                 </div>
@@ -77,7 +95,8 @@
 
             <article class="streak-panel panel">
               <div class="panel-label">Momentum</div>
-              <strong>11 day streak</strong>
+              <strong>11</strong>
+              <span class="streak-copy">day streak</span>
               <div class="streak-row" aria-hidden="true">
                 <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
               </div>
@@ -116,28 +135,28 @@ action: state the next visible deliverable</code></pre>
       <section id="workflow" class="section-shell section-block">
         <div class="section-heading reveal">
           <p class="eyebrow">Workflow</p>
-          <h2>Four steps, every session.</h2>
+          <h2>One loop. Less noise.</h2>
         </div>
         <div class="workflow-grid">
           <article class="workflow-card reveal">
             <span>01</span>
             <h3>Record</h3>
-            <p>Capture webcam and microphone sessions from the desktop app.</p>
+            <p>Webcam and mic.</p>
           </article>
           <article class="workflow-card reveal">
             <span>02</span>
             <h3>Transcribe</h3>
-            <p>Generate timestamped Whisper transcripts and subtitle tracks.</p>
+            <p>Timestamped Whisper output.</p>
           </article>
           <article class="workflow-card reveal">
             <span>03</span>
             <h3>Analyze</h3>
-            <p>Send the transcript to your selected model for structured critique.</p>
+            <p>Structured critique.</p>
           </article>
           <article class="workflow-card reveal">
             <span>04</span>
             <h3>Track</h3>
-            <p>Keep streaks, trends, recurring patterns, and weekly rollups.</p>
+            <p>Patterns, streaks, trends.</p>
           </article>
         </div>
       </section>
@@ -145,38 +164,44 @@ action: state the next visible deliverable</code></pre>
       <section id="features" class="section-shell section-block">
         <div class="section-heading reveal">
           <p class="eyebrow">System</p>
-          <h2>A private archive for deliberate practice.</h2>
+          <h2>Private archive. Real feedback.</h2>
         </div>
         <div class="feature-layout">
           <article class="feature-card feature-large reveal">
             <span class="feature-index">01</span>
+            <span class="feature-icon" aria-hidden="true">◼</span>
             <h3>Video journal</h3>
-            <p>Record, review, save, and browse sessions without leaving the desktop app.</p>
+            <p>Record, review, save.</p>
           </article>
           <article class="feature-card reveal">
             <span class="feature-index">02</span>
+            <span class="feature-icon" aria-hidden="true">⌁</span>
             <h3>Whisper transcript</h3>
-            <p>Timestamped segments become transcripts, subtitle files, and clickable review anchors.</p>
+            <p>Segments, subtitles, anchors.</p>
           </article>
           <article class="feature-card reveal">
             <span class="feature-index">03</span>
+            <span class="feature-icon" aria-hidden="true">✦</span>
             <h3>AI critique</h3>
-            <p>Grammar, fluency, clarity, reasoning, factual issues, and actionable improvements.</p>
+            <p>Grammar, clarity, reasoning.</p>
           </article>
           <article class="feature-card reveal">
             <span class="feature-index">04</span>
+            <span class="feature-icon" aria-hidden="true">▦</span>
             <h3>Progress memory</h3>
-            <p>Recurring patterns, streaks, trend lines, and weekly rollups make progress visible.</p>
+            <p>Streaks and repeat patterns.</p>
           </article>
           <article class="feature-card feature-wide reveal">
             <span class="feature-index">05</span>
+            <span class="feature-icon" aria-hidden="true">⌬</span>
             <h3>Local-first archive</h3>
-            <p>Sessions live in your journal folder as video, transcript, analysis, subtitles, thumbnails, and metadata.</p>
+            <p>Video, transcript, analysis, subtitles, thumbnails, and metadata stay in your journal folder.</p>
           </article>
           <article class="feature-card reveal">
             <span class="feature-index">06</span>
+            <span class="feature-icon" aria-hidden="true">⇣</span>
             <h3>Export tools</h3>
-            <p>Generate subtitle tracks and export burned-in subtitled videos for later review.</p>
+            <p>Subtitle tracks and burned-in exports.</p>
           </article>
         </div>
       </section>
