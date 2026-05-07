@@ -448,7 +448,16 @@ export function Today({ onNavigate, scrollRef }) {
       : null;
   const digestSession = todayDigest?.session ?? null;
   const digestAnalysis = todayDigest?.analysis ?? null;
-  const digestActions = (digestAnalysis?.actionable_improvements ?? []).slice(0, 3);
+  const digestPractice = digestAnalysis?.coaching_report?.practice_assignment ?? {};
+  const digestActions = [
+    digestPractice.reflection_question,
+    digestPractice.speaking_drill,
+    digestPractice.next_session_goal,
+  ].filter(Boolean).slice(0, 3);
+  const fallbackDigestActions = (digestAnalysis?.actionable_improvements ?? []).slice(0, 3);
+  const visibleDigestActions = digestActions.length ? digestActions : fallbackDigestActions;
+  const digestHeadline =
+    digestAnalysis?.coaching_report?.headline || digestAnalysis?.prose_verdict || "";
 
   return (
     <div ref={scrollRef} className="flex flex-col h-full overflow-y-auto">
@@ -618,19 +627,19 @@ export function Today({ onNavigate, scrollRef }) {
                   </div>
                 </div>
 
-                {digestAnalysis.prose_verdict ? (
+                {digestHeadline ? (
                   <div className="mt-1 text-sm text-[#D1D1D1] opacity-85 border-l-2 border-[#F27D26] pl-3 py-1 leading-relaxed">
-                    "{digestAnalysis.prose_verdict}"
+                    "{digestHeadline}"
                   </div>
                 ) : null}
 
-                {digestActions.length ? (
+                {visibleDigestActions.length ? (
                   <div className="border border-[#2A2C31] bg-[#151619] rounded p-4">
                     <div className="text-[10px] font-mono uppercase tracking-widest opacity-40 mb-3">
-                      Next actions
+                      Practice loop
                     </div>
                     <div className="space-y-2">
-                      {digestActions.map((action, index) => (
+                      {visibleDigestActions.map((action, index) => (
                         <div key={`${action}-${index}`} className="flex gap-3 text-xs text-[#D1D1D1]">
                           <span className="font-mono text-[#4ADE80] opacity-80">
                             {String(index + 1).padStart(2, "0")}

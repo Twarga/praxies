@@ -1,4 +1,5 @@
 import { Check, FolderOpen, Loader2, RefreshCw, Search } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useRef, useState } from "react";
 import {
   loadOpenRouterModels,
@@ -843,6 +844,20 @@ export function Settings({ scrollRef }) {
                         }
                       />
                     </Row>
+                    {config.phone_upload_enabled && config.phone_upload_url ? (
+                      <div className="mt-4 pt-4 border-t border-[#2a2c31] flex flex-col items-center gap-3">
+                        <QRCodeSVG
+                          value={config.phone_upload_url}
+                          size={160}
+                          bgColor="#151619"
+                          fgColor="#f5f5f0"
+                          level="M"
+                        />
+                        <div className="text-[11px] font-mono text-[#a8a8a8] break-all text-center max-w-[280px]">
+                          {config.phone_upload_url}
+                        </div>
+                      </div>
+                    ) : null}
                   </Card>
                 </section>
 

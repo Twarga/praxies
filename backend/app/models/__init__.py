@@ -1,8 +1,17 @@
 """Typed backend models for on-disk and API schemas."""
 
 from app.models.schemas import (
+    AnalysisBehaviorPatternObservationModel,
+    AnalysisCoachingReportModel,
+    AnalysisLanguageCoachModel,
+    AnalysisLanguageRewriteDrillModel,
+    AnalysisLessonModel,
     AnalysisModel,
     AnalysisGrammarError,
+    AnalysisMomentFeedbackModel,
+    AnalysisPracticeAssignmentModel,
+    AnalysisScorecardMetricModel,
+    AnalysisScorecardModel,
     ConfigModel,
     ConfigOpenRouterModel,
     ConfigTelegramModel,
@@ -21,8 +30,17 @@ from app.models.schemas import (
 )
 
 __all__ = [
+    "AnalysisBehaviorPatternObservationModel",
+    "AnalysisCoachingReportModel",
     "AnalysisGrammarError",
+    "AnalysisLanguageCoachModel",
+    "AnalysisLanguageRewriteDrillModel",
+    "AnalysisLessonModel",
     "AnalysisModel",
+    "AnalysisMomentFeedbackModel",
+    "AnalysisPracticeAssignmentModel",
+    "AnalysisScorecardMetricModel",
+    "AnalysisScorecardModel",
     "ConfigModel",
     "ConfigOpenRouterModel",
     "ConfigTelegramModel",

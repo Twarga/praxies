@@ -170,12 +170,85 @@ class AnalysisIdeasAndReasoningModel(StrictModel):
     philosophical_pushback: str
 
 
+class AnalysisScorecardMetricModel(StrictModel):
+    score: int = Field(default=0, ge=0, le=10)
+    evidence: str = ""
+    practice_focus: str = ""
+
+
+class AnalysisScorecardModel(StrictModel):
+    clarity: AnalysisScorecardMetricModel = Field(default_factory=AnalysisScorecardMetricModel)
+    structure: AnalysisScorecardMetricModel = Field(default_factory=AnalysisScorecardMetricModel)
+    reflection_depth: AnalysisScorecardMetricModel = Field(default_factory=AnalysisScorecardMetricModel)
+    emotional_awareness: AnalysisScorecardMetricModel = Field(default_factory=AnalysisScorecardMetricModel)
+    specificity: AnalysisScorecardMetricModel = Field(default_factory=AnalysisScorecardMetricModel)
+    actionability: AnalysisScorecardMetricModel = Field(default_factory=AnalysisScorecardMetricModel)
+    language_fluency: AnalysisScorecardMetricModel = Field(default_factory=AnalysisScorecardMetricModel)
+
+
+class AnalysisMomentFeedbackModel(StrictModel):
+    timestamp_seconds: float = Field(default=0, ge=0)
+    label: str = ""
+    transcript_quote: str = ""
+    coaching_note: str = ""
+    kind: Literal["strength", "insight", "breakdown", "practice_cue"] = "practice_cue"
+
+
+class AnalysisLessonModel(StrictModel):
+    title: str = ""
+    what_happened: str = ""
+    why_it_matters: str = ""
+    next_move: str = ""
+
+
+class AnalysisBehaviorPatternObservationModel(StrictModel):
+    name: str = ""
+    evidence: str = ""
+    impact: str = ""
+    correction: str = ""
+
+
+class AnalysisPracticeAssignmentModel(StrictModel):
+    reflection_question: str = ""
+    speaking_drill: str = ""
+    behavioral_action: str = ""
+    next_session_goal: str = ""
+
+
+class AnalysisLanguageRewriteDrillModel(StrictModel):
+    timestamp_seconds: float = Field(default=0, ge=0)
+    original: str = ""
+    improved: str = ""
+    explanation: str = ""
+
+
+class AnalysisLanguageCoachModel(StrictModel):
+    strongest_sentence: str = ""
+    main_language_gap: str = ""
+    rewrite_drills: list[AnalysisLanguageRewriteDrillModel] = Field(default_factory=list)
+
+
+class AnalysisCoachingReportModel(StrictModel):
+    headline: str = ""
+    opening_read: str = ""
+    what_improved: str = ""
+    what_held_back: str = ""
+    best_moment: AnalysisMomentFeedbackModel = Field(default_factory=AnalysisMomentFeedbackModel)
+    top_lessons: list[AnalysisLessonModel] = Field(default_factory=list)
+    moment_feedback: list[AnalysisMomentFeedbackModel] = Field(default_factory=list)
+    behavioral_patterns: list[AnalysisBehaviorPatternObservationModel] = Field(default_factory=list)
+    practice_assignment: AnalysisPracticeAssignmentModel = Field(default_factory=AnalysisPracticeAssignmentModel)
+
+
 class AnalysisModel(StrictModel):
-    schema_version: int = 1
+    schema_version: int = 2
     language: Literal["en", "fr", "es"]
     prose_verdict: str
     session_summary: str
     main_topics: list[str]
+    coaching_report: AnalysisCoachingReportModel = Field(default_factory=AnalysisCoachingReportModel)
+    scorecard: AnalysisScorecardModel = Field(default_factory=AnalysisScorecardModel)
+    language_coach: AnalysisLanguageCoachModel = Field(default_factory=AnalysisLanguageCoachModel)
     grammar_and_language: AnalysisGrammarAndLanguageModel
     speaking_quality: AnalysisSpeakingQualityModel
     ideas_and_reasoning: AnalysisIdeasAndReasoningModel

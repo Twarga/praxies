@@ -1,0 +1,46 @@
+appId: com.twarga.praxis
+productName: Praxis
+copyright: Copyright 2026 Twarga
+asar: true
+directories:
+  output: release
+files:
+  - dist/**/*
+  - electron/**/*
+  - "!electron/resources/**"
+  - package.json
+extraResources:
+  - from: electron/resources/python
+    to: python
+  - from: ../backend
+    to: backend
+    filter:
+      - app/**/*
+      - pyproject.toml
+      - uv.lock
+  - from: ../scripts
+    to: scripts
+    filter:
+      - dev.sh
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  category: AudioVideo
+  maintainer: Twarga
+  vendor: Twarga
+  synopsis: AI-assisted video journaling desktop app
+  description: |
+    Praxis is an AI-assisted video journaling app for desktop.
+    Record a session, transcribe it with Whisper, analyze it with an LLM,
+    and review how your speaking, ideas, and habits evolve over time.
+  desktop:
+    entry:
+      Name: Praxis
+      Comment: AI-assisted video journaling
+      Type: Application
+      Categories: AudioVideo;Education;
+      Terminal: false
+  executableArgs: []
+publish: null

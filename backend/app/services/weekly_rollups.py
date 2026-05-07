@@ -105,13 +105,13 @@ def load_weekly_rollup(config: ConfigModel, week: str) -> WeeklyRollupModel | No
 def build_weekly_rollup_system_prompt() -> str:
     return "\n".join(
         [
-            "You summarize one completed week of speaking-practice journal analyses.",
+            "You synthesize one completed week of video-journal coaching reports.",
             "Return ONLY valid JSON. No markdown, no code fences, no preamble.",
             "The JSON must contain these prose fields:",
-            "- summary_prose: 2-4 direct sentences on the week.",
-            "- improvements: 2-5 concrete improvements observed.",
-            "- still_breaking: 0-5 recurring issues still hurting performance.",
-            "- focus_for_next_week: one specific focus for the next week.",
+            "- summary_prose: 2-4 readable coaching sentences on the week, not a compressed summary.",
+            "- improvements: 2-5 concrete improvements observed in reflection, speaking, or language.",
+            "- still_breaking: 0-5 recurring issues still hurting practice.",
+            "- focus_for_next_week: one specific recording goal and one practice behavior.",
         ]
     )
 
@@ -167,6 +167,9 @@ def _load_week_sessions(config: ConfigModel, *, week: str, reference: datetime) 
             continue
 
         analysis = read_json_file(analysis_path)
+        coach_report = analysis.get("coaching_report") or {}
+        scorecard = analysis.get("scorecard") or {}
+        practice_assignment = coach_report.get("practice_assignment") or {}
         sessions.append(
             {
                 "id": meta.id,
@@ -178,6 +181,15 @@ def _load_week_sessions(config: ConfigModel, *, week: str, reference: datetime) 
                     "prose_verdict": analysis.get("prose_verdict"),
                     "session_summary": analysis.get("session_summary"),
                     "fluency_score": (analysis.get("grammar_and_language") or {}).get("fluency_score"),
+                    "scorecard": {
+                        key: value.get("score")
+                        for key, value in scorecard.items()
+                        if isinstance(value, dict) and isinstance(value.get("score"), int | float)
+                    },
+                    "top_lessons": coach_report.get("top_lessons") or [],
+                    "what_improved": coach_report.get("what_improved"),
+                    "what_held_back": coach_report.get("what_held_back"),
+                    "next_session_goal": practice_assignment.get("next_session_goal"),
                     "recurring_patterns_hit": analysis.get("recurring_patterns_hit") or [],
                     "actionable_improvements": analysis.get("actionable_improvements") or [],
                 },

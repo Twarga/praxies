@@ -59,6 +59,89 @@ class _FakeLlmClient:
                 "prose_verdict": "Clear speaking, solid structure, useful content.",
                 "session_summary": "The speaker records a short practice session and stays coherent throughout.",
                 "main_topics": ["pipeline verification", "speaking practice"],
+                "coaching_report": {
+                    "headline": "The practice was clear and ready to build on.",
+                    "opening_read": "The session stayed focused and easy to follow. The next improvement is to finish with a stronger closing action.",
+                    "what_improved": "The speaker kept the idea simple and direct.",
+                    "what_held_back": "The session ended before a concrete next step.",
+                    "best_moment": {
+                        "timestamp_seconds": 1.1,
+                        "label": "Clear middle",
+                        "transcript_quote": "This is a real pipeline test.",
+                        "coaching_note": "The idea is easy to follow because it is direct.",
+                        "kind": "strength",
+                    },
+                    "top_lessons": [
+                        {
+                            "title": "Close with an action.",
+                            "what_happened": "The speaker stayed coherent.",
+                            "why_it_matters": "A closing action turns practice into improvement.",
+                            "next_move": "Add one stronger closing sentence next time.",
+                        },
+                        {
+                            "title": "Keep the clear structure.",
+                            "what_happened": "The session had a simple beginning and middle.",
+                            "why_it_matters": "Simple structure makes the report easier to coach.",
+                            "next_move": "Use the same direct structure in the next recording.",
+                        },
+                        {
+                            "title": "Practice one language upgrade.",
+                            "what_happened": "The language was understandable.",
+                            "why_it_matters": "Small rewrites make fluency practice concrete.",
+                            "next_move": "Repeat the strongest sentence aloud twice.",
+                        },
+                    ],
+                    "moment_feedback": [],
+                    "behavioral_patterns": [],
+                    "practice_assignment": {
+                        "reflection_question": "What is the one thing I want to land?",
+                        "speaking_drill": "Record a two-minute version with a clear final sentence.",
+                        "behavioral_action": "Write the closing sentence before recording.",
+                        "next_session_goal": "Land the final sentence.",
+                    },
+                },
+                "scorecard": {
+                    "clarity": {
+                        "score": 8,
+                        "evidence": "The point is easy to follow.",
+                        "practice_focus": "Keep the same direct language.",
+                    },
+                    "structure": {
+                        "score": 8,
+                        "evidence": "The session has a clean beginning and middle.",
+                        "practice_focus": "Add a stronger close.",
+                    },
+                    "reflection_depth": {
+                        "score": 6,
+                        "evidence": "The test is short, so depth is limited.",
+                        "practice_focus": "Add one why question.",
+                    },
+                    "emotional_awareness": {
+                        "score": 5,
+                        "evidence": "No emotion is explored in this test session.",
+                        "practice_focus": "Name one feeling next time.",
+                    },
+                    "specificity": {
+                        "score": 7,
+                        "evidence": "The speaker names the pipeline test.",
+                        "practice_focus": "Add one concrete example.",
+                    },
+                    "actionability": {
+                        "score": 6,
+                        "evidence": "There is no final action yet.",
+                        "practice_focus": "Close with one next step.",
+                    },
+                    "language_fluency": {
+                        "score": 8,
+                        "evidence": "The language is clear and natural.",
+                        "practice_focus": "Practice a stronger closing sentence.",
+                    },
+                },
+                "language_coach": {
+                    "strongest_sentence": "This is a real pipeline test.",
+                    "main_language_gap": "The close could be more decisive.",
+                    "rewrite_drills": [],
+                },
                 "grammar_and_language": {
                     "errors": [],
                     "fluency_score": 8,
@@ -142,6 +225,7 @@ async def test_process_session_writes_transcript_analysis_waveform_and_progress(
     assert "Hello there." in transcript_text
     assert len(transcript_json) == 2
     assert analysis["language"] == "en"
+    assert analysis["coaching_report"]["practice_assignment"]["next_session_goal"] == "Land the final sentence."
     assert analysis["actionable_improvements"] == ["Add one stronger closing sentence next time."]
     assert len(waveform) == 72
     assert max(waveform) > 0

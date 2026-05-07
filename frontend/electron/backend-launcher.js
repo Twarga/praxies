@@ -1,12 +1,37 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+const require = createRequire(import.meta.url);
+const electron = require("electron");
+const app = typeof electron === "string" || !electron.app ? { isPackaged: false } : electron.app;
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const repoRoot = join(__dirname, "..", "..");
-const backendRoot = join(repoRoot, "backend");
-const defaultPython = join(repoRoot, ".venv", "bin", "python");
-const pythonExecutable = process.env.PRAXIES_PYTHON || defaultPython;
+const isDev = !app.isPackaged;
+
+function getBackendPaths() {
+  if (isDev) {
+    const repoRoot = join(__dirname, "..", "..");
+    return {
+      backendRoot: join(repoRoot, "backend"),
+      pythonExecutable: process.env.PRAXIES_PYTHON || join(repoRoot, ".venv", "bin", "python"),
+    };
+  }
+
+  const resourcesPath = process.resourcesPath;
+  const bundledPython = join(resourcesPath, "python", "bin", "python");
+  const hasBundledPython = existsSync(bundledPython);
+
+  return {
+    backendRoot: join(resourcesPath, "backend"),
+    pythonExecutable: hasBundledPython
+      ? bundledPython
+      : (process.env.PRAXIES_PYTHON || "python3"),
+  };
+}
+
 const defaultPort = Number(process.env.PRAXIES_BACKEND_PORT || 8000);
 const skipBackendLaunch = process.env.PRAXIES_SKIP_BACKEND_LAUNCH === "1";
 
@@ -35,6 +60,8 @@ export async function launchBackend() {
       reusedExisting: true,
     };
   }
+
+  const { backendRoot, pythonExecutable } = getBackendPaths();
 
   const child = spawn(
     pythonExecutable,

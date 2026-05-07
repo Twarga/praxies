@@ -1,8 +1,9 @@
 import asyncio
+import subprocess
 from contextlib import asynccontextmanager
 from typing import Any, Literal
 
-from fastapi import FastAPI, File, Header, HTTPException, Query, Request, UploadFile
+from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
@@ -37,10 +38,12 @@ from app.services.sessions import (
     extract_session_audio,
     extract_session_thumbnail,
     finalize_session,
+    get_session_dir,
     repair_session_video_if_needed,
     load_session_meta,
     load_session_bundle,
     mark_session_read,
+    probe_session_video,
     repair_session_duration_from_transcript,
     store_session_chunk,
     get_session_thumbnail_path,
@@ -630,6 +633,120 @@ async def get_upload_form() -> HTMLResponse:
             status_code=403,
         )
     return HTMLResponse(render_upload_form())
+
+
+@app.post("/upload")
+async def post_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    language: str = Form("en"),
+    title: str = Form(""),
+    save_mode: str = Form("full"),
+) -> HTMLResponse:
+    config = load_config()
+    if not config.phone_upload_enabled:
+        return HTMLResponse(
+            "<!doctype html><title>Praxis upload disabled</title><p>Phone upload is disabled in Praxis settings.</p>",
+            status_code=403,
+        )
+
+    if save_mode not in {"full", "transcribe_only", "video_only"}:
+        save_mode = "full"
+    if language not in {"en", "fr", "es"}:
+        language = "en"
+
+    meta = create_session(config, language=language, title=title or None, save_mode=save_mode)
+    session_id = meta.id
+    session_dir = get_session_dir(config, session_id)
+
+    temp_path = session_dir / "upload_temp"
+    try:
+        with temp_path.open("wb") as f:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                f.write(chunk)
+    except Exception:
+        delete_session_dir(config, session_id)
+        return HTMLResponse(
+            "<!doctype html><title>Upload failed</title><p>Failed to read uploaded file.</p>",
+            status_code=400,
+        )
+
+    video_path = session_dir / "video.webm"
+    command = [
+        "ffmpeg",
+        "-i", str(temp_path),
+        "-c", "copy",
+        "-movflags", "+faststart",
+        "-y",
+        str(video_path),
+    ]
+    result = await asyncio.to_thread(subprocess.run, command, capture_output=True, text=True, check=False)
+    temp_path.unlink(missing_ok=True)
+
+    if result.returncode != 0 or not video_path.exists():
+        delete_session_dir(config, session_id)
+        return HTMLResponse(
+            "<!doctype html><title>Upload failed</title><p>Video processing failed. The file may be in an unsupported format.</p>",
+            status_code=400,
+        )
+
+    try:
+        duration_seconds = await probe_session_video(video_path)
+    except Exception:
+        duration_seconds = 0.0
+
+    file_size_bytes = video_path.stat().st_size
+    final_status = "video_only" if save_mode == "video_only" else "saved"
+
+    update_session_meta(
+        config,
+        session_id,
+        updates={
+            "status": final_status,
+            "duration_seconds": duration_seconds,
+            "file_size_bytes": file_size_bytes,
+            "source": "upload",
+        },
+    )
+
+    try:
+        await extract_session_thumbnail(config, session_id)
+    except Exception:
+        pass
+
+    await rebuild_index_and_emit(config, "session.uploaded")
+
+    if save_mode != "video_only":
+        await processing_queue.enqueue(session_id)
+        await emit_session_status_from_id(config, session_id)
+
+    return HTMLResponse("""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Praxis — Upload complete</title>
+    <style>
+      :root { color-scheme: dark; background: #0f1012; color: #f5f5f0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box; }
+      main { width: min(100%, 520px); border: 1px solid #2a2c31; background: #151619; padding: 22px; text-align: center; }
+      h1 { margin: 0 0 8px; font-size: 16px; letter-spacing: .16em; text-transform: uppercase; color: #c9a87c; }
+      p { margin: 0 0 22px; color: #a8a8a8; font-size: 12px; line-height: 1.55; }
+      a { color: #c9a87c; text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Upload complete</h1>
+      <p>Your session has been saved to Praxis.</p>
+      <p><a href="/upload">Upload another</a></p>
+    </main>
+  </body>
+</html>
+""")
 
 
 @app.get("/api/config")

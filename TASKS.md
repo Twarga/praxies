@@ -286,9 +286,9 @@ Goal: complete live-update and operational behavior for daily use.
 - [x] T149 Phone upload enable/disable config behavior.
 - [x] T150 Detect LAN IP for upload URL caption.
 - [x] T151 `GET /upload` minimal HTML form.
-- [ ] T152 `POST /upload` creates upload sessions and queues them.
-- [ ] T153 Render QR code in Settings.
-- [ ] T154 Show real upload URL under QR code.
+- [x] T152 `POST /upload` creates upload sessions and queues them.
+- [x] T153 Render QR code in Settings.
+- [x] T154 Show real upload URL under QR code.
 
 Phase gate:
 
@@ -301,16 +301,16 @@ Phase gate:
 
 Goal: ship a usable Arch Linux desktop build and verify the v1 acceptance list.
 
-- [ ] T155 `scripts/install.sh`.
-- [ ] T156 Electron production build flow.
-- [ ] T157 `electron-builder` AppImage config.
-- [ ] T158 Bundle frontend build artifacts for production.
-- [ ] T159 Bundle backend source/runtime paths for production launch.
-- [ ] T160 Bundle Python runtime for AppImage.
+- [x] T155 `scripts/install.sh`.
+- [x] T156 Electron production build flow.
+- [x] T157 `electron-builder` AppImage config.
+- [x] T158 Bundle frontend build artifacts for production.
+- [x] T159 Bundle backend source/runtime paths for production launch.
+- [ ] T160 Bundle Python runtime for AppImage. PARTIAL: portable Python resource path and Electron launch logic exist; production AppImage boot still needs verification.
 - [ ] T161 Bundle static ffmpeg for AppImage.
 - [ ] T162 Bundle/pre-seed Whisper model cache behavior.
-- [ ] T163 Desktop entry and launcher behavior.
-- [ ] T164 README install/launch/Sway keybind docs.
+- [x] T163 Desktop entry and launcher behavior.
+- [x] T164 README install/launch/Sway keybind docs.
 - [ ] T165 Full acceptance checklist on real files.
 - [ ] T166 Fix acceptance failures and rerun checklist.
 - [ ] T167 Verify logs/recovery/failure states in production-like build.
@@ -321,6 +321,49 @@ Phase gate:
 - [ ] GATE-9 Dev install works on clean Arch with prerequisites.
 - [ ] GATE-9 AppImage launches and boots backend.
 - [ ] GATE-9 Full acceptance checklist passes.
+
+## Phase 10 - Coaching Analytics And Report Redesign
+
+Goal: make each analyzed journal session teach the user something specific about reflection, speaking, and language instead of producing a compact generic summary.
+
+- [x] T169 Define v2 analysis schema for coach-style reports.
+- [x] T170 Add a session scorecard for clarity, structure, reflection depth, emotional awareness, specificity, actionability, and language fluency.
+- [x] T171 Add top-three lesson objects with what happened, why it matters, and next move.
+- [x] T172 Add timestamped moment feedback with quote, coaching note, and click-to-seek support in the UI.
+- [x] T173 Add behavioral pattern observations beyond simple filler-word tracking.
+- [x] T174 Add a practice assignment with reflection question, speaking drill, behavioral action, and next-session goal.
+- [x] T175 Add a language-coach block with strongest sentence, main language gap, and rewrite drills.
+- [x] T176 Rewrite the analysis system prompt so it behaves like a readable teaching coach, not a summarizer.
+- [x] T177 Render the new report first in Session Detail while keeping legacy analysis fields readable.
+- [x] T178 Update Today digest to prefer the practice loop from the coaching report.
+- [ ] T179 Calibrate the prompt on at least 10 real recordings across English, French, and Spanish. PARTIAL: English-only copied sessions audited in `docs/T179_PARTIAL_CALIBRATION.md`; prompt tightened for short/test recordings. Needs fresh v2 analyses plus French and Spanish samples.
+- [ ] T180 Add regression fixtures for a strong report, weak report, malformed report, and multilingual report.
+
+Phase gate:
+
+- [ ] GATE-10 A fresh English analysis produces a readable coaching report with three useful lessons and timestamped moments.
+- [ ] GATE-10 A fresh French analysis keeps prose in French while preserving useful language rewrites.
+- [ ] GATE-10 A fresh Spanish analysis keeps prose in Spanish while preserving useful language rewrites.
+- [ ] GATE-10 The report gives a concrete next practice assignment, not only a summary.
+
+## Phase 11 - Improvement Trends And Learning Loop
+
+Goal: make Trends show whether the user is improving, not just whether they recorded more sessions.
+
+- [x] T181 Aggregate scorecard dimensions by language and over the selected trend range.
+- [x] T182 Add an Improvement Dimensions panel to Trends.
+- [x] T183 Include coach-report lessons, scorecard values, and next-session goals in weekly rollup inputs.
+- [ ] T184 Track completion of practice assignments from one session to the next.
+- [ ] T185 Compare the previous next-session goal against the next recording and mark followed, partially followed, or missed.
+- [ ] T186 Add trend copy such as "specificity is improving" or "actionability is still weak" based on scorecard movement.
+- [ ] T187 Add a calibration view for recurring behavior patterns: confirm, rename, merge, or dismiss.
+- [ ] T188 Add tests for scorecard aggregation, trend labels, and sparse-data behavior.
+
+Phase gate:
+
+- [ ] GATE-11 Trends make the user's weakest improvement dimension obvious within 10 seconds.
+- [ ] GATE-11 Weekly rollups identify one repeated blocker and one next-week practice focus.
+- [ ] GATE-11 Sparse data degrades gracefully without pretending there is a trend.
 
 ## Cross-Cutting Testing And Quality
 
@@ -358,14 +401,16 @@ Additional current tests:
 
 ## Highest Priority Next Work
 
-1. Finish Phase 6 properly:
-   recurring pattern persistence/merge, strict 2-minute streak rule, digest endpoints/UI, StreakGrid, and patterns-hit display.
-2. Add missing tests before continuing:
-   index corrupt recovery, strict streak rules, recurring merge/decay, import-analysis success/failure, and OpenRouter credential failure.
-3. Then continue Phase 7:
-   Trends API, Trends page, weekly rollups.
-4. Keep subtitle export as a post-backlog feature:
-   Arabic is supported as a subtitle/export target, but recording/session languages remain `en`, `fr`, and `es`.
+1. Fix the remaining packaging blockers:
+   bundled Python launch in both ESM/CJS Electron paths, bundled FFmpeg, Whisper model cache/download behavior, and a real AppImage boot test.
+2. Calibrate Phase 10 on real recordings:
+   run at least 10 English/French/Spanish sessions and adjust the prompt until reports are readable, specific, and useful.
+3. Add learning-loop memory:
+   carry the previous practice assignment into the next analysis and score whether the user followed it.
+4. Add missing tests:
+   scorecard aggregation, coaching-report schema fixtures, sparse trends behavior, import-analysis success/failure, and OpenRouter credential failure.
+5. Keep the report product principle:
+   Praxis should behave like a personal video coach, not a generic analytics dashboard.
 
 ## Verification Log
 
@@ -420,3 +465,13 @@ Additional current tests:
 - 2026-05-02: Implemented `T148` retention artifact preservation coverage for transcript, analysis, thumbnail, and meta.
 - 2026-05-02: Implemented `T150` LAN IP detection and upload URL exposure in config API.
 - 2026-05-02: Implemented `T151` minimal phone upload HTML form gated by phone-upload settings.
+- 2026-05-03: Implemented `T152` `POST /upload` endpoint with ffmpeg remux, thumbnail extraction, and processing queue.
+- 2026-05-03: Implemented `T153` QR code rendered in Settings using `qrcode.react`.
+- 2026-05-03: Implemented `T154` real upload URL displayed under QR code in Settings.
+- 2026-05-03: Implemented `T155` `scripts/install.sh` for dev environment setup.
+- 2026-05-03: Implemented `T156` Electron production build flow via `npm run electron:build`.
+- 2026-05-03: Implemented `T157` `electron-builder` AppImage configuration in `frontend/electron-builder.yml`.
+- 2026-05-03: Implemented `T158` frontend build artifacts bundled for production via Vite.
+- 2026-05-03: Implemented `T159` backend source bundled as `extraResource` for production launch.
+- 2026-05-03: Implemented `T163` desktop entry generated by electron-builder with AppImage target.
+- 2026-05-03: Implemented `T164` README updated with install, build, and Sway keybind docs.

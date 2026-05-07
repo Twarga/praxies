@@ -484,6 +484,356 @@ function FillerWords({ map }) {
   );
 }
 
+const SCORECARD_METRICS = [
+  ["clarity", "Clarity"],
+  ["structure", "Structure"],
+  ["reflection_depth", "Reflection Depth"],
+  ["emotional_awareness", "Emotional Awareness"],
+  ["specificity", "Specificity"],
+  ["actionability", "Actionability"],
+  ["language_fluency", "Language Fluency"],
+];
+
+function readableText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function hasReadableCoachingReport(analysis) {
+  const report = analysis?.coaching_report || {};
+  return Boolean(
+    readableText(report.headline) ||
+      readableText(report.opening_read) ||
+      readableText(report.what_improved) ||
+      readableText(report.what_held_back) ||
+      (Array.isArray(report.top_lessons) && report.top_lessons.length > 0) ||
+      (Array.isArray(report.moment_feedback) && report.moment_feedback.length > 0),
+  );
+}
+
+function metricFallbackScore(analysis, id) {
+  if (id === "clarity") return analysis?.speaking_quality?.clarity;
+  if (id === "language_fluency") return analysis?.grammar_and_language?.fluency_score;
+  return null;
+}
+
+function CoachingScorecard({ analysis }) {
+  const scorecard = analysis?.scorecard || {};
+  const rows = SCORECARD_METRICS.map(([id, label]) => {
+    const metric = scorecard[id] || {};
+    const score = metric.score ?? metricFallbackScore(analysis, id);
+    return {
+      id,
+      label,
+      score: Number.isFinite(Number(score)) ? Number(score) : null,
+      evidence: readableText(metric.evidence),
+      practiceFocus: readableText(metric.practice_focus),
+    };
+  }).filter((row) => row.score !== null || row.evidence || row.practiceFocus);
+
+  if (!rows.length) return null;
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+          Session Scorecard
+        </h3>
+        <span className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/40">
+          evidence based
+        </span>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {rows.map((row) => (
+          <div key={row.id} className="rounded border border-[#2A2C31] bg-[#1C1D21] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/50">
+                {row.label}
+              </div>
+              {row.score !== null ? (
+                <div className="rounded bg-[#0A0B0D] px-2 py-1 font-mono text-xs text-white tnum">
+                  {row.score}/10
+                </div>
+              ) : null}
+            </div>
+            {row.evidence ? (
+              <p className="mt-3 text-sm leading-relaxed text-[#E0E0E0]">{row.evidence}</p>
+            ) : null}
+            {row.practiceFocus ? (
+              <p className="mt-2 border-l-2 border-[#4ADE80] pl-3 text-xs leading-relaxed text-[#D1D1D1]/75">
+                {row.practiceFocus}
+              </p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CoachingLessons({ lessons }) {
+  if (!Array.isArray(lessons) || lessons.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+        Top Lessons
+      </h3>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+        {lessons.map((lesson, index) => (
+          <div key={`${lesson.title}-${index}`} className="rounded-lg border border-[#2A2C31] bg-[#151619] p-4">
+            <div className="mb-3 font-mono text-[10px] uppercase tracking-widest text-[#4ADE80]">
+              Lesson {String(index + 1).padStart(2, "0")}
+            </div>
+            <h4 className="text-sm font-semibold text-white leading-snug">
+              {lesson.title || "Untitled lesson"}
+            </h4>
+            {lesson.what_happened ? (
+              <p className="mt-3 text-sm leading-relaxed text-[#E0E0E0]">
+                {lesson.what_happened}
+              </p>
+            ) : null}
+            {lesson.why_it_matters ? (
+              <p className="mt-3 text-sm leading-relaxed text-[#D1D1D1]/75">
+                {lesson.why_it_matters}
+              </p>
+            ) : null}
+            {lesson.next_move ? (
+              <p className="mt-3 border-l-2 border-[#F27D26] pl-3 text-xs leading-relaxed text-[#D1D1D1]">
+                {lesson.next_move}
+              </p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MomentFeedback({ moments, bestMoment, onSeek }) {
+  const rows = [
+    ...(bestMoment?.coaching_note ? [{ ...bestMoment, label: bestMoment.label || "Best moment", isBest: true }] : []),
+    ...(Array.isArray(moments) ? moments : []),
+  ].filter((moment, index, all) => {
+    const key = `${Number(moment.timestamp_seconds) || 0}-${moment.label || ""}-${moment.transcript_quote || ""}`;
+    return all.findIndex((candidate) => `${Number(candidate.timestamp_seconds) || 0}-${candidate.label || ""}-${candidate.transcript_quote || ""}` === key) === index;
+  });
+
+  if (!rows.length) return null;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+        Moments To Study
+      </h3>
+      <div className="space-y-2">
+        {rows.map((moment, index) => {
+          const timestamp = Number(moment.timestamp_seconds) || 0;
+          return (
+            <button
+              key={`${timestamp}-${index}`}
+              type="button"
+              onClick={() => onSeek(timestamp)}
+              className={`w-full rounded-lg border p-4 text-left transition-colors hover:border-[#4ADE80]/70 ${
+                moment.isBest
+                  ? "border-[#4ADE80]/45 bg-[#123021]"
+                  : "border-[#2A2C31] bg-[#151619]"
+              }`}
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-[10px] uppercase tracking-widest text-[#4ADE80] tnum">
+                  {formatSecondsTimestamp(timestamp)}
+                </span>
+                <span className="text-sm font-semibold text-white">
+                  {moment.label || "Session moment"}
+                </span>
+                {moment.kind ? (
+                  <span className="rounded bg-[#0A0B0D] px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-[#D1D1D1]/45">
+                    {moment.kind.replace("_", " ")}
+                  </span>
+                ) : null}
+              </div>
+              {moment.transcript_quote ? (
+                <p className="mt-3 text-sm italic leading-relaxed text-[#E0E0E0]">
+                  "{moment.transcript_quote}"
+                </p>
+              ) : null}
+              {moment.coaching_note ? (
+                <p className="mt-3 text-sm leading-relaxed text-[#D1D1D1]/80">
+                  {moment.coaching_note}
+                </p>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BehavioralPatterns({ patterns }) {
+  if (!Array.isArray(patterns) || patterns.length === 0) return null;
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+      <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-4">
+        Behavior Patterns
+      </h3>
+      <div className="space-y-3">
+        {patterns.map((pattern, index) => (
+          <div key={`${pattern.name}-${index}`} className="border-l-2 border-[#F27D26] pl-4">
+            <h4 className="text-sm font-semibold text-white">{pattern.name}</h4>
+            {pattern.evidence ? (
+              <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{pattern.evidence}</p>
+            ) : null}
+            {pattern.impact ? (
+              <p className="mt-2 text-sm leading-relaxed text-[#D1D1D1]/75">{pattern.impact}</p>
+            ) : null}
+            {pattern.correction ? (
+              <p className="mt-2 text-xs leading-relaxed text-[#4ADE80]">{pattern.correction}</p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PracticeAssignment({ assignment }) {
+  if (!assignment) return null;
+  const rows = [
+    ["Reflection Question", assignment.reflection_question],
+    ["Speaking Drill", assignment.speaking_drill],
+    ["Behavioral Action", assignment.behavioral_action],
+    ["Next Session Goal", assignment.next_session_goal],
+  ].filter(([, value]) => readableText(value));
+
+  if (!rows.length) return null;
+
+  return (
+    <div className="rounded-lg border border-[#4ADE80]/35 bg-[#123021] p-5">
+      <h3 className="text-xs font-bold uppercase tracking-widest text-[#4ADE80] mb-4">
+        Practice Before Next Session
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {rows.map(([label, value]) => (
+          <div key={label} className="rounded border border-[#4ADE80]/20 bg-[#0A0B0D]/35 p-4">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+              {label}
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LanguageCoach({ languageCoach }) {
+  if (!languageCoach) return null;
+  const drills = Array.isArray(languageCoach.rewrite_drills) ? languageCoach.rewrite_drills : [];
+  const hasContent =
+    readableText(languageCoach.strongest_sentence) ||
+    readableText(languageCoach.main_language_gap) ||
+    drills.length > 0;
+
+  if (!hasContent) return null;
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+      <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-4">
+        Language Coach
+      </h3>
+      {languageCoach.strongest_sentence ? (
+        <p className="text-sm leading-relaxed text-[#E0E0E0]">
+          <span className="text-[#4ADE80]">Strong sentence:</span>{" "}
+          "{languageCoach.strongest_sentence}"
+        </p>
+      ) : null}
+      {languageCoach.main_language_gap ? (
+        <p className="mt-3 text-sm leading-relaxed text-[#D1D1D1]/80">
+          {languageCoach.main_language_gap}
+        </p>
+      ) : null}
+      {drills.length ? (
+        <div className="mt-4 space-y-3">
+          {drills.map((drill, index) => (
+            <div key={`${drill.timestamp_seconds}-${index}`} className="rounded border border-[#2A2C31] bg-[#1C1D21] p-4">
+              <div className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[#D1D1D1]/45 tnum">
+                {formatSecondsTimestamp(drill.timestamp_seconds)}
+              </div>
+              <div className="text-sm leading-relaxed text-[#D1D1D1]/65">
+                {drill.original}
+              </div>
+              <div className="mt-2 text-sm leading-relaxed text-[#4ADE80]">
+                {drill.improved}
+              </div>
+              {drill.explanation ? (
+                <p className="mt-2 text-xs leading-relaxed text-[#D1D1D1]/65">
+                  {drill.explanation}
+                </p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CoachingReport({ analysis, onSeek }) {
+  const report = analysis?.coaching_report || {};
+  const headline = readableText(report.headline) || readableText(analysis?.prose_verdict);
+  const hasReport = hasReadableCoachingReport(analysis) || headline;
+
+  if (!hasReport) return null;
+
+  return (
+    <>
+      <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-2 h-2 rounded-full bg-[#F27D26]" />
+          <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+            Coaching Read
+          </h3>
+        </div>
+        {headline ? (
+          <h4 className="text-xl font-semibold tracking-tight text-white leading-snug">
+            {headline}
+          </h4>
+        ) : null}
+        {report.opening_read ? (
+          <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[#E0E0E0]">
+            {report.opening_read}
+          </p>
+        ) : analysis?.session_summary ? (
+          <p className="mt-4 text-base leading-7 text-[#E0E0E0]">
+            {analysis.session_summary}
+          </p>
+        ) : null}
+      </div>
+
+      {(report.what_improved || report.what_held_back) ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {report.what_improved ? (
+            <StatBlock label="What Improved" value={report.what_improved} />
+          ) : null}
+          {report.what_held_back ? (
+            <StatBlock label="What Held You Back" value={report.what_held_back} />
+          ) : null}
+        </div>
+      ) : null}
+
+      <CoachingScorecard analysis={analysis} />
+      <CoachingLessons lessons={report.top_lessons} />
+      <MomentFeedback moments={report.moment_feedback} bestMoment={report.best_moment} onSeek={onSeek} />
+      <BehavioralPatterns patterns={report.behavioral_patterns} />
+      <PracticeAssignment assignment={report.practice_assignment} />
+      <LanguageCoach languageCoach={analysis.language_coach} />
+    </>
+  );
+}
+
 export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
   const { config } = useConfig();
   const { refreshIndex } = useIndex();
@@ -1001,22 +1351,26 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
                 {activeTab === "analysis" ? (
                   analysis ? (
                     <>
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-[#F27D26]" />
-                          <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-                            Verdict
-                          </h3>
-                        </div>
-                        <p className="text-base leading-relaxed text-[#E0E0E0] italic border-l-2 border-[#F27D26] pl-4">
-                          "{analysis.prose_verdict}"
-                        </p>
-                        {analysis.session_summary ? (
-                          <p className="text-sm text-[#D1D1D1] opacity-80 leading-relaxed">
-                            {analysis.session_summary}
+                      <CoachingReport analysis={analysis} onSeek={handleSeek} />
+
+                      {!hasReadableCoachingReport(analysis) ? (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-[#F27D26]" />
+                            <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+                              Verdict
+                            </h3>
+                          </div>
+                          <p className="text-base leading-relaxed text-[#E0E0E0] italic border-l-2 border-[#F27D26] pl-4">
+                            "{analysis.prose_verdict}"
                           </p>
-                        ) : null}
-                      </div>
+                          {analysis.session_summary ? (
+                            <p className="text-sm text-[#D1D1D1] opacity-80 leading-relaxed">
+                              {analysis.session_summary}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
 
                       {analysis.main_topics?.length ? (
                         <div className="flex flex-wrap gap-2">

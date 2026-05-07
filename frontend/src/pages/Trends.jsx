@@ -392,6 +392,69 @@ function FillerWordsPanel({ fillerWordsByLanguage }) {
   );
 }
 
+function ScorecardDimensionsPanel({ dimensions }) {
+  const rows = Array.isArray(dimensions) ? dimensions : [];
+
+  if (!rows.length) {
+    return (
+      <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-3">
+          Improvement Dimensions
+        </h3>
+        <p className="text-sm text-[#D1D1D1] opacity-70 leading-relaxed">
+          New coaching scorecards will appear here after fresh analyses are generated.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+          Improvement Dimensions
+        </h3>
+        <span className="text-[10px] font-mono uppercase tracking-widest opacity-40">
+          lowest first
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {rows.slice(0, 7).map((row) => {
+          const average = Number(row.average) || 0;
+          const widthPercent = Math.max(6, Math.min(100, average * 10));
+          const color =
+            average >= 8 ? "#4ADE80" : average >= 6 ? "#F4B26D" : "#F27D26";
+          return (
+            <div key={row.metric} className="rounded border border-[#2A2C31] bg-[#1C1D21] p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-white">{row.label}</p>
+                  <div className="mt-1 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+                    {row.trend}
+                  </div>
+                </div>
+                <div className="text-right font-mono">
+                  <div className="text-sm text-white tnum">{average.toFixed(1)}</div>
+                  <div className="text-[9px] uppercase tracking-widest opacity-35">
+                    latest {row.latest ?? "-"}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 h-1.5 rounded-full bg-[#0A0B0D] overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${widthPercent}%`, backgroundColor: color }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function Trends({ scrollRef }) {
   const [range, setRange] = useState("30d");
   const [payload, setPayload] = useState(null);
@@ -481,6 +544,7 @@ export function Trends({ scrollRef }) {
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
               <FluencyChart series={payload?.fluency_by_language} />
+              <ScorecardDimensionsPanel dimensions={payload?.scorecard_dimensions} />
               <PatternTrendList patternsByLanguage={payload?.pattern_hits_by_language} />
               <FillerWordsPanel fillerWordsByLanguage={payload?.filler_words_by_language} />
               <LanguageMixPanel summary={summary} analysisSummary={analysisSummary} />

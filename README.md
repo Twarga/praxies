@@ -34,14 +34,16 @@ Praxis is an AI-assisted video journaling app for desktop. Record a session, tra
 4. Review sessions in a private desktop archive
 5. Track patterns, fluency, and momentum over time
 
-## Coming soon
+## Features
 
-- Session gallery with searchable history
-- Trends and recurring pattern tracking
-- External LLM fallback workflow
-- LAN phone upload
+- Session gallery with month grouping, language filter, and thumbnails
+- Trends page with fluency charts, recurring patterns, and filler-word tracking
+- External LLM fallback workflow (export prompt, paste analysis)
+- LAN phone upload with QR code
 - Weekly rollups
-- AppImage distribution for Linux
+- Subtitle generation, translation, and burned-in MP4 export
+- Real-time processing status via SSE
+- Crash recovery and retention compression
 
 ## Tech stack
 
@@ -58,7 +60,7 @@ Praxis is an AI-assisted video journaling app for desktop. Record a session, tra
 
 ## Status
 
-Early development. Planning is in place and implementation is starting from the core recording and storage pipeline outward.
+Core pipeline complete (recording → transcription → analysis). Trends UI, phone upload, SSE live updates, crash recovery, and retention are implemented. Packaging work in progress.
 
 ## Development
 
@@ -68,6 +70,12 @@ Prerequisites:
 - Node.js 20+
 - npm
 - FFmpeg
+
+Quick install:
+
+```bash
+./scripts/install.sh
+```
 
 Backend setup (run once):
 
@@ -109,4 +117,23 @@ One-terminal dev runner:
 
 ```bash
 ./scripts/dev.sh run
+```
+
+## Packaging
+
+Build the AppImage:
+
+```bash
+cd frontend
+npm run electron:build
+```
+
+The output will be in `frontend/release/Praxis-{version}.AppImage`.
+
+### Sway keybind (optional)
+
+Add to `~/.config/sway/config`:
+
+```
+bindsym $mod+Shift+p exec /path/to/Praxis-0.1.0.AppImage
 ```

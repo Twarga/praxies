@@ -10,6 +10,24 @@ from app.services.sessions import discover_session_dirs, get_session_analysis_pa
 
 TrendRange = Literal["7d", "30d", "90d", "all"]
 SUPPORTED_TREND_RANGES = {"7d", "30d", "90d", "all"}
+SCORECARD_METRICS = [
+    "clarity",
+    "structure",
+    "reflection_depth",
+    "emotional_awareness",
+    "specificity",
+    "actionability",
+    "language_fluency",
+]
+SCORECARD_LABELS = {
+    "clarity": "Clarity",
+    "structure": "Structure",
+    "reflection_depth": "Reflection Depth",
+    "emotional_awareness": "Emotional Awareness",
+    "specificity": "Specificity",
+    "actionability": "Actionability",
+    "language_fluency": "Language Fluency",
+}
 
 
 def build_trends_payload(
@@ -48,6 +66,8 @@ def build_trends_payload(
             },
         },
         "fluency_by_language": _build_fluency_by_language(entries, reference),
+        "scorecard_by_language": _build_scorecard_by_language(entries, reference),
+        "scorecard_dimensions": _build_scorecard_dimensions(entries),
         "pattern_hits_by_language": _build_pattern_hits_by_language(entries),
         "filler_words_by_language": _build_filler_words_by_language(entries),
         "sessions": [
@@ -61,7 +81,118 @@ def build_trends_payload(
             }
             for meta, analysis in entries
         ],
-}
+    }
+
+
+def _build_scorecard_by_language(
+    entries: list[tuple[MetaModel, dict[str, Any]]],
+    reference: datetime,
+) -> dict[str, list[dict[str, Any]]]:
+    series: dict[str, list[dict[str, Any]]] = {"en": [], "fr": [], "es": []}
+
+    for meta, analysis in entries:
+        scores = {
+            metric: score
+            for metric in SCORECARD_METRICS
+            if (score := _extract_scorecard_score(analysis, metric)) is not None
+        }
+        if not scores:
+            continue
+
+        average = round(sum(scores.values()) / len(scores), 1)
+        series[meta.language].append(
+            {
+                "date": _parse_session_datetime(meta.created_at, reference).date().isoformat(),
+                "session_id": meta.id,
+                "average": average,
+                "scores": scores,
+            }
+        )
+
+    return series
+
+
+def _build_scorecard_dimensions(
+    entries: list[tuple[MetaModel, dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    dimensions: list[dict[str, Any]] = []
+    split_index = len(entries) // 2
+
+    for metric in SCORECARD_METRICS:
+        previous_scores: list[int] = []
+        recent_scores: list[int] = []
+
+        for entry_index, (_meta, analysis) in enumerate(entries):
+            score = _extract_scorecard_score(analysis, metric)
+            if score is None:
+                continue
+            if entry_index >= split_index:
+                recent_scores.append(score)
+            else:
+                previous_scores.append(score)
+
+        scores = previous_scores + recent_scores
+        if not scores:
+            continue
+
+        average = round(sum(scores) / len(scores), 1)
+        latest = recent_scores[-1] if recent_scores else scores[-1]
+        previous_average = (
+            round(sum(previous_scores) / len(previous_scores), 1)
+            if previous_scores
+            else None
+        )
+        recent_average = (
+            round(sum(recent_scores) / len(recent_scores), 1)
+            if recent_scores
+            else None
+        )
+        dimensions.append(
+            {
+                "metric": metric,
+                "label": SCORECARD_LABELS[metric],
+                "average": average,
+                "latest": latest,
+                "trend": _label_scorecard_trend(previous_average, recent_average),
+            }
+        )
+
+    return sorted(dimensions, key=lambda item: (float(item["average"]), str(item["label"])))
+
+
+def _extract_scorecard_score(analysis: dict[str, Any], metric: str) -> int | None:
+    scorecard = analysis.get("scorecard") or {}
+    metric_payload = scorecard.get(metric) if isinstance(scorecard, dict) else None
+    if isinstance(metric_payload, dict):
+        score = metric_payload.get("score")
+        if isinstance(score, int | float):
+            return max(0, min(10, int(score)))
+
+    if metric == "clarity":
+        score = (analysis.get("speaking_quality") or {}).get("clarity")
+        if isinstance(score, int | float):
+            return max(0, min(10, int(score)))
+
+    if metric == "language_fluency":
+        score = (analysis.get("grammar_and_language") or {}).get("fluency_score")
+        if isinstance(score, int | float):
+            return max(0, min(10, int(score)))
+
+    return None
+
+
+def _label_scorecard_trend(previous_average: float | None, recent_average: float | None) -> str:
+    if recent_average is None:
+        return "no recent data"
+    if previous_average is None:
+        return "new baseline"
+
+    delta = recent_average - previous_average
+    if delta >= 0.6:
+        return "improving"
+    if delta <= -0.6:
+        return "slipping"
+    return "stable"
 
 
 def _build_volume_summary(

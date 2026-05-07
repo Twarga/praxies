@@ -2,13 +2,17 @@
   "name": "praxis-frontend",
   "private": true,
   "version": "0.1.0",
+  "description": "AI-assisted video journaling desktop app",
+  "author": "Twarga",
   "type": "module",
-  "main": "electron/main.cjs",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "electron:dev": "sh -c 'unset ELECTRON_RUN_AS_NODE; exec electron electron/main.cjs'",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:build": "npm run build && electron-builder",
+    "electron:build:dir": "npm run build && electron-builder --dir"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -16,6 +20,7 @@
     "@fontsource/manrope": "^5.2.8",
     "@fontsource/spectral": "^5.2.8",
     "lucide-react": "^0.546.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
@@ -23,6 +28,7 @@
     "@vitejs/plugin-react": "^5.1.0",
     "autoprefixer": "^10.4.21",
     "electron": "^37.4.0",
+    "electron-builder": "^26.8.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "vite": "^7.1.12"
