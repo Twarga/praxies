@@ -69,6 +69,12 @@ export function retrySessionProcessing(sessionId) {
   });
 }
 
+export function reanalyzeSession(sessionId) {
+  return apiFetchJson(`/api/sessions/${sessionId}/reanalyze`, {
+    method: "POST",
+  });
+}
+
 export function exportSessionPrompt(sessionId) {
   return apiFetchText(`/api/sessions/${sessionId}/export-prompt`);
 }

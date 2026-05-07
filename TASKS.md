@@ -336,7 +336,7 @@ Goal: make each analyzed journal session teach the user something specific about
 - [x] T176 Rewrite the analysis system prompt so it behaves like a readable teaching coach, not a summarizer.
 - [x] T177 Render the new report first in Session Detail while keeping legacy analysis fields readable.
 - [x] T178 Update Today digest to prefer the practice loop from the coaching report.
-- [ ] T179 Calibrate the prompt on at least 10 real recordings across English, French, and Spanish. PARTIAL: English-only copied sessions audited in `docs/T179_PARTIAL_CALIBRATION.md`; prompt tightened for short/test recordings. Needs fresh v2 analyses plus French and Spanish samples.
+- [ ] T179 Calibrate the prompt on at least 10 real recordings across English, French, and Spanish. PARTIAL: English-only copied sessions audited in `docs/T179_PARTIAL_CALIBRATION.md`; prompt tightened for short/test recordings; re-analysis workflow added for existing transcripts. Needs fresh v2 analyses plus French and Spanish samples.
 - [ ] T180 Add regression fixtures for a strong report, weak report, malformed report, and multilingual report.
 
 Phase gate:

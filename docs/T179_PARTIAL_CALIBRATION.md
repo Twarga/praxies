@@ -52,6 +52,16 @@ The analysis prompt now explicitly handles short or technical-test sessions:
 
 This matters because many real copied sessions are app-test recordings. Without this instruction, a strong model may over-coach thin content and produce fake depth.
 
+## Tooling Added For Next Calibration Pass
+
+Existing transcript sessions can now be re-analyzed without re-running Whisper:
+
+- Backend: `POST /api/sessions/{session_id}/reanalyze`
+- Frontend: `Re-analyze` button on ready sessions with transcripts
+- Script: `./scripts/use-local-journal.sh` points Praxis at the copied local journal folder
+
+Use this after adding a fresh OpenRouter key. It is designed for regenerating old v1 English analyses as v2 coaching reports.
+
 ## Expected Good Output For These Sessions
 
 For short test sessions, a good v2 report should say:
@@ -91,4 +101,3 @@ Each should be at least two minutes and should follow this shape:
 2. Give one concrete example.
 3. Explain why it matters.
 4. End with one next action.
-

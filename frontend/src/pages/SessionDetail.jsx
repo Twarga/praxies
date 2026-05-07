@@ -18,6 +18,7 @@ import {
   getSessionVideoUrl,
   loadSession,
   markSessionRead,
+  reanalyzeSession,
   retrySessionProcessing,
 } from "../api/sessions.js";
 import { useConfig } from "../hooks/useConfig.js";
@@ -846,6 +847,7 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
   const [currentTime, setCurrentTime] = useState(0);
   const [mediaDuration, setMediaDuration] = useState(0);
   const [retrying, setRetrying] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
   const [subtitleLanguage, setSubtitleLanguage] = useState("fr");
   const [subtitleExporting, setSubtitleExporting] = useState(false);
   const videoRef = useRef(null);
@@ -1081,6 +1083,23 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
     }
   }
 
+  async function handleReanalyze() {
+    setReanalyzing(true);
+    try {
+      await reanalyzeSession(sessionId);
+      pushToast({ kind: "success", message: "Re-analysis queued with the latest coaching prompt." });
+      await refreshIndex().catch(() => {});
+      await refreshBundle();
+    } catch (caught) {
+      pushToast({
+        kind: "error",
+        message: caught instanceof Error ? caught.message : "Failed to re-analyze.",
+      });
+    } finally {
+      setReanalyzing(false);
+    }
+  }
+
   async function handleExportSubtitledVideo() {
     setSubtitleExporting(true);
     try {
@@ -1156,6 +1175,18 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
             >
               <Download size={14} />
               Prompt
+            </button>
+          ) : null}
+          {isReady && transcript.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => void handleReanalyze()}
+              disabled={reanalyzing}
+              className="px-3 py-2 bg-[#2A2C31] hover:bg-[#32353B] rounded text-xs font-medium transition-colors flex items-center gap-2 disabled:opacity-60"
+              title="Re-analyze with latest coaching prompt"
+            >
+              <RotateCcw size={14} />
+              {reanalyzing ? "Queued..." : "Re-analyze"}
             </button>
           ) : null}
           {isReady && transcript.length > 0 ? (

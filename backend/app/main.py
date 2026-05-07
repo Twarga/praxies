@@ -232,7 +232,8 @@ async def process_session(session_id: str) -> None:
         await rebuild_index_and_emit(config, "session.status")
 
         recurring_patterns = load_recurring_patterns(config, session_meta.language)
-        analysis, last_raw = run_analysis_with_retries(
+        analysis, last_raw = await asyncio.to_thread(
+            run_analysis_with_retries,
             client=llm_client,
             config=config,
             system_prompt=build_analysis_system_prompt(
@@ -381,6 +382,146 @@ async def rebuild_index_and_emit(config, reason: str) -> None:
 
 
 processing_queue = SessionProcessingQueue(worker=process_session)
+
+
+async def reanalyze_session_with_latest_prompt(session_id: str) -> None:
+    config = load_config()
+    try:
+        session_meta = load_session_meta(config, session_id)
+        transcript_payload = load_session_transcript_payload(config, session_id)
+        transcript_segments = transcript_payload.get("transcript") or []
+        if not transcript_segments:
+            raise ValueError("Session has no transcript segments to analyze.")
+
+        analyze_started_at = datetime_now_iso()
+        update_session_meta(
+            config,
+            session_id,
+            updates={"status": "analyzing", "error": None},
+            processing_updates={
+                "analyze_started_at": analyze_started_at,
+                "analyze_finished_at": None,
+                "model_used": config.openrouter.default_model,
+                "progress_label": "Re-analyzing with latest coaching prompt",
+                "progress_percent": 68,
+            },
+        )
+        append_session_processing_event(
+            config,
+            session_id,
+            message=f"Re-analysis started with `{config.openrouter.default_model}` and the latest coaching prompt.",
+            progress_label="AI re-analysis running",
+            progress_percent=72,
+            model_used=config.openrouter.default_model,
+        )
+        await emit_session_status_from_id(config, session_id)
+        await rebuild_index_and_emit(config, "session.reanalyze.status")
+
+        recurring_patterns = load_recurring_patterns(config, session_meta.language)
+        analysis, last_raw = await asyncio.to_thread(
+            run_analysis_with_retries,
+            client=llm_client,
+            config=config,
+            system_prompt=build_analysis_system_prompt(
+                config,
+                language=session_meta.language,
+                recurring_patterns=recurring_patterns,
+            ),
+            user_message=build_transcript_user_message(transcript_segments),
+        )
+        write_session_analysis(config, session_id, analysis.model_dump(mode="json"))
+        if last_raw:
+            write_session_analysis_raw(config, session_id, last_raw)
+
+        finished_at = datetime_now_iso()
+        updated_meta = update_session_meta(
+            config,
+            session_id,
+            updates={"status": "ready", "error": None},
+            processing_updates={
+                "analyze_finished_at": finished_at,
+                "progress_label": "Re-analysis ready",
+                "progress_percent": 100,
+            },
+        )
+        append_session_processing_event(
+            config,
+            session_id,
+            message="Re-analysis saved successfully with the latest coaching report schema.",
+            level="success",
+            progress_label="Re-analysis ready",
+            progress_percent=100,
+        )
+        await emit_session_status(updated_meta)
+        await rebuild_index_and_emit(config, "session.reanalyze.ready")
+    except (AnalysisNeedsAttentionError, OpenRouterClientError) as error:
+        finished_at = datetime_now_iso()
+        update_session_meta(
+            config,
+            session_id,
+            updates={"status": "needs_attention", "error": str(error)},
+            processing_updates={
+                "analyze_finished_at": finished_at,
+                "progress_label": "Re-analysis needs attention",
+                "progress_percent": 100,
+            },
+        )
+        append_session_processing_event(
+            config,
+            session_id,
+            message=str(error),
+            level="warning",
+            progress_label="Re-analysis needs attention",
+            progress_percent=100,
+        )
+        await emit_session_status_from_id(config, session_id)
+        await rebuild_index_and_emit(config, "session.reanalyze.needs_attention")
+    except AnalysisRetryExhaustedError as error:
+        finished_at = datetime_now_iso()
+        if error.last_raw:
+            write_session_analysis_raw(config, session_id, error.last_raw)
+        update_session_meta(
+            config,
+            session_id,
+            updates={"status": "failed", "error": str(error)},
+            processing_updates={
+                "analyze_finished_at": finished_at,
+                "progress_label": "Re-analysis failed",
+                "progress_percent": 100,
+            },
+        )
+        append_session_processing_event(
+            config,
+            session_id,
+            message=str(error),
+            level="error",
+            progress_label="Re-analysis failed",
+            progress_percent=100,
+        )
+        await emit_session_status_from_id(config, session_id)
+        await rebuild_index_and_emit(config, "session.reanalyze.failed")
+    except Exception as error:
+        finished_at = datetime_now_iso()
+        update_session_meta(
+            config,
+            session_id,
+            updates={"status": "failed", "error": str(error)},
+            processing_updates={
+                "analyze_finished_at": finished_at,
+                "progress_label": "Re-analysis failed",
+                "progress_percent": 100,
+            },
+        )
+        append_session_processing_event(
+            config,
+            session_id,
+            message=str(error),
+            level="error",
+            progress_label="Re-analysis failed",
+            progress_percent=100,
+        )
+        await emit_session_status_from_id(config, session_id)
+        await rebuild_index_and_emit(config, "session.reanalyze.failed")
 
 
 async def _recover_stuck_sessions() -> None:
@@ -1176,6 +1317,50 @@ async def post_session_retry(session_id: str) -> dict[str, object]:
     await emit_session_status(queued_meta)
     await rebuild_index_and_emit(config, "session.retry")
     return {"session_id": queued_meta.id, "status": queued_meta.status, "enqueued": enqueued}
+
+
+@app.post("/api/sessions/{session_id}/reanalyze")
+async def post_session_reanalyze(session_id: str) -> dict[str, object]:
+    config = load_config()
+    try:
+        meta = load_session_meta(config, session_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found.") from None
+
+    if should_skip_processing_pipeline(meta):
+        raise HTTPException(status_code=400, detail="Session does not support analysis.") from None
+    if meta.status in {"queued", "transcribing", "analyzing"}:
+        raise HTTPException(status_code=409, detail="Session is already processing.") from None
+
+    try:
+        transcript_payload = load_session_transcript_payload(config, session_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=400, detail="Session has no transcript to re-analyze.") from None
+
+    if not transcript_payload.get("transcript"):
+        raise HTTPException(status_code=400, detail="Session has no transcript segments to re-analyze.") from None
+
+    queued_meta = update_session_meta(
+        config,
+        session_id,
+        updates={"status": "analyzing", "error": None},
+        processing_updates={
+            "attempts": meta.processing.attempts + 1,
+            "progress_label": "Re-analysis queued",
+            "progress_percent": 65,
+        },
+    )
+    append_session_processing_event(
+        config,
+        session_id,
+        message=f"Re-analysis requested with the latest coaching prompt. Starting attempt {queued_meta.processing.attempts}.",
+        progress_label="Re-analysis queued",
+        progress_percent=65,
+    )
+    asyncio.create_task(reanalyze_session_with_latest_prompt(session_id))
+    await emit_session_status(queued_meta)
+    await rebuild_index_and_emit(config, "session.reanalyze")
+    return {"session_id": queued_meta.id, "status": queued_meta.status, "enqueued": True}
 
 
 @app.post("/api/sessions/{session_id}/import-analysis")
