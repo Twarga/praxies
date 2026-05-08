@@ -85,12 +85,12 @@ Goal: create the filesystem model and configuration behavior that every later ph
 - [x] T028 Frontend config context.
 - [x] T029 Frontend index context.
 - [x] T030 Left rail shell with wordmark/nav/record/stats.
-- [ ] T031 Today first-launch empty state using exact spec copy. PARTIAL: Today page exists, but current UI is a dashboard, not exact first-launch copy.
+- [x] T031 Today first-launch empty state using exact spec copy. Implemented a first-launch Today variant for an empty journal.
 - [x] T032 Settings shell with sections and rows.
 - [x] T033 Settings rows for journal folder, retention, video quality, default language, OpenRouter model, directness, Whisper model, ready sound.
 - [x] T034 Personal context textarea with 1-second autosave.
-- [ ] T035 Disabled Telegram section exactly as dimmed phase-2 placeholder. Current Settings has phone upload toggle instead.
-- [ ] T036 About section values for version, config path, and logs path. PARTIAL: version/schema/theme/config path exist; logs path is not shown in Settings UI.
+- [x] T035 Disabled Telegram section exactly as dimmed phase-2 placeholder.
+- [x] T036 About section values for version, config path, and logs path.
 
 Phase gate:
 
@@ -306,15 +306,15 @@ Goal: ship a usable Arch Linux desktop build and verify the v1 acceptance list.
 - [x] T157 `electron-builder` AppImage config.
 - [x] T158 Bundle frontend build artifacts for production.
 - [x] T159 Bundle backend source/runtime paths for production launch.
-- [ ] T160 Bundle Python runtime for AppImage. PARTIAL: portable Python resource path and Electron launch logic exist; production AppImage boot still needs verification.
-- [ ] T161 Bundle static ffmpeg for AppImage.
-- [ ] T162 Bundle/pre-seed Whisper model cache behavior.
+- [x] T160 Bundle Python runtime for AppImage. Verified unpacked production build and AppImage boot with bundled Python backend.
+- [x] T161 Bundle static ffmpeg for AppImage. Verified bundled `ffmpeg` and `ffprobe` binaries in production output.
+- [ ] T162 Bundle/pre-seed Whisper model cache behavior. PARTIAL: packaged app supports `PRAXIS_RESOURCES_PATH/whisper`, explicit `PRAXIS_WHISPER_CACHE_DIR`, and `scripts/preseed-whisper-cache.sh`; the generated AppImage does not currently include a pre-seeded model.
 - [x] T163 Desktop entry and launcher behavior.
 - [x] T164 README install/launch/Sway keybind docs.
 - [ ] T165 Full acceptance checklist on real files.
 - [ ] T166 Fix acceptance failures and rerun checklist.
-- [ ] T167 Verify logs/recovery/failure states in production-like build.
-- [ ] T168 Produce first v1 release artifacts.
+- [ ] T167 Verify logs/recovery/failure states in production-like build. PARTIAL: production Electron log added and AppImage startup logging verified; recovery/failure-state QA still needs manual scenarios.
+- [x] T168 Produce first v1 release artifacts. Generated `frontend/release/Praxis-0.1.0.AppImage`.
 
 Phase gate:
 
@@ -337,7 +337,8 @@ Goal: make each analyzed journal session teach the user something specific about
 - [x] T177 Render the new report first in Session Detail while keeping legacy analysis fields readable.
 - [x] T178 Update Today digest to prefer the practice loop from the coaching report.
 - [ ] T179 Calibrate the prompt on at least 10 real recordings across English, French, and Spanish. PARTIAL: English-only copied sessions audited in `docs/T179_PARTIAL_CALIBRATION.md`; prompt tightened for short/test recordings; re-analysis workflow added for existing transcripts. Needs fresh v2 analyses plus French and Spanish samples.
-- [ ] T180 Add regression fixtures for a strong report, weak report, malformed report, and multilingual report.
+- [x] T179B Make analysis coach-first and easier to read: one main lesson, one practice loop, shorter prompt constraints, and Analysis-page provider/model override.
+- [x] T180 Add regression fixtures for a strong report, weak report, malformed report, and multilingual report.
 
 Phase gate:
 
@@ -353,17 +354,40 @@ Goal: make Trends show whether the user is improving, not just whether they reco
 - [x] T181 Aggregate scorecard dimensions by language and over the selected trend range.
 - [x] T182 Add an Improvement Dimensions panel to Trends.
 - [x] T183 Include coach-report lessons, scorecard values, and next-session goals in weekly rollup inputs.
-- [ ] T184 Track completion of practice assignments from one session to the next.
-- [ ] T185 Compare the previous next-session goal against the next recording and mark followed, partially followed, or missed.
-- [ ] T186 Add trend copy such as "specificity is improving" or "actionability is still weak" based on scorecard movement.
+- [x] T184 Track completion of practice assignments from one session to the next.
+- [x] T185 Compare the previous next-session goal against the next recording and mark followed, partially followed, or missed.
+- [x] T186 Add trend copy such as "specificity is improving" or "actionability is still weak" based on scorecard movement.
 - [ ] T187 Add a calibration view for recurring behavior patterns: confirm, rename, merge, or dismiss.
-- [ ] T188 Add tests for scorecard aggregation, trend labels, and sparse-data behavior.
+- [x] T188 Add tests for scorecard aggregation, trend labels, and sparse-data behavior.
 
 Phase gate:
 
 - [ ] GATE-11 Trends make the user's weakest improvement dimension obvious within 10 seconds.
 - [ ] GATE-11 Weekly rollups identify one repeated blocker and one next-week practice focus.
 - [ ] GATE-11 Sparse data degrades gracefully without pretending there is a trend.
+
+## Phase 12 - First-Run Onboarding And Production Polish
+
+Goal: make a fresh install feel like a finished product instead of a developer-configured tool.
+
+- [x] T189 First-run onboarding flow for journal folder, practice goal, language, AI provider, and transcription setup.
+- [x] T190 Onboarding AI setup screen with provider/model choice, key save, and connection test.
+- [x] T191 Onboarding local transcription setup with Whisper model choice, cache status, and setup guidance.
+- [x] T192 Journal folder setup like an Obsidian vault: create/open folder, validate storage path, and rebuild existing journal index.
+- [x] T193 First-run goal personalization that writes useful personal context for future analysis prompts.
+- [x] T194 Production repo cleanup: ignore generated artifacts, remove stale files, verify no secrets, and add release notes.
+- [x] T195 Professional install script for AppImage permissions, cache/config checks, and clear dependency messaging.
+- [x] T196 Release build script that prepares resources, builds AppImage, verifies launch, and emits checksum.
+- [x] T197 Landing page with screenshots, download call-to-action, privacy/local-first copy, and workflow explanation.
+- [x] T198 Visual polish pass for transitions, loading states, empty states, processing UI, and report readability.
+- [x] T199 First production icon and branding pass for AppImage, sidebar, and release assets.
+- [ ] T200 Manual release QA on a fresh machine with onboarding, recording, transcription, analysis, restart, and failure states.
+
+Phase gate:
+
+- [ ] GATE-12 A fresh install opens onboarding before the normal app.
+- [ ] GATE-12 A non-technical user can finish setup without editing files or reading terminal output.
+- [ ] GATE-12 Release artifacts can be produced with one documented command.
 
 ## Cross-Cutting Testing And Quality
 

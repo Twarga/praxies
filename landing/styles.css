@@ -610,6 +610,179 @@ h3 {
   border: 1px solid var(--border);
 }
 
+.screenshot-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.28fr 1fr;
+  gap: 12px;
+}
+
+.screenshot-card {
+  min-height: 440px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 30%),
+    rgba(15, 16, 18, 0.86);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.screenshot-large {
+  transform: translateY(-18px);
+}
+
+.screenshot-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border-bottom: 1px solid var(--border);
+  padding: 0 14px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.screenshot-topbar span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--success);
+  box-shadow: 0 0 18px rgba(74, 222, 128, 0.55);
+}
+
+.screenshot-body {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.shot-record,
+.shot-digest,
+.read-order,
+.moment-list,
+.metric {
+  border: 1px solid var(--border);
+  background: rgba(21, 22, 25, 0.88);
+  padding: 16px;
+}
+
+.shot-record {
+  display: grid;
+  min-height: 176px;
+  place-items: center;
+  text-align: center;
+}
+
+.shot-record span {
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(214, 168, 95, 0.35);
+  background: var(--signal-soft);
+}
+
+.shot-record strong,
+.shot-digest strong,
+.read-order strong,
+.metric strong {
+  display: block;
+  color: var(--text);
+}
+
+.shot-record small,
+.shot-digest small,
+.read-order small,
+.stats-shot p,
+.privacy-grid p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.shot-digest p,
+.read-order p,
+.moment-list p {
+  margin-bottom: 12px;
+  color: var(--signal);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.read-order {
+  display: grid;
+  gap: 10px;
+}
+
+.read-order div {
+  border-left: 2px solid rgba(74, 222, 128, 0.42);
+  padding-left: 12px;
+}
+
+.read-order span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--success);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.moment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.moment-list span {
+  border: 1px solid var(--border);
+  background: rgba(8, 9, 10, 0.46);
+  padding: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.metric span {
+  color: var(--muted);
+}
+
+.metric.good strong {
+  color: var(--success);
+}
+
+.metric.weak strong {
+  color: var(--signal);
+}
+
+.mini-chart {
+  display: flex;
+  align-items: end;
+  gap: 7px;
+  height: 120px;
+  border: 1px solid var(--border);
+  background: rgba(8, 9, 10, 0.48);
+  padding: 14px;
+}
+
+.mini-chart i {
+  flex: 1;
+  background: linear-gradient(180deg, var(--success), rgba(74, 222, 128, 0.15));
+}
+
+.mini-chart i:nth-child(1) { height: 32%; }
+.mini-chart i:nth-child(2) { height: 42%; }
+.mini-chart i:nth-child(3) { height: 38%; }
+.mini-chart i:nth-child(4) { height: 56%; }
+.mini-chart i:nth-child(5) { height: 70%; }
+.mini-chart i:nth-child(6) { height: 74%; }
+
 .workflow-card {
   position: relative;
   min-height: 190px;
@@ -705,6 +878,32 @@ h3 {
 
 .proof-section {
   padding: 52px 0 102px;
+}
+
+.privacy-section {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 42px;
+  border-top: 1px solid var(--border);
+  padding: 86px 0;
+}
+
+.privacy-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.privacy-grid article {
+  border: 1px solid var(--border);
+  background: rgba(15, 16, 18, 0.76);
+  padding: 18px;
+}
+
+.privacy-grid strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: 18px;
 }
 
 .analysis-card {
@@ -844,8 +1043,14 @@ h3 {
   .console-grid,
   .analysis-grid,
   .workflow-grid,
-  .feature-layout {
+  .feature-layout,
+  .screenshot-grid,
+  .privacy-section {
     grid-template-columns: 1fr;
+  }
+
+  .screenshot-large {
+    transform: none;
   }
 
   .workflow-grid {

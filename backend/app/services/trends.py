@@ -147,13 +147,19 @@ def _build_scorecard_dimensions(
             if recent_scores
             else None
         )
+        trend = _label_scorecard_trend(previous_average, recent_average)
         dimensions.append(
             {
                 "metric": metric,
                 "label": SCORECARD_LABELS[metric],
                 "average": average,
                 "latest": latest,
-                "trend": _label_scorecard_trend(previous_average, recent_average),
+                "trend": trend,
+                "copy": _build_scorecard_trend_copy(
+                    label=SCORECARD_LABELS[metric],
+                    average=average,
+                    trend=trend,
+                ),
             }
         )
 
@@ -165,7 +171,11 @@ def _extract_scorecard_score(analysis: dict[str, Any], metric: str) -> int | Non
     metric_payload = scorecard.get(metric) if isinstance(scorecard, dict) else None
     if isinstance(metric_payload, dict):
         score = metric_payload.get("score")
-        if isinstance(score, int | float):
+        has_metric_evidence = bool(
+            str(metric_payload.get("evidence") or "").strip()
+            or str(metric_payload.get("practice_focus") or "").strip()
+        )
+        if isinstance(score, int | float) and (has_metric_evidence or int(score) > 0):
             return max(0, min(10, int(score)))
 
     if metric == "clarity":
@@ -193,6 +203,20 @@ def _label_scorecard_trend(previous_average: float | None, recent_average: float
     if delta <= -0.6:
         return "slipping"
     return "stable"
+
+
+def _build_scorecard_trend_copy(*, label: str, average: float, trend: str) -> str:
+    if trend == "improving":
+        return f"{label} is improving."
+    if trend == "slipping":
+        return f"{label} is slipping."
+    if average < 6:
+        return f"{label} is still weak."
+    if average >= 8:
+        return f"{label} is strong."
+    if trend == "new baseline":
+        return f"{label} has a new baseline."
+    return f"{label} is stable."
 
 
 def _build_volume_summary(

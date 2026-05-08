@@ -51,6 +51,7 @@ def config(app_paths: AppPaths) -> ConfigModel:
         personal_context="test context",
         phone_upload_enabled=False,
         ready_sound_enabled=True,
+        setup_completed=True,
         theme="bronze-dark",
         telegram={
             "enabled": False,

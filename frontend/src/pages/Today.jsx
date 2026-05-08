@@ -345,6 +345,7 @@ function getRecoveryBannerCopy(session, bundle) {
 export function Today({ onNavigate, scrollRef }) {
   const { index } = useIndex();
   const sessions = index?.sessions ?? [];
+  const isFirstLaunch = sessions.length === 0;
   const processing = sessions.filter((s) => isProcessingStatus(s.status));
   const needsAttention = sessions.filter((s) => isAttentionStatus(s.status));
   const skippedAnalysis = sessions.filter(
@@ -458,6 +459,58 @@ export function Today({ onNavigate, scrollRef }) {
   const visibleDigestActions = digestActions.length ? digestActions : fallbackDigestActions;
   const digestHeadline =
     digestAnalysis?.coaching_report?.headline || digestAnalysis?.prose_verdict || "";
+
+  if (isFirstLaunch) {
+    return (
+      <div ref={scrollRef} className="flex h-full flex-col overflow-y-auto">
+        <header className="h-16 shrink-0 border-b border-[#2A2C31] bg-[#151619] px-8 flex items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight text-white">Today</h2>
+          <div className="rounded bg-[#2A2C31] px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#E0E0E0]">
+            First Launch
+          </div>
+        </header>
+
+        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-8 py-10">
+          <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-8">
+            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded bg-[#1C1D21] border border-[#2A2C31]">
+              <Mic size={20} className="text-white" />
+            </div>
+            <h3 className="text-2xl font-semibold tracking-tight text-white">
+              Start your first journal session.
+            </h3>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#D1D1D1]/75">
+              Record at least two minutes. Praxis will save the video, transcribe your speech,
+              analyze the session, and turn it into one lesson plus a practice goal for next time.
+            </p>
+
+            <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+              {[
+                ["Record", "Speak naturally for 2-3 minutes."],
+                ["Transcribe", "Review exactly what you said."],
+                ["Learn", "Read the coach focus and next drill."],
+              ].map(([title, body]) => (
+                <div key={title} className="rounded border border-[#2A2C31] bg-[#1C1D21] p-4">
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
+                    {title}
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-[#D1D1D1]/70">{body}</p>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => onNavigate("record")}
+              className="mt-7 inline-flex items-center gap-2 rounded bg-[#F27D26] px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition-colors hover:bg-[#f08a3d]"
+            >
+              <Mic size={14} />
+              Record First Session
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={scrollRef} className="flex flex-col h-full overflow-y-auto">

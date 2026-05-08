@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.settings import APP_VERSION
 
@@ -10,6 +10,7 @@ from app.core.settings import APP_VERSION
 LanguageCode = Literal["en", "fr", "es"]
 VideoQuality = Literal["480p", "720p", "1080p"]
 Directness = Literal["gentle", "direct", "brutal"]
+LlmProvider = Literal["openrouter", "opencode_go", "openai_compatible", "litellm_proxy"]
 WhisperModelName = Literal["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"]
 SessionStatus = Literal[
     "recording",
@@ -26,6 +27,7 @@ SessionStatus = Literal[
 SessionSaveMode = Literal["full", "transcribe_only", "video_only"]
 SessionTitleSource = Literal["user", "llm", "default"]
 SessionSource = Literal["screen", "upload", "webcam"]
+PracticeGoalResult = Literal["unmarked", "followed", "partially_followed", "missed"]
 
 
 class StrictModel(BaseModel):
@@ -35,6 +37,16 @@ class StrictModel(BaseModel):
 class ConfigOpenRouterModel(StrictModel):
     api_key: str
     default_model: str
+
+
+class ConfigLlmModel(StrictModel):
+    provider: LlmProvider = "openrouter"
+    api_key: str = ""
+    model: str = "google/gemini-2.5-flash-lite"
+    base_url: str = ""
+    provider_api_keys: dict[str, str] = Field(default_factory=dict)
+    provider_models: dict[str, str] = Field(default_factory=dict)
+    provider_base_urls: dict[str, str] = Field(default_factory=dict)
 
 
 class ConfigWhisperModel(StrictModel):
@@ -59,11 +71,13 @@ class ConfigModel(StrictModel):
     video_quality: VideoQuality
     retention_days: int = Field(ge=0)
     openrouter: ConfigOpenRouterModel
+    llm: ConfigLlmModel = Field(default_factory=ConfigLlmModel)
     whisper: ConfigWhisperModel
     directness: Directness
     personal_context: str
     phone_upload_enabled: bool
     ready_sound_enabled: bool
+    setup_completed: bool = False
     theme: str
     telegram: ConfigTelegramModel
 
@@ -91,6 +105,15 @@ class MetaRetentionModel(StrictModel):
     compressed: bool = False
 
 
+class MetaPracticeModel(StrictModel):
+    assignment_completed: bool = False
+    assignment_completed_at: str | None = None
+    previous_goal: str = ""
+    previous_goal_source_session_id: str | None = None
+    previous_goal_result: PracticeGoalResult = "unmarked"
+    previous_goal_note: str = ""
+
+
 class MetaModel(StrictModel):
     id: str
     created_at: str
@@ -107,6 +130,7 @@ class MetaModel(StrictModel):
     read: bool
     processing: MetaProcessingModel
     retention: MetaRetentionModel
+    practice: MetaPracticeModel = Field(default_factory=MetaPracticeModel)
 
 
 class IndexSessionSummary(StrictModel):
@@ -192,6 +216,20 @@ class AnalysisMomentFeedbackModel(StrictModel):
     transcript_quote: str = ""
     coaching_note: str = ""
     kind: Literal["strength", "insight", "breakdown", "practice_cue"] = "practice_cue"
+
+    @field_validator("kind", mode="before")
+    @classmethod
+    def normalize_kind(cls, value: object) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized in {"strength", "insight", "breakdown", "practice_cue"}:
+            return normalized
+        if "strength" in normalized or "good" in normalized:
+            return "strength"
+        if "insight" in normalized or "note" in normalized or "observation" in normalized:
+            return "insight"
+        if "break" in normalized or "weak" in normalized or "problem" in normalized:
+            return "breakdown"
+        return "practice_cue"
 
 
 class AnalysisLessonModel(StrictModel):

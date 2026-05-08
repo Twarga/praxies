@@ -63,7 +63,11 @@ async function launchBackend() {
     ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", String(defaultPort)],
     {
       cwd: backendRoot,
-      env: { ...process.env, PYTHONUNBUFFERED: "1" },
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: "1",
+        PRAXIS_RESOURCES_PATH: isDev ? join(__dirname, "resources") : process.resourcesPath,
+      },
       stdio: "pipe",
     },
   );

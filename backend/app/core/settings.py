@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from pathlib import Path
 
 
@@ -29,6 +30,20 @@ class AppPaths:
     legacy_config_file: Path
 
 
+def _resolve_whisper_cache_dir(home: Path) -> Path:
+    env_cache_dir = os.environ.get("PRAXIS_WHISPER_CACHE_DIR")
+    if env_cache_dir:
+        return Path(env_cache_dir).expanduser().resolve()
+
+    resources_path = os.environ.get("PRAXIS_RESOURCES_PATH")
+    if resources_path:
+        bundled_cache_dir = Path(resources_path).expanduser().resolve() / "whisper"
+        if bundled_cache_dir.exists():
+            return bundled_cache_dir
+
+    return home / ".cache" / "whisper"
+
+
 def build_app_paths(home: Path | None = None) -> AppPaths:
     resolved_home = (home or Path.home()).expanduser().resolve()
     config_dir = resolved_home / ".config" / APP_NAME
@@ -38,6 +53,8 @@ def build_app_paths(home: Path | None = None) -> AppPaths:
     legacy_cache_dir = resolved_home / ".cache" / LEGACY_APP_NAME
     legacy_journal_dir = resolved_home / LEGACY_JOURNAL_DIRNAME
 
+    whisper_cache_dir = _resolve_whisper_cache_dir(resolved_home)
+
     return AppPaths(
         home=resolved_home,
         config_dir=config_dir,
@@ -46,7 +63,7 @@ def build_app_paths(home: Path | None = None) -> AppPaths:
         config_file=config_dir / "config.json",
         backend_log_file=cache_dir / "backend.log",
         runtime_socket=cache_dir / "runtime.sock",
-        whisper_cache_dir=resolved_home / ".cache" / "whisper",
+        whisper_cache_dir=whisper_cache_dir,
         legacy_config_dir=legacy_config_dir,
         legacy_cache_dir=legacy_cache_dir,
         legacy_journal_dir=legacy_journal_dir,

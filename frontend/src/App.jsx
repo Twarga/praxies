@@ -8,11 +8,13 @@ import {
   setRouteScrollPosition,
 } from "./lib/scrollState.js";
 import { Gallery } from "./pages/Gallery.jsx";
+import { Onboarding } from "./pages/Onboarding.jsx";
 import { Record } from "./pages/Record.jsx";
 import { SessionDetail } from "./pages/SessionDetail.jsx";
 import { Settings } from "./pages/Settings.jsx";
 import { Today } from "./pages/Today.jsx";
 import { Trends } from "./pages/Trends.jsx";
+import { useConfig } from "./hooks/useConfig.js";
 
 function getPageRouteKey(page, params) {
   if (page === "session") {
@@ -23,6 +25,7 @@ function getPageRouteKey(page, params) {
 }
 
 export default function App() {
+  const { config, isLoading } = useConfig();
   const [currentPage, setCurrentPage] = useState("today");
   const [params, setParams] = useState({});
   const scrollContainerRef = useRef(null);
@@ -54,6 +57,10 @@ export default function App() {
     saveCurrentScrollPosition();
     setCurrentPage(page);
     setParams(nextParams || {});
+  }
+
+  if (!isLoading && config && !config.setup_completed) {
+    return <Onboarding />;
   }
 
   return (

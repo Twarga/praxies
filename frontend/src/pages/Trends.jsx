@@ -431,7 +431,7 @@ function ScorecardDimensionsPanel({ dimensions }) {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-white">{row.label}</p>
                   <div className="mt-1 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
-                    {row.trend}
+                    {row.copy || row.trend}
                   </div>
                 </div>
                 <div className="text-right font-mono">
@@ -492,7 +492,7 @@ export function Trends({ scrollRef }) {
     <div className="flex flex-col h-full overflow-hidden">
       <header className="h-16 border-b border-[#2A2C31] flex items-center px-8 bg-[#151619] shrink-0 justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-white">Trends</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-white">Stats</h2>
           <p className="text-[10px] font-mono uppercase tracking-widest opacity-40 mt-1">
             progress over time
           </p>

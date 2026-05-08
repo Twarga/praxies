@@ -9,6 +9,7 @@ from typing import Any
 
 from app.models import ConfigModel
 from app.services.llm_client import LiteLLMOpenRouterClient
+from app.services.media_tools import resolve_media_binary
 from app.services.prompt_builder import (
     build_subtitle_translation_system_prompt,
     build_subtitle_translation_user_message,
@@ -166,7 +167,7 @@ async def export_burned_subtitle_video(config: ConfigModel, session_id: str, *, 
     output_path = get_session_subtitled_video_path(config, session_id, language)
     filter_arg = f"subtitles={subtitle_path.name}"
     command = [
-        "ffmpeg",
+        resolve_media_binary("ffmpeg"),
         "-i",
         str(video_path),
         "-vf",

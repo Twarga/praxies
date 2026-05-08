@@ -75,6 +75,18 @@ def build_default_config(paths: AppPaths = PATHS) -> ConfigModel:
             "api_key": "",
             "default_model": "google/gemini-2.5-flash-lite",
         },
+        llm={
+            "provider": "openrouter",
+            "api_key": "",
+            "model": "google/gemini-2.5-flash-lite",
+            "base_url": "",
+            "provider_api_keys": {},
+            "provider_models": {
+                "openrouter": "google/gemini-2.5-flash-lite",
+                "opencode_go": "deepseek-v4-flash",
+            },
+            "provider_base_urls": {},
+        },
         whisper={
             "model": "large-v3-turbo",
             "compute_type": "int8",
@@ -84,6 +96,7 @@ def build_default_config(paths: AppPaths = PATHS) -> ConfigModel:
         personal_context=DEFAULT_PERSONAL_CONTEXT,
         phone_upload_enabled=False,
         ready_sound_enabled=True,
+        setup_completed=False,
         theme="bronze-dark",
         telegram={
             "enabled": False,
@@ -139,6 +152,20 @@ def dump_config_for_api(
     lan_ip = detect_lan_ip()
     payload["openrouter"]["api_key"] = mask_api_key(config.openrouter.api_key)
     payload["openrouter"]["configured"] = bool(config.openrouter.api_key)
+    active_api_key = _resolve_provider_api_key(config, config.llm.provider)
+    payload["llm"]["api_key"] = mask_api_key(active_api_key)
+    payload["llm"]["configured"] = bool(active_api_key) or config.llm.provider == "litellm_proxy"
+    payload["llm"]["provider_api_keys"] = {
+        provider: mask_api_key(key)
+        for provider, key in config.llm.provider_api_keys.items()
+        if key
+    }
+    payload["llm"]["provider_configured"] = {
+        "openrouter": bool(config.openrouter.api_key or config.llm.provider_api_keys.get("openrouter")),
+        "opencode_go": bool(config.llm.provider_api_keys.get("opencode_go")),
+        "openai_compatible": bool(config.llm.provider_api_keys.get("openai_compatible")),
+        "litellm_proxy": True,
+    }
     payload["app_version"] = APP_VERSION
     payload["config_path"] = str(paths.config_file)
     payload["logs_path"] = str(paths.backend_log_file)
@@ -168,16 +195,122 @@ def _normalize_legacy_config_payload(payload: dict[str, Any]) -> dict[str, Any]:
         normalized["personal_context"] = DEFAULT_PERSONAL_CONTEXT
     if normalized.get("personal_context", "").strip() == "":
         normalized["personal_context"] = DEFAULT_PERSONAL_CONTEXT
+    if "llm" not in normalized:
+        openrouter = normalized.get("openrouter") or {}
+        normalized["llm"] = {
+            "provider": "openrouter",
+            "api_key": openrouter.get("api_key", ""),
+            "model": openrouter.get("default_model", "google/gemini-2.5-flash-lite"),
+            "base_url": "",
+            "provider_api_keys": {},
+            "provider_models": {},
+            "provider_base_urls": {},
+        }
+    llm = normalized.get("llm") or {}
+    provider = llm.get("provider", "openrouter")
+    provider_api_keys = dict(llm.get("provider_api_keys") or {})
+    provider_models = dict(llm.get("provider_models") or {})
+    provider_base_urls = dict(llm.get("provider_base_urls") or {})
+    openrouter = normalized.get("openrouter") or {}
+    if openrouter.get("api_key"):
+        provider_api_keys.setdefault("openrouter", openrouter["api_key"])
+    if openrouter.get("default_model"):
+        provider_models.setdefault("openrouter", openrouter["default_model"])
+    if llm.get("api_key"):
+        provider_api_keys.setdefault(provider, llm["api_key"])
+    if llm.get("model"):
+        provider_models.setdefault(provider, llm["model"])
+    if llm.get("base_url"):
+        provider_base_urls.setdefault(provider, llm["base_url"])
+    llm["provider_api_keys"] = provider_api_keys
+    llm["provider_models"] = provider_models
+    llm["provider_base_urls"] = provider_base_urls
+    llm["api_key"] = _resolve_provider_api_key_from_payload(normalized, provider)
+    llm["model"] = provider_models.get(provider, llm.get("model", ""))
+    llm["base_url"] = provider_base_urls.get(provider, llm.get("base_url", ""))
+    normalized["llm"] = llm
     normalized["app_version"] = APP_VERSION
     return normalized
 
 
 def update_config(patch: dict[str, Any], paths: AppPaths = PATHS) -> ConfigModel:
     current = load_config(paths)
-    merged_payload = _deep_merge(current.model_dump(mode="json"), patch)
+    normalized_patch = _normalize_config_patch(patch, current)
+    merged_payload = _deep_merge(current.model_dump(mode="json"), normalized_patch)
     updated = ConfigModel.model_validate(merged_payload)
     write_config(updated, paths.config_file)
     return updated
+
+
+def _normalize_config_patch(patch: dict[str, Any], current: ConfigModel) -> dict[str, Any]:
+    normalized = deepcopy(patch)
+    llm_patch = normalized.get("llm")
+    openrouter_patch = normalized.get("openrouter")
+
+    if isinstance(openrouter_patch, dict) and "llm" not in normalized and current.llm.provider == "openrouter":
+        normalized["llm"] = {
+            "provider": "openrouter",
+            "api_key": openrouter_patch.get("api_key", current.llm.api_key),
+            "model": openrouter_patch.get("default_model", current.llm.model),
+            "base_url": current.llm.base_url,
+        }
+
+    if isinstance(llm_patch, dict):
+        provider = llm_patch.get("provider", current.llm.provider)
+        provider_api_keys = dict(current.llm.provider_api_keys)
+        provider_models = dict(current.llm.provider_models)
+        provider_base_urls = dict(current.llm.provider_base_urls)
+        if current.openrouter.api_key:
+            provider_api_keys["openrouter"] = current.openrouter.api_key
+        if current.openrouter.default_model:
+            provider_models["openrouter"] = current.openrouter.default_model
+        provider_api_keys.update(llm_patch.get("provider_api_keys") or {})
+        provider_models.update(llm_patch.get("provider_models") or {})
+        provider_base_urls.update(llm_patch.get("provider_base_urls") or {})
+        if "api_key" in llm_patch:
+            provider_api_keys[provider] = llm_patch["api_key"]
+        if "model" in llm_patch:
+            provider_models[provider] = llm_patch["model"]
+        if "base_url" in llm_patch:
+            provider_base_urls[provider] = llm_patch["base_url"]
+        llm_patch["provider_api_keys"] = provider_api_keys
+        llm_patch["provider_models"] = provider_models
+        llm_patch["provider_base_urls"] = provider_base_urls
+        if "api_key" not in llm_patch:
+            llm_patch["api_key"] = provider_api_keys.get(provider, "")
+        if "model" not in llm_patch:
+            llm_patch["model"] = provider_models.get(provider, "")
+        if "base_url" not in llm_patch:
+            llm_patch["base_url"] = provider_base_urls.get(provider, "")
+        if provider == "openrouter":
+            normalized.setdefault("openrouter", {})
+            if "api_key" in llm_patch:
+                normalized["openrouter"]["api_key"] = llm_patch["api_key"]
+            if "model" in llm_patch:
+                normalized["openrouter"]["default_model"] = llm_patch["model"]
+
+    return normalized
+
+
+def _resolve_provider_api_key(config: ConfigModel, provider: str) -> str:
+    if provider == "openrouter":
+        return (
+            config.llm.provider_api_keys.get("openrouter")
+            or config.openrouter.api_key
+            or (config.llm.api_key if config.llm.provider == "openrouter" else "")
+        )
+    return config.llm.provider_api_keys.get(provider) or (
+        config.llm.api_key if config.llm.provider == provider else ""
+    )
+
+
+def _resolve_provider_api_key_from_payload(payload: dict[str, Any], provider: str) -> str:
+    llm = payload.get("llm") or {}
+    provider_api_keys = llm.get("provider_api_keys") or {}
+    if provider == "openrouter":
+        openrouter = payload.get("openrouter") or {}
+        return provider_api_keys.get("openrouter") or openrouter.get("api_key", "")
+    return provider_api_keys.get(provider) or (llm.get("api_key", "") if llm.get("provider") == provider else "")
 
 
 def resolve_journal_dir(config: ConfigModel) -> Path:

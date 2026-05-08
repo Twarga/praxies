@@ -15,6 +15,7 @@ from app.models import ConfigModel, MetaModel, MetaProcessingTerminalLineModel
 from app.services.analysis_service import validate_analysis_payload
 from app.services.config import ensure_journal_dir, resolve_journal_dir
 from app.services.json_io import read_json_file, write_json_file
+from app.services.media_tools import resolve_media_binary
 
 
 TRUNCATED_VIDEO_SIZE_RATIO = 1.15
@@ -520,7 +521,7 @@ async def assemble_session_video(config: ConfigModel, session_id: str) -> Path:
                 out_file.write(chunk_path.read_bytes())
 
         command = [
-            "ffmpeg",
+            resolve_media_binary("ffmpeg"),
             "-i", str(raw_path),
             "-c", "copy",
             "-y",
@@ -599,7 +600,7 @@ async def extract_session_audio(config: ConfigModel, session_id: str) -> Path:
 
     audio_path = get_session_audio_path(config, session_id)
     command = [
-        "ffmpeg",
+        resolve_media_binary("ffmpeg"),
         "-i",
         str(video_path),
         "-ar",
@@ -625,7 +626,7 @@ async def extract_session_thumbnail(config: ConfigModel, session_id: str) -> Pat
     midpoint_seconds = max(duration_seconds / 2, 0)
     thumbnail_path = get_session_thumbnail_output_path(config, session_id)
     command = [
-        "ffmpeg",
+        resolve_media_binary("ffmpeg"),
         "-ss",
         f"{midpoint_seconds:.3f}",
         "-i",
@@ -646,7 +647,7 @@ async def extract_session_thumbnail(config: ConfigModel, session_id: str) -> Pat
 
 async def probe_session_video(video_path: Path) -> float:
     command = [
-        "ffprobe",
+        resolve_media_binary("ffprobe"),
         "-v",
         "error",
         "-show_entries",
@@ -777,6 +778,7 @@ def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, objec
 
     return {
         "meta": meta.model_dump(mode="json"),
+        "practice_context": find_previous_session_goal(config, session_id),
         "transcript_text": transcript_payload["transcript_text"],
         "transcript": transcript_payload["transcript"],
         "waveform": waveform,
@@ -785,6 +787,52 @@ def load_session_bundle(config: ConfigModel, session_id: str) -> dict[str, objec
         "analysis": analysis,
         "analysis_raw_text": analysis_raw_text,
     }
+
+
+def find_previous_session_goal(config: ConfigModel, session_id: str) -> dict[str, object] | None:
+    try:
+        current_meta = load_session_meta(config, session_id)
+    except FileNotFoundError:
+        return None
+
+    current_created_at = _parse_session_sort_datetime(current_meta.created_at)
+    previous_metas: list[MetaModel] = []
+    for session_dir in discover_session_dirs(config):
+        if session_dir.name == session_id:
+            continue
+        try:
+            meta = load_session_meta(config, session_dir.name)
+        except FileNotFoundError:
+            continue
+        if _parse_session_sort_datetime(meta.created_at) < current_created_at:
+            previous_metas.append(meta)
+
+    previous_metas.sort(key=lambda meta: _parse_session_sort_datetime(meta.created_at), reverse=True)
+
+    for meta in previous_metas:
+        analysis_path = get_session_analysis_path(config, meta.id)
+        if not analysis_path.exists():
+            continue
+        analysis = read_json_file(analysis_path)
+        assignment = ((analysis.get("coaching_report") or {}).get("practice_assignment") or {})
+        next_goal = str(assignment.get("next_session_goal") or "").strip()
+        if next_goal:
+            return {
+                "source_session_id": meta.id,
+                "source_title": meta.title,
+                "source_created_at": meta.created_at,
+                "goal": next_goal,
+                "source_completed": meta.practice.assignment_completed,
+            }
+
+    return None
+
+
+def _parse_session_sort_datetime(value: str) -> datetime:
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return datetime.min
 
 
 def mark_session_read(config: ConfigModel, session_id: str) -> MetaModel | None:

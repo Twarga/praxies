@@ -1,6 +1,9 @@
 import asyncio
+import json
 import subprocess
 from contextlib import asynccontextmanager
+from datetime import datetime
+from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
@@ -8,7 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
-from app.core.settings import APP_VERSION
+from app.core.settings import APP_VERSION, PATHS
+from app.models import ConfigModel
 from app.services.analysis_service import (
     AnalysisNeedsAttentionError,
     AnalysisRetryExhaustedError,
@@ -19,7 +23,13 @@ from app.services.analysis_service import (
 from app.services.config import dump_config_for_api, load_config, update_config
 from app.services.digest import select_today_digest_session
 from app.services.index import list_sessions, load_or_rebuild_index, rebuild_index
-from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
+from app.services.llm_client import (
+    LiteLLMClient,
+    LlmClientError,
+    get_active_llm_label,
+    get_llm_provider_options,
+)
+from app.services.media_tools import resolve_media_binary
 from app.services.openrouter_catalog import OpenRouterCatalogError, fetch_openrouter_models
 from app.services.openrouter_status import OpenRouterStatusError, fetch_openrouter_key_status
 from app.services.processing_queue import SessionProcessingQueue
@@ -73,7 +83,7 @@ from app.services.whisper_service import WhisperService
 
 
 whisper_service = WhisperService()
-llm_client = LiteLLMOpenRouterClient()
+llm_client = LiteLLMClient()
 sse_broadcaster = SSEBroadcaster()
 retention_task: asyncio.Task | None = None
 
@@ -215,7 +225,7 @@ async def process_session(session_id: str) -> None:
             processing_updates={
                 "transcribe_finished_at": transcribe_finished_at,
                 "analyze_started_at": analyze_started_at,
-                "model_used": config.openrouter.default_model,
+                "model_used": get_active_llm_label(config),
                 "progress_label": "Sending transcript to AI analysis",
                 "progress_percent": 68,
             },
@@ -223,10 +233,10 @@ async def process_session(session_id: str) -> None:
         append_session_processing_event(
             config,
             session_id,
-            message=f"Transcript queued for AI analysis with `{config.openrouter.default_model}`.",
+            message=f"Transcript queued for AI analysis with `{get_active_llm_label(config)}`.",
             progress_label="AI analysis running",
             progress_percent=72,
-            model_used=config.openrouter.default_model,
+            model_used=get_active_llm_label(config),
         )
         await emit_session_status_from_id(config, session_id)
         await rebuild_index_and_emit(config, "session.status")
@@ -268,7 +278,7 @@ async def process_session(session_id: str) -> None:
         )
         await emit_session_status_from_id(config, session_id)
         await rebuild_index_and_emit(config, "session.ready")
-    except (AnalysisNeedsAttentionError, OpenRouterClientError) as error:
+    except (AnalysisNeedsAttentionError, LlmClientError) as error:
         finished_at = datetime_now_iso()
         update_session_meta(
             config,
@@ -351,6 +361,108 @@ def datetime_now_iso() -> str:
     return datetime.now().astimezone().isoformat()
 
 
+def parse_and_validate_test_llm_response(response_text: str) -> None:
+    payload = json.loads(response_text)
+    if not isinstance(payload, dict) or payload.get("ok") is not True:
+        raise ValueError("LLM test response did not return the expected JSON payload.")
+
+
+def validate_journal_folder_path(journal_folder: str) -> dict[str, object]:
+    path = Path(journal_folder).expanduser()
+    exists_before = path.exists()
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        test_file = path / ".praxis-write-test"
+        test_file.write_text("ok", encoding="utf-8")
+        test_file.unlink(missing_ok=True)
+    except Exception as error:  # noqa: BLE001
+        return {
+            "ok": False,
+            "path": str(path),
+            "exists": exists_before,
+            "writable": False,
+            "session_count": 0,
+            "index_exists": False,
+            "error": str(error),
+        }
+
+    session_count = sum(
+        1
+        for child in path.iterdir()
+        if child.is_dir() and (child / "meta.json").exists()
+    )
+    return {
+        "ok": True,
+        "path": str(path),
+        "exists": True,
+        "writable": True,
+        "session_count": session_count,
+        "index_exists": (path / "_index.json").exists(),
+        "error": None,
+    }
+
+
+def get_whisper_cache_status(config: ConfigModel) -> dict[str, object]:
+    cache_dir = PATHS.whisper_cache_dir
+    model_name = config.whisper.model
+    model_token = model_name.casefold().replace("_", "-")
+    files: list[Path] = []
+    if cache_dir.exists():
+        files = [path for path in cache_dir.rglob("*") if path.is_file()]
+    matching_files = [
+        path
+        for path in files
+        if model_token in str(path.relative_to(cache_dir)).casefold().replace("_", "-")
+    ]
+    total_bytes = sum(path.stat().st_size for path in files)
+    return {
+        "cache_dir": str(cache_dir),
+        "model": model_name,
+        "cache_exists": cache_dir.exists(),
+        "model_likely_cached": bool(matching_files),
+        "file_count": len(files),
+        "matching_file_count": len(matching_files),
+        "size_bytes": total_bytes,
+    }
+
+
+def build_config_with_llm_override(
+    config: ConfigModel,
+    llm_override: dict[str, str] | None,
+) -> ConfigModel:
+    if not llm_override:
+        return config
+
+    provider = llm_override.get("provider") or config.llm.provider
+    provider_api_keys = dict(config.llm.provider_api_keys)
+    provider_models = dict(config.llm.provider_models)
+    provider_base_urls = dict(config.llm.provider_base_urls)
+    if config.openrouter.api_key:
+        provider_api_keys["openrouter"] = config.openrouter.api_key
+    if config.openrouter.default_model:
+        provider_models["openrouter"] = config.openrouter.default_model
+
+    if llm_override.get("api_key"):
+        provider_api_keys[provider] = llm_override["api_key"]
+    if llm_override.get("model"):
+        provider_models[provider] = llm_override["model"]
+    if "base_url" in llm_override:
+        provider_base_urls[provider] = llm_override.get("base_url", "")
+
+    next_llm = config.llm.model_copy(
+        update={
+            "provider": provider,
+            "api_key": provider_api_keys.get(provider, ""),
+            "model": provider_models.get(provider, ""),
+            "base_url": provider_base_urls.get(provider, ""),
+            "provider_api_keys": provider_api_keys,
+            "provider_models": provider_models,
+            "provider_base_urls": provider_base_urls,
+        }
+    )
+    return config.model_copy(update={"llm": next_llm})
+
+
 async def emit_config_changed() -> None:
     await sse_broadcaster.publish("config.changed", {})
 
@@ -384,8 +496,11 @@ async def rebuild_index_and_emit(config, reason: str) -> None:
 processing_queue = SessionProcessingQueue(worker=process_session)
 
 
-async def reanalyze_session_with_latest_prompt(session_id: str) -> None:
-    config = load_config()
+async def reanalyze_session_with_latest_prompt(
+    session_id: str,
+    llm_override: dict[str, str] | None = None,
+) -> None:
+    config = build_config_with_llm_override(load_config(), llm_override)
     try:
         session_meta = load_session_meta(config, session_id)
         transcript_payload = load_session_transcript_payload(config, session_id)
@@ -401,7 +516,7 @@ async def reanalyze_session_with_latest_prompt(session_id: str) -> None:
             processing_updates={
                 "analyze_started_at": analyze_started_at,
                 "analyze_finished_at": None,
-                "model_used": config.openrouter.default_model,
+                "model_used": get_active_llm_label(config),
                 "progress_label": "Re-analyzing with latest coaching prompt",
                 "progress_percent": 68,
             },
@@ -409,10 +524,10 @@ async def reanalyze_session_with_latest_prompt(session_id: str) -> None:
         append_session_processing_event(
             config,
             session_id,
-            message=f"Re-analysis started with `{config.openrouter.default_model}` and the latest coaching prompt.",
+            message=f"Re-analysis started with `{get_active_llm_label(config)}` and the latest coaching prompt.",
             progress_label="AI re-analysis running",
             progress_percent=72,
-            model_used=config.openrouter.default_model,
+            model_used=get_active_llm_label(config),
         )
         await emit_session_status_from_id(config, session_id)
         await rebuild_index_and_emit(config, "session.reanalyze.status")
@@ -447,14 +562,14 @@ async def reanalyze_session_with_latest_prompt(session_id: str) -> None:
         append_session_processing_event(
             config,
             session_id,
-            message="Re-analysis saved successfully with the latest coaching report schema.",
+            message=f"Re-analysis saved successfully with `{get_active_llm_label(config)}`.",
             level="success",
             progress_label="Re-analysis ready",
             progress_percent=100,
         )
         await emit_session_status(updated_meta)
         await rebuild_index_and_emit(config, "session.reanalyze.ready")
-    except (AnalysisNeedsAttentionError, OpenRouterClientError) as error:
+    except (AnalysisNeedsAttentionError, LlmClientError) as error:
         finished_at = datetime_now_iso()
         update_session_meta(
             config,
@@ -686,6 +801,52 @@ class ImportAnalysisPayload(BaseModel):
     response_text: str
 
 
+class ValidateJournalFolderPayload(BaseModel):
+    journal_folder: str
+
+    @field_validator("journal_folder", mode="before")
+    @classmethod
+    def normalize_journal_folder(cls, value: object) -> str:
+        return str(value or "").strip()
+
+
+class UpdatePracticePayload(BaseModel):
+    assignment_completed: bool | None = None
+    previous_goal: str | None = None
+    previous_goal_source_session_id: str | None = None
+    previous_goal_result: Literal["unmarked", "followed", "partially_followed", "missed"] | None = None
+    previous_goal_note: str | None = None
+
+    @field_validator("previous_goal", "previous_goal_source_session_id", "previous_goal_note", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        return str(value).strip()
+
+
+class ReanalyzeLlmOverridePayload(BaseModel):
+    provider: Literal["openrouter", "opencode_go", "openai_compatible", "litellm_proxy"] | None = None
+    model: str | None = None
+    base_url: str | None = None
+
+    @field_validator("provider", mode="before")
+    @classmethod
+    def normalize_provider(cls, value: object) -> str | None:
+        provider = str(value or "").strip()
+        return provider or None
+
+    @field_validator("model", "base_url", mode="before")
+    @classmethod
+    def normalize_optional_text(cls, value: object) -> str | None:
+        text = str(value or "").strip()
+        return text or None
+
+
+class ReanalyzeSessionPayload(BaseModel):
+    llm: ReanalyzeLlmOverridePayload | None = None
+
+
 SUPPORTED_SUBTITLE_LANGUAGES = {"en", "fr", "es", "ar"}
 
 
@@ -817,7 +978,7 @@ async def post_upload(
 
     video_path = session_dir / "video.webm"
     command = [
-        "ffmpeg",
+        resolve_media_binary("ffmpeg"),
         "-i", str(temp_path),
         "-c", "copy",
         "-movflags", "+faststart",
@@ -903,6 +1064,54 @@ async def get_openrouter_models() -> list[dict[str, object]]:
         raise HTTPException(status_code=502, detail=str(error)) from None
 
 
+@app.get("/api/llm/providers")
+async def get_llm_providers() -> dict[str, object]:
+    return get_llm_provider_options()
+
+
+@app.get("/api/setup/status")
+async def get_setup_status() -> dict[str, object]:
+    config = load_config()
+    journal_status = validate_journal_folder_path(config.journal_folder)
+    whisper_status = get_whisper_cache_status(config)
+    return {
+        "setup_completed": config.setup_completed,
+        "journal": journal_status,
+        "whisper": whisper_status,
+    }
+
+
+@app.post("/api/setup/validate-journal")
+async def post_validate_journal_folder(payload: ValidateJournalFolderPayload) -> dict[str, object]:
+    if not payload.journal_folder:
+        raise HTTPException(status_code=400, detail="Journal folder is required.")
+    return validate_journal_folder_path(payload.journal_folder)
+
+
+@app.post("/api/setup/activate-journal")
+async def post_activate_journal_folder(
+    request: Request,
+    payload: ValidateJournalFolderPayload,
+) -> dict[str, object]:
+    if not payload.journal_folder:
+        raise HTTPException(status_code=400, detail="Journal folder is required.")
+
+    journal_status = validate_journal_folder_path(payload.journal_folder)
+    if not journal_status["ok"]:
+        raise HTTPException(status_code=400, detail=journal_status["error"] or "Journal folder is not writable.")
+
+    updated = update_config({"journal_folder": payload.journal_folder})
+    rebuilt_index = rebuild_index(updated)
+    await emit_config_changed()
+    await emit_index_changed("setup.journal_activated")
+    return {
+        "ok": True,
+        "journal": validate_journal_folder_path(updated.journal_folder),
+        "index": rebuilt_index.model_dump(mode="json"),
+        "config": dump_config_for_api(updated, upload_port=get_request_port(request)),
+    }
+
+
 @app.patch("/api/config")
 async def patch_config(request: Request, payload: dict[str, Any]) -> dict[str, object]:
     try:
@@ -924,11 +1133,37 @@ async def post_test_openrouter() -> dict[str, object]:
 
     return {
         "ok": True,
-        "model": config.openrouter.default_model,
+        "model": get_active_llm_label(config),
         "label": status["label"],
         "limit_remaining": status["limit_remaining"],
         "usage": status["usage"],
         "is_free_tier": status["is_free_tier"],
+    }
+
+
+@app.post("/api/config/test-llm")
+async def post_test_llm() -> dict[str, object]:
+    config = load_config()
+
+    try:
+        response_text = await asyncio.to_thread(
+            llm_client.complete_json,
+            config=config,
+            system_prompt="Return only valid JSON.",
+            user_message='Return this exact JSON object: {"ok": true}',
+            temperature=0,
+            max_tokens=50,
+        )
+        parse_and_validate_test_llm_response(response_text)
+    except LlmClientError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from None
+    except Exception as error:
+        raise HTTPException(status_code=502, detail=str(error)) from None
+
+    return {
+        "ok": True,
+        "provider": config.llm.provider,
+        "model": get_active_llm_label(config),
     }
 
 
@@ -1209,7 +1444,7 @@ async def post_session_export_subtitled_video(
             session_id,
             language=payload.target_language,
         )
-    except OpenRouterClientError as error:
+    except LlmClientError as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
     except FileNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from None
@@ -1281,6 +1516,44 @@ async def post_session_mark_read(session_id: str) -> dict[str, object]:
     return {"id": meta.id, "read": meta.read}
 
 
+@app.patch("/api/sessions/{session_id}/practice")
+async def patch_session_practice(
+    session_id: str,
+    payload: UpdatePracticePayload,
+) -> dict[str, object]:
+    config = load_config()
+    try:
+        meta = load_session_meta(config, session_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found.") from None
+
+    practice_updates: dict[str, object] = {}
+    if payload.assignment_completed is not None:
+        practice_updates["assignment_completed"] = payload.assignment_completed
+        practice_updates["assignment_completed_at"] = (
+            datetime.now().astimezone().isoformat() if payload.assignment_completed else None
+        )
+    if payload.previous_goal is not None:
+        practice_updates["previous_goal"] = payload.previous_goal
+    if payload.previous_goal_source_session_id is not None:
+        practice_updates["previous_goal_source_session_id"] = (
+            payload.previous_goal_source_session_id or None
+        )
+    if payload.previous_goal_result is not None:
+        practice_updates["previous_goal_result"] = payload.previous_goal_result
+    if payload.previous_goal_note is not None:
+        practice_updates["previous_goal_note"] = payload.previous_goal_note
+
+    updated_meta = update_session_meta(
+        config,
+        session_id,
+        updates={"practice": meta.practice.model_copy(update=practice_updates)},
+    )
+    await emit_session_status(updated_meta)
+    await rebuild_index_and_emit(config, "session.practice")
+    return {"session_id": updated_meta.id, "practice": updated_meta.practice.model_dump(mode="json")}
+
+
 @app.post("/api/sessions/{session_id}/retry")
 async def post_session_retry(session_id: str) -> dict[str, object]:
     config = load_config()
@@ -1320,8 +1593,14 @@ async def post_session_retry(session_id: str) -> dict[str, object]:
 
 
 @app.post("/api/sessions/{session_id}/reanalyze")
-async def post_session_reanalyze(session_id: str) -> dict[str, object]:
+async def post_session_reanalyze(
+    session_id: str,
+    payload: ReanalyzeSessionPayload | None = None,
+) -> dict[str, object]:
     config = load_config()
+    llm_override = payload.llm.model_dump(exclude_none=True) if payload and payload.llm else None
+    analysis_config = build_config_with_llm_override(config, llm_override)
+    analysis_model_label = get_active_llm_label(analysis_config)
     try:
         meta = load_session_meta(config, session_id)
     except FileNotFoundError:
@@ -1346,6 +1625,7 @@ async def post_session_reanalyze(session_id: str) -> dict[str, object]:
         updates={"status": "analyzing", "error": None},
         processing_updates={
             "attempts": meta.processing.attempts + 1,
+            "model_used": analysis_model_label,
             "progress_label": "Re-analysis queued",
             "progress_percent": 65,
         },
@@ -1353,14 +1633,23 @@ async def post_session_reanalyze(session_id: str) -> dict[str, object]:
     append_session_processing_event(
         config,
         session_id,
-        message=f"Re-analysis requested with the latest coaching prompt. Starting attempt {queued_meta.processing.attempts}.",
+        message=f"Re-analysis requested with `{analysis_model_label}`. Starting attempt {queued_meta.processing.attempts}.",
         progress_label="Re-analysis queued",
         progress_percent=65,
+        model_used=analysis_model_label,
     )
-    asyncio.create_task(reanalyze_session_with_latest_prompt(session_id))
+    if llm_override:
+        asyncio.create_task(reanalyze_session_with_latest_prompt(session_id, llm_override))
+    else:
+        asyncio.create_task(reanalyze_session_with_latest_prompt(session_id))
     await emit_session_status(queued_meta)
     await rebuild_index_and_emit(config, "session.reanalyze")
-    return {"session_id": queued_meta.id, "status": queued_meta.status, "enqueued": True}
+    return {
+        "session_id": queued_meta.id,
+        "status": queued_meta.status,
+        "enqueued": True,
+        "model": analysis_model_label,
+    }
 
 
 @app.post("/api/sessions/{session_id}/import-analysis")

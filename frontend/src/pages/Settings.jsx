@@ -2,8 +2,9 @@ import { Check, FolderOpen, Loader2, RefreshCw, Search } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useRef, useState } from "react";
 import {
+  loadLlmProviders,
   loadOpenRouterModels,
-  testOpenRouter,
+  testLlm,
   testWhisper,
 } from "../api/config.js";
 import { useConfig } from "../hooks/useConfig.js";
@@ -37,6 +38,19 @@ const DIRECTNESS_OPTIONS = [
   { value: "gentle", label: "Gentle" },
   { value: "direct", label: "Direct" },
   { value: "brutal", label: "Brutal" },
+];
+
+const OPENCODE_GO_MODELS = [
+  "glm-5.1",
+  "glm-5",
+  "kimi-k2.6",
+  "kimi-k2.5",
+  "deepseek-v4-pro",
+  "deepseek-v4-flash",
+  "mimo-v2.5",
+  "mimo-v2.5-pro",
+  "qwen3.6-plus",
+  "qwen3.5-plus",
 ];
 
 const TABS = [
@@ -275,15 +289,18 @@ export function Settings({ scrollRef }) {
   const { pushToast } = useToast();
   const [activeTab, setActiveTab] = useState("general");
   const [openRouterModels, setOpenRouterModels] = useState([]);
+  const [llmProviders, setLlmProviders] = useState([]);
   const [openRouterApiKey, setOpenRouterApiKey] = useState("");
   const [openRouterModelQuery, setOpenRouterModelQuery] = useState("");
   const [openRouterModelsError, setOpenRouterModelsError] = useState("");
   const [openRouterModelsLoading, setOpenRouterModelsLoading] = useState(false);
+  const [llmModelInput, setLlmModelInput] = useState("");
+  const [llmBaseUrlInput, setLlmBaseUrlInput] = useState("");
   const [personalContext, setPersonalContext] = useState("");
   const [personalContextSaveState, setPersonalContextSaveState] = useState("idle");
-  const [openRouterTest, setOpenRouterTest] = useState(null);
+  const [llmTest, setLlmTest] = useState(null);
   const [whisperTest, setWhisperTest] = useState(null);
-  const [openRouterTesting, setOpenRouterTesting] = useState(false);
+  const [llmTesting, setLlmTesting] = useState(false);
   const [whisperTesting, setWhisperTesting] = useState(false);
   const lastSyncedPersonalContextRef = useRef("");
   const patchConfigRef = useRef(patchConfig);
@@ -307,6 +324,11 @@ export function Settings({ scrollRef }) {
       setPersonalContextSaveState("idle");
     }
   }, [config?.personal_context]);
+
+  useEffect(() => {
+    setLlmModelInput(config?.llm?.model ?? "");
+    setLlmBaseUrlInput(config?.llm?.base_url ?? "");
+  }, [config?.llm?.model, config?.llm?.base_url]);
 
   useEffect(() => {
     const savedContext = config?.personal_context ?? "";
@@ -337,9 +359,24 @@ export function Settings({ scrollRef }) {
 
   useEffect(() => {
     if (activeTab !== "ai") return;
+    void refreshLlmProviders();
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== "ai") return;
+    if ((config?.llm?.provider ?? "openrouter") !== "openrouter") return;
     if (openRouterModels.length > 0) return;
     void refreshOpenRouterModels({ silent: true });
-  }, [activeTab, openRouterModels.length]);
+  }, [activeTab, config?.llm?.provider, openRouterModels.length]);
+
+  async function refreshLlmProviders() {
+    try {
+      const payload = await loadLlmProviders();
+      setLlmProviders(Array.isArray(payload?.providers) ? payload.providers : []);
+    } catch {
+      setLlmProviders([]);
+    }
+  }
 
   async function refreshOpenRouterModels({ silent = false } = {}) {
     setOpenRouterModelsLoading(true);
@@ -376,20 +413,20 @@ export function Settings({ scrollRef }) {
     }
   }
 
-  async function handleTestOpenRouter() {
-    setOpenRouterTesting(true);
-    setOpenRouterTest(null);
+  async function handleTestLlm() {
+    setLlmTesting(true);
+    setLlmTest(null);
     try {
-      const result = await testOpenRouter();
-      setOpenRouterTest(result);
-      pushToast({ kind: "success", message: "OpenRouter connection works." });
+      const result = await testLlm();
+      setLlmTest(result);
+      pushToast({ kind: "success", message: "AI provider connection works." });
     } catch (error) {
       pushToast({
         kind: "error",
-        message: error instanceof Error ? error.message : "OpenRouter test failed.",
+        message: error instanceof Error ? error.message : "AI provider test failed.",
       });
     } finally {
-      setOpenRouterTesting(false);
+      setLlmTesting(false);
     }
   }
 
@@ -416,8 +453,8 @@ export function Settings({ scrollRef }) {
       return;
     }
     await applyPatch(
-      { openrouter: { api_key: openRouterApiKey.trim() } },
-      "OpenRouter API key saved.",
+      { llm: { api_key: openRouterApiKey.trim() } },
+      "AI provider API key saved.",
     );
     setOpenRouterApiKey("");
   }
@@ -444,6 +481,27 @@ export function Settings({ scrollRef }) {
       </div>
     );
   }
+
+  const llmProvider = config.llm?.provider ?? "openrouter";
+  const providerOptions = (llmProviders.length > 0 ? llmProviders : [
+    { id: "openrouter", label: "OpenRouter" },
+    { id: "opencode_go", label: "OpenCode Go" },
+    { id: "openai_compatible", label: "OpenAI-compatible" },
+    { id: "litellm_proxy", label: "LiteLLM proxy" },
+  ]).map((provider) => ({ value: provider.id, label: provider.label }));
+  const activeProvider = llmProviders.find((provider) => provider.id === llmProvider);
+  const opencodeModels = activeProvider?.models ?? OPENCODE_GO_MODELS;
+  const fixedProviderUrl =
+    llmProvider === "opencode_go"
+      ? activeProvider?.base_url ?? "https://opencode.ai/zen/go/v1"
+      : "";
+  const needsBaseUrl = llmProvider === "openai_compatible" || llmProvider === "litellm_proxy";
+  const currentLlmConfigured =
+    (config.llm?.provider_configured?.[llmProvider] ?? config.llm?.configured ?? false) ||
+    llmProvider === "litellm_proxy";
+  const currentLlmMaskedKey =
+    config.llm?.provider_api_keys?.[llmProvider] ??
+    (llmProvider === config.llm?.provider ? config.llm?.api_key : "");
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#0F1012]">
@@ -597,14 +655,44 @@ export function Settings({ scrollRef }) {
             {activeTab === "ai" ? (
               <div className="space-y-8 praxis-fade-in">
                 <section>
-                  <SectionTitle>OpenRouter</SectionTitle>
+                  <SectionTitle>AI Provider</SectionTitle>
                   <Card className="space-y-5">
+                    <Row
+                      title="Provider"
+                      description="Choose which API Praxis uses for coaching analysis, reports, and subtitle translation."
+                    >
+                      <Select
+                        value={llmProvider}
+                        options={providerOptions}
+                        disabled={isPatching}
+                        onChange={(value) => {
+                          const defaults =
+                            value === "opencode_go"
+                              ? { model: "glm-5.1", base_url: "" }
+                              : value === "openrouter"
+                                ? {
+                                    model:
+                                      config.openrouter?.default_model ??
+                                      "google/gemini-2.5-flash-lite",
+                                    base_url: "",
+                                  }
+                                : { model: config.llm?.model ?? "", base_url: config.llm?.base_url ?? "" };
+                          applyPatch(
+                            { llm: { provider: value, ...defaults } },
+                            "AI provider updated.",
+                          );
+                        }}
+                      />
+                    </Row>
+
+                    <Divider />
+
                     <Row
                       title="API Key"
                       description={
-                        config.openrouter?.configured
-                          ? `Currently configured: ${config.openrouter.api_key}`
-                          : "Required to run analysis. Get one at openrouter.ai."
+                        currentLlmConfigured
+                          ? `Currently configured: ${currentLlmMaskedKey || "saved"}`
+                          : "Required to run analysis with the selected provider."
                       }
                     >
                       <div className="flex gap-2">
@@ -612,7 +700,7 @@ export function Settings({ scrollRef }) {
                           type="password"
                           value={openRouterApiKey}
                           onChange={(event) => setOpenRouterApiKey(event.target.value)}
-                          placeholder="sk-or-…"
+                          placeholder={llmProvider === "openrouter" ? "sk-or-..." : "API key"}
                           className="bg-[#0A0B0D] border border-[#2A2C31] text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-[#4ADE80] w-[220px]"
                         />
                         <button
@@ -628,50 +716,117 @@ export function Settings({ scrollRef }) {
 
                     <Divider />
 
-                    <Row
-                      title="Default Model"
-                      description="Fetched live from the OpenRouter catalog. Search and choose any model id."
-                    >
-                      <ModelCatalogPicker
-                        selectedValue={config.openrouter?.default_model ?? ""}
-                        models={openRouterModels}
-                        loading={openRouterModelsLoading}
-                        error={openRouterModelsError}
-                        query={openRouterModelQuery}
-                        setQuery={setOpenRouterModelQuery}
-                        disabled={isPatching}
-                        onRefresh={() => void refreshOpenRouterModels()}
-                        onChange={(value) =>
-                          applyPatch(
-                            { openrouter: { default_model: value } },
-                            `OpenRouter model set to ${value}.`,
-                          )
-                        }
-                      />
-                    </Row>
+                    {llmProvider === "openrouter" ? (
+                      <Row
+                        title="Model"
+                        description="Fetched live from the OpenRouter catalog. Search and choose any model id."
+                      >
+                        <ModelCatalogPicker
+                          selectedValue={config.llm?.model ?? config.openrouter?.default_model ?? ""}
+                          models={openRouterModels}
+                          loading={openRouterModelsLoading}
+                          error={openRouterModelsError}
+                          query={openRouterModelQuery}
+                          setQuery={setOpenRouterModelQuery}
+                          disabled={isPatching}
+                          onRefresh={() => void refreshOpenRouterModels()}
+                          onChange={(value) =>
+                            applyPatch(
+                              { llm: { model: value } },
+                              `AI model set to ${value}.`,
+                            )
+                          }
+                        />
+                      </Row>
+                    ) : null}
+
+                    {llmProvider === "opencode_go" ? (
+                      <Row
+                        title="Model"
+                        description={`Uses the fixed OpenCode Go endpoint: ${fixedProviderUrl}`}
+                      >
+                        <Select
+                          value={config.llm?.model ?? "glm-5.1"}
+                          options={opencodeModels.map((model) => ({ value: model, label: model }))}
+                          disabled={isPatching}
+                          onChange={(value) =>
+                            applyPatch({ llm: { model: value } }, `AI model set to ${value}.`)
+                          }
+                        />
+                      </Row>
+                    ) : null}
+
+                    {llmProvider !== "openrouter" && llmProvider !== "opencode_go" ? (
+                      <Row
+                        title="Model"
+                        description="Exact model name accepted by your compatible API or LiteLLM proxy."
+                      >
+                        <input
+                          type="text"
+                          value={llmModelInput}
+                          onChange={(event) => setLlmModelInput(event.target.value)}
+                          onBlur={() => {
+                            if (llmModelInput !== (config.llm?.model ?? "")) {
+                              applyPatch(
+                                { llm: { model: llmModelInput } },
+                                "AI model updated.",
+                              );
+                            }
+                          }}
+                          placeholder="model id"
+                          className="bg-[#0A0B0D] border border-[#2A2C31] text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-[#4ADE80] w-[300px]"
+                        />
+                      </Row>
+                    ) : null}
+
+                    {needsBaseUrl ? (
+                      <>
+                        <Divider />
+                        <Row
+                          title="Base URL"
+                          description="Use the root /v1 URL, for example https://api.example.com/v1."
+                        >
+                          <input
+                            type="url"
+                            value={llmBaseUrlInput}
+                            onChange={(event) => setLlmBaseUrlInput(event.target.value)}
+                            onBlur={() => {
+                              if (llmBaseUrlInput !== (config.llm?.base_url ?? "")) {
+                                applyPatch(
+                                  { llm: { base_url: llmBaseUrlInput } },
+                                  "AI base URL updated.",
+                                );
+                              }
+                            }}
+                            placeholder="https://.../v1"
+                            className="bg-[#0A0B0D] border border-[#2A2C31] text-xs text-white rounded px-3 py-1.5 focus:outline-none focus:border-[#4ADE80] w-[300px]"
+                          />
+                        </Row>
+                      </>
+                    ) : null}
 
                     <Divider />
 
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="text-sm text-white font-medium">Connection Test</p>
-                        {openRouterTest ? (
+                        {llmTest ? (
                           <p className="text-xs text-[#4ADE80] opacity-90 mt-1">
-                            {openRouterTest.label} · {openRouterTest.is_free_tier ? "free tier" : "paid tier"}
+                            {llmTest.model}
                           </p>
                         ) : (
                           <p className="text-xs text-[#D1D1D1] opacity-70 mt-1">
-                            Verifies the API key and model.
+                            Sends one small JSON request through the selected provider.
                           </p>
                         )}
                       </div>
                       <button
                         type="button"
-                        onClick={() => void handleTestOpenRouter()}
-                        disabled={openRouterTesting || !config.openrouter?.configured}
+                        onClick={() => void handleTestLlm()}
+                        disabled={llmTesting || !currentLlmConfigured}
                         className="px-3 py-1.5 bg-[#1C1D21] hover:bg-[#2A2C31] border border-[#2A2C31] rounded text-xs font-semibold uppercase tracking-widest text-white transition-colors disabled:opacity-50 flex items-center gap-2"
                       >
-                        {openRouterTesting ? (
+                        {llmTesting ? (
                           <Loader2 size={12} className="animate-spin" />
                         ) : (
                           <RefreshCw size={12} />
@@ -828,6 +983,26 @@ export function Settings({ scrollRef }) {
             {activeTab === "advanced" ? (
               <div className="space-y-8 praxis-fade-in">
                 <section>
+                  <SectionTitle>Telegram</SectionTitle>
+                  <Card className="space-y-4 opacity-55">
+                    <Row
+                      title="Telegram digest"
+                      description="Phase 2 placeholder. Daily and weekly message delivery is disabled in this build."
+                    >
+                      <Toggle checked={false} disabled onChange={() => {}} />
+                    </Row>
+                    <div className="grid grid-cols-1 gap-2 text-[11px] font-mono text-[#D1D1D1]/60 md:grid-cols-2">
+                      <div className="rounded border border-[#2A2C31] bg-[#0A0B0D] px-3 py-2">
+                        Daily digest · 08:00
+                      </div>
+                      <div className="rounded border border-[#2A2C31] bg-[#0A0B0D] px-3 py-2">
+                        Weekly rollup · Sunday 20:00
+                      </div>
+                    </div>
+                  </Card>
+                </section>
+
+                <section>
                   <SectionTitle>Phone Upload</SectionTitle>
                   <Card>
                     <Row
@@ -880,6 +1055,12 @@ export function Settings({ scrollRef }) {
                       <div className="flex justify-between gap-6 break-all">
                         <span className="opacity-60 uppercase tracking-widest shrink-0">Config</span>
                         <span className="text-right">{config.config_path}</span>
+                      </div>
+                    ) : null}
+                    {config.logs_path ? (
+                      <div className="flex justify-between gap-6 break-all">
+                        <span className="opacity-60 uppercase tracking-widest shrink-0">Logs</span>
+                        <span className="text-right">{config.logs_path}</span>
                       </div>
                     ) : null}
                   </Card>

@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { id: "today", icon: LayoutDashboard, label: "Today" },
   { id: "record", icon: Mic, label: "Record" },
   { id: "gallery", icon: Video, label: "Gallery" },
-  { id: "trends", icon: TrendingUp, label: "Trends" },
+  { id: "trends", icon: TrendingUp, label: "Stats" },
 ];
 
 const ACTIVE_STATUSES = new Set(["queued", "transcribing", "analyzing"]);
@@ -162,9 +162,13 @@ export function Sidebar({ currentPage, onNavigate }) {
   return (
     <nav className="w-[72px] sm:w-[240px] h-full bg-[#151619] border-r border-[#2A2C31] flex flex-col py-6 items-center sm:items-stretch sm:px-4 shrink-0">
       <div className="flex items-center justify-center sm:justify-start sm:px-2 mb-8">
-        <div className="w-8 h-8 bg-white rounded flex items-center justify-center sm:mr-3">
-          <div className="w-4 h-4 border-[3px] border-[#151619] border-t-transparent rounded-full" />
-        </div>
+        <img
+          src="/app-icon.png"
+          alt=""
+          aria-hidden="true"
+          className="w-8 h-8 rounded sm:mr-3"
+          draggable="false"
+        />
         <h1 className="hidden sm:block text-white tracking-widest uppercase text-xs font-semibold">
           Praxis
         </h1>

@@ -60,7 +60,11 @@ Praxis is an AI-assisted video journaling app for desktop. Record a session, tra
 
 ## Status
 
-Core pipeline complete (recording → transcription → analysis). Trends UI, phone upload, SSE live updates, crash recovery, and retention are implemented. Packaging work in progress.
+Core pipeline complete: recording, upload, local transcription, multi-provider
+LLM analysis, coaching reports, Stats, subtitles, phone upload, SSE live
+updates, crash recovery, retention, first-run onboarding, and Linux AppImage
+packaging are implemented. Current release notes are in
+[`docs/RELEASE_NOTES_0.1.0.md`](docs/RELEASE_NOTES_0.1.0.md).
 
 ## Development
 
@@ -71,10 +75,12 @@ Prerequisites:
 - npm
 - FFmpeg
 
-Quick install:
+Development dependency setup:
 
 ```bash
-./scripts/install.sh
+uv sync
+cd frontend
+npm install
 ```
 
 Backend setup (run once):
@@ -121,14 +127,37 @@ One-terminal dev runner:
 
 ## Packaging
 
-Build the AppImage:
+Build and verify the Linux AppImage release:
 
 ```bash
-cd frontend
-npm run electron:build
+./scripts/release-linux.sh
 ```
 
-The output will be in `frontend/release/Praxis-{version}.AppImage`.
+The release script prepares bundled resources, runs backend tests, builds the
+AppImage, smoke-tests launch, and writes:
+
+- `frontend/release/Praxis-{version}.AppImage`
+- `frontend/release/Praxis-{version}.AppImage.sha256`
+
+For a faster local packaging check:
+
+```bash
+SKIP_TESTS=1 SKIP_SMOKE=1 ./scripts/release-linux.sh
+```
+
+Install the built AppImage locally:
+
+```bash
+./scripts/install.sh
+```
+
+The installer makes the AppImage executable, copies it to
+`~/.local/share/praxis`, creates `~/.local/bin/praxis`, writes a desktop entry,
+and reports config, log, and Whisper cache paths. To inspect without installing:
+
+```bash
+./scripts/install.sh --check-only
+```
 
 ### Sway keybind (optional)
 

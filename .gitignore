@@ -5,6 +5,7 @@ PLAN.md
 
 # Python
 .venv/
+.venv.broken-*/
 venv/
 __pycache__/
 *.py[cod]
@@ -19,11 +20,19 @@ __pycache__/
 # Node / frontend
 frontend/node_modules/
 frontend/dist/
+frontend/build/
+frontend/release/
+frontend/electron/resources/ffmpeg/
+frontend/electron/resources/python/
+frontend/electron/resources/whisper/*
+!frontend/electron/resources/whisper/.gitkeep
 npm-debug.log*
 
 # OS / editor noise
 .DS_Store
 Thumbs.db
+.claude/
+TwargaJournal/
 
 # Secrets — never commit
 .env

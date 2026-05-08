@@ -63,15 +63,23 @@ export function markSessionRead(sessionId) {
   });
 }
 
+export function updateSessionPractice(sessionId, payload) {
+  return apiFetchJson(`/api/sessions/${sessionId}/practice`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function retrySessionProcessing(sessionId) {
   return apiFetchJson(`/api/sessions/${sessionId}/retry`, {
     method: "POST",
   });
 }
 
-export function reanalyzeSession(sessionId) {
+export function reanalyzeSession(sessionId, payload = {}) {
   return apiFetchJson(`/api/sessions/${sessionId}/reanalyze`, {
     method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

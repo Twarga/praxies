@@ -17,7 +17,14 @@ from app.services.index import (
     rebuild_index,
 )
 from app.services.json_io import overwrite_json_file, read_json_file, write_json_file
-from app.services.llm_client import LiteLLMOpenRouterClient, OpenRouterClientError
+from app.services.llm_client import (
+    LiteLLMClient,
+    LiteLLMOpenRouterClient,
+    LlmClientError,
+    OpenRouterClientError,
+    get_active_llm_label,
+    get_llm_provider_options,
+)
 from app.services.network import build_upload_url, detect_lan_ip
 from app.services.processing_queue import SessionProcessingQueue
 from app.services.retention import (
@@ -118,7 +125,9 @@ __all__ = [
     "AnalysisNeedsAttentionError",
     "AnalysisValidationError",
     "AnalysisRetryExhaustedError",
+    "LiteLLMClient",
     "LiteLLMOpenRouterClient",
+    "LlmClientError",
     "OpenRouterClientError",
     "RETAINED_AUDIO_FILENAME",
     "RETENTION_INTERVAL_SECONDS",
@@ -158,6 +167,8 @@ __all__ = [
     "get_session_subtitled_video_path",
     "get_session_video_path",
     "get_session_waveform_path",
+    "get_active_llm_label",
+    "get_llm_provider_options",
     "infer_duration_from_transcript_segments",
     "infer_session_duration_from_transcript",
     "get_index_backup_file_path",

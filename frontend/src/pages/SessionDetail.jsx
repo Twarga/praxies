@@ -1,12 +1,16 @@
 import {
   AlertCircle,
   ArrowLeft,
+  BookOpen,
   Captions,
+  CheckCircle2,
   Clock,
   Copy,
   Download,
   Loader2,
   RotateCcw,
+  SlidersHorizontal,
+  Target,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -20,6 +24,7 @@ import {
   markSessionRead,
   reanalyzeSession,
   retrySessionProcessing,
+  updateSessionPractice,
 } from "../api/sessions.js";
 import { useConfig } from "../hooks/useConfig.js";
 import { useIndex } from "../hooks/useIndex.js";
@@ -40,6 +45,26 @@ const SUBTITLE_LANGUAGE_OPTIONS = [
   { code: "fr", label: "FR" },
   { code: "es", label: "ES" },
   { code: "ar", label: "AR" },
+];
+
+const ANALYSIS_PROVIDER_OPTIONS = [
+  { value: "openrouter", label: "OpenRouter" },
+  { value: "opencode_go", label: "OpenCode Go" },
+  { value: "openai_compatible", label: "OpenAI API" },
+  { value: "litellm_proxy", label: "LiteLLM proxy" },
+];
+
+const OPENCODE_GO_MODELS = [
+  "deepseek-v4-flash",
+  "deepseek-v4-pro",
+  "qwen3.6-plus",
+  "qwen3.5-plus",
+  "glm-5.1",
+  "glm-5",
+  "kimi-k2.6",
+  "kimi-k2.5",
+  "mimo-v2.5",
+  "mimo-v2.5-pro",
 ];
 
 function getDefaultSubtitleLanguage(sourceLanguage) {
@@ -259,9 +284,40 @@ function PipelineStep({ step, meta }) {
         : "border-[#2A2C31] bg-[#1C1D21] text-[#D1D1D1]";
 
   return (
-    <div className={`rounded-lg border px-3 py-2 ${toneClass}`}>
+    <div className={`rounded-lg border px-3 py-2 transition-colors ${toneClass}`}>
       <div className="text-[10px] font-mono uppercase tracking-widest opacity-60">{step.kicker}</div>
       <div className="mt-1 text-sm font-medium">{step.label}</div>
+    </div>
+  );
+}
+
+function LoadingSessionState() {
+  return (
+    <div className="flex h-full flex-col bg-[#0F1012]">
+      <header className="h-16 shrink-0 border-b border-[#2A2C31] bg-[#151619] px-8 flex items-center justify-between">
+        <div className="h-4 w-32 rounded bg-[#2A2C31] praxis-shimmer" />
+        <div className="h-6 w-24 rounded bg-[#2A2C31] praxis-shimmer" />
+      </header>
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 p-8 lg:grid-cols-[420px_1fr]">
+        <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-4">
+          <div className="aspect-video rounded bg-[#0A0B0D] praxis-shimmer" />
+          <div className="mt-4 h-3 w-2/3 rounded bg-[#2A2C31] praxis-shimmer" />
+          <div className="mt-3 h-3 w-1/2 rounded bg-[#2A2C31] praxis-shimmer" />
+        </div>
+        <div className="space-y-4">
+          <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+            <div className="h-3 w-28 rounded bg-[#2A2C31] praxis-shimmer" />
+            <div className="mt-5 h-5 w-3/4 rounded bg-[#2A2C31] praxis-shimmer" />
+            <div className="mt-3 h-3 w-full rounded bg-[#2A2C31] praxis-shimmer" />
+            <div className="mt-2 h-3 w-5/6 rounded bg-[#2A2C31] praxis-shimmer" />
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {[0, 1, 2, 3].map((index) => (
+              <div key={index} className="h-28 rounded-lg border border-[#2A2C31] bg-[#151619] praxis-shimmer" />
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -312,14 +368,14 @@ function ProcessingPanel({ meta, transcript, analysis, retrying, onRetry }) {
           />
         </div>
 
-        <div className={`mt-4 grid gap-3 ${steps.length === 3 ? "grid-cols-3" : "grid-cols-4"}`}>
+        <div className={`mt-4 grid gap-3 ${steps.length === 3 ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 lg:grid-cols-4"}`}>
           {steps.map((step) => (
             <PipelineStep key={step.id} step={step} meta={meta} />
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatBlock
           label="Current Engine"
           value={processing.model_used || (meta?.status === "transcribing" ? "Whisper" : "Waiting")}
@@ -360,7 +416,7 @@ function ProcessingPanel({ meta, transcript, analysis, retrying, onRetry }) {
           )}
         </div>
 
-        <div className="mt-4 rounded-lg border border-[#2A2C31] bg-[#0A0B0D] px-4 py-3 font-mono text-[11px] leading-6">
+        <div className="mt-4 max-h-64 overflow-auto rounded-lg border border-[#2A2C31] bg-[#0A0B0D] px-4 py-3 font-mono text-[11px] leading-6">
           {terminalLines.length === 0 ? (
             <div className="text-[#A0A0A0] opacity-70">Waiting for the backend to emit processing logs.</div>
           ) : (
@@ -580,30 +636,34 @@ function CoachingLessons({ lessons }) {
       <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
         Top Lessons
       </h3>
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {lessons.map((lesson, index) => (
           <div key={`${lesson.title}-${index}`} className="rounded-lg border border-[#2A2C31] bg-[#151619] p-4">
-            <div className="mb-3 font-mono text-[10px] uppercase tracking-widest text-[#4ADE80]">
-              Lesson {String(index + 1).padStart(2, "0")}
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 rounded bg-[#0A0B0D] px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-[#4ADE80]">
+                {String(index + 1).padStart(2, "0")}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-sm font-semibold text-white leading-snug">
+                  {lesson.title || "Untitled lesson"}
+                </h4>
+                {lesson.what_happened ? (
+                  <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">
+                    {lesson.what_happened}
+                  </p>
+                ) : null}
+                {lesson.why_it_matters ? (
+                  <p className="mt-2 text-sm leading-relaxed text-[#D1D1D1]/75">
+                    {lesson.why_it_matters}
+                  </p>
+                ) : null}
+                {lesson.next_move ? (
+                  <p className="mt-2 border-l-2 border-[#F27D26] pl-3 text-xs leading-relaxed text-[#D1D1D1]">
+                    {lesson.next_move}
+                  </p>
+                ) : null}
+              </div>
             </div>
-            <h4 className="text-sm font-semibold text-white leading-snug">
-              {lesson.title || "Untitled lesson"}
-            </h4>
-            {lesson.what_happened ? (
-              <p className="mt-3 text-sm leading-relaxed text-[#E0E0E0]">
-                {lesson.what_happened}
-              </p>
-            ) : null}
-            {lesson.why_it_matters ? (
-              <p className="mt-3 text-sm leading-relaxed text-[#D1D1D1]/75">
-                {lesson.why_it_matters}
-              </p>
-            ) : null}
-            {lesson.next_move ? (
-              <p className="mt-3 border-l-2 border-[#F27D26] pl-3 text-xs leading-relaxed text-[#D1D1D1]">
-                {lesson.next_move}
-              </p>
-            ) : null}
           </div>
         ))}
       </div>
@@ -730,6 +790,214 @@ function PracticeAssignment({ assignment }) {
   );
 }
 
+function ReportReadingPath({ analysis }) {
+  const report = analysis?.coaching_report || {};
+  const mainLesson = Array.isArray(report.top_lessons) ? report.top_lessons[0] : null;
+  const assignment = report.practice_assignment || {};
+  const bestMoment = report.best_moment || {};
+  const practiceText =
+    readableText(assignment.next_session_goal) ||
+    readableText(assignment.speaking_drill) ||
+    readableText(assignment.behavioral_action);
+
+  const rows = [
+    {
+      key: "read",
+      icon: BookOpen,
+      label: "First Read",
+      title: readableText(report.headline) || "What this session is about",
+      body: readableText(report.opening_read) || readableText(analysis?.session_summary),
+      tone: "orange",
+    },
+    {
+      key: "lesson",
+      icon: Target,
+      label: "Lesson",
+      title: readableText(mainLesson?.title) || "Main lesson",
+      body: readableText(mainLesson?.why_it_matters) || readableText(mainLesson?.what_happened),
+      tone: "green",
+    },
+    {
+      key: "moment",
+      icon: Clock,
+      label: "Moment",
+      title: bestMoment?.timestamp_seconds !== undefined
+        ? `Study ${formatSecondsTimestamp(bestMoment.timestamp_seconds)}`
+        : "Best moment",
+      body: readableText(bestMoment.coaching_note) || readableText(bestMoment.transcript_quote),
+      tone: "neutral",
+    },
+    {
+      key: "practice",
+      icon: CheckCircle2,
+      label: "Practice",
+      title: "Before the next session",
+      body: practiceText,
+      tone: "green",
+    },
+  ].filter((row) => readableText(row.body));
+
+  if (rows.length < 2) return null;
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5 praxis-fade-in">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-[#D1D1D1]/60">
+            Read In This Order
+          </h3>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#D1D1D1]/70">
+            Start here, then go deeper only if you want the evidence.
+          </p>
+        </div>
+        <div className="rounded border border-[#2A2C31] bg-[#0A0B0D] px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+          explain mode
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
+        {rows.map((row, index) => {
+          const Icon = row.icon;
+          const accent =
+            row.tone === "green"
+              ? "border-[#4ADE80]/35 text-[#4ADE80] bg-[#4ADE80]/10"
+              : row.tone === "orange"
+                ? "border-[#F27D26]/35 text-[#F27D26] bg-[#F27D26]/10"
+                : "border-[#2A2C31] text-[#D1D1D1] bg-[#1C1D21]";
+
+          return (
+            <article key={row.key} className="rounded-lg border border-[#2A2C31] bg-[#1C1D21] p-4">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className={`flex h-8 w-8 items-center justify-center rounded border ${accent}`}>
+                  <Icon size={15} />
+                </div>
+                <span className="font-mono text-[10px] uppercase tracking-widest text-[#D1D1D1]/35 tnum">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+              </div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+                {row.label}
+              </div>
+              <h4 className="mt-2 text-sm font-semibold leading-snug text-white">{row.title}</h4>
+              <p className="mt-3 text-sm leading-6 text-[#E0E0E0]">{row.body}</p>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const PREVIOUS_GOAL_RESULTS = [
+  { value: "followed", label: "Followed" },
+  { value: "partially_followed", label: "Partial" },
+  { value: "missed", label: "Missed" },
+];
+
+function PracticeTracker({ meta, practiceContext, onUpdate }) {
+  const practice = meta?.practice || {};
+  const assignmentCompleted = Boolean(practice.assignment_completed);
+  const previousGoal = readableText(practice.previous_goal) || readableText(practiceContext?.goal);
+  const previousGoalSourceId =
+    practice.previous_goal_source_session_id || practiceContext?.source_session_id || null;
+  const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState(practice.previous_goal_note || "");
+
+  useEffect(() => {
+    setNote(practice.previous_goal_note || "");
+  }, [practice.previous_goal_note, meta?.id]);
+
+  async function savePractice(payload) {
+    setSaving(true);
+    try {
+      await onUpdate(payload);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+          Practice Tracking
+        </h3>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void savePractice({ assignment_completed: !assignmentCompleted })}
+          className={`rounded border px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-colors disabled:opacity-60 ${
+            assignmentCompleted
+              ? "border-[#4ADE80]/40 bg-[#4ADE80]/15 text-[#4ADE80]"
+              : "border-[#2A2C31] bg-[#1C1D21] text-[#D1D1D1]/65 hover:text-white"
+          }`}
+        >
+          {assignmentCompleted ? "Completed" : "Mark Complete"}
+        </button>
+      </div>
+
+      {previousGoal ? (
+        <div className="rounded border border-[#2A2C31] bg-[#1C1D21] p-4">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+            Previous Goal
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{previousGoal}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {PREVIOUS_GOAL_RESULTS.map((result) => (
+              <button
+                key={result.value}
+                type="button"
+                disabled={saving}
+                onClick={() =>
+                  void savePractice({
+                    previous_goal: previousGoal,
+                    previous_goal_source_session_id: previousGoalSourceId,
+                    previous_goal_result: result.value,
+                  })
+                }
+                className={`rounded border px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-colors disabled:opacity-60 ${
+                  practice.previous_goal_result === result.value
+                    ? "border-[#F27D26]/50 bg-[#F27D26]/15 text-[#F27D26]"
+                    : "border-[#2A2C31] bg-[#0A0B0D] text-[#D1D1D1]/60 hover:text-white"
+                }`}
+              >
+                {result.label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <input
+              type="text"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="optional note"
+              className="min-w-0 flex-1 rounded border border-[#2A2C31] bg-[#0A0B0D] px-3 py-2 text-xs text-[#E0E0E0] outline-none focus:border-[#4ADE80]"
+            />
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() =>
+                void savePractice({
+                  previous_goal: previousGoal,
+                  previous_goal_source_session_id: previousGoalSourceId,
+                  previous_goal_note: note,
+                })
+              }
+              className="rounded bg-[#2A2C31] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-[#32353B] disabled:opacity-60"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm leading-relaxed text-[#D1D1D1]/70">
+          No previous next-session goal is available yet.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function LanguageCoach({ languageCoach }) {
   if (!languageCoach) return null;
   const drills = Array.isArray(languageCoach.rewrite_drills) ? languageCoach.rewrite_drills : [];
@@ -782,6 +1050,81 @@ function LanguageCoach({ languageCoach }) {
   );
 }
 
+function CoachFocus({ analysis }) {
+  const report = analysis?.coaching_report || {};
+  const mainLesson = Array.isArray(report.top_lessons) ? report.top_lessons[0] : null;
+  const assignment = report.practice_assignment || {};
+  const bestMoment = report.best_moment || {};
+  const nextMove = readableText(mainLesson?.next_move) || readableText(assignment.next_session_goal);
+  const quote = readableText(bestMoment.transcript_quote);
+  const hasContent =
+    readableText(mainLesson?.title) ||
+    readableText(mainLesson?.why_it_matters) ||
+    readableText(nextMove) ||
+    readableText(assignment.speaking_drill) ||
+    readableText(assignment.behavioral_action);
+
+  if (!hasContent) return null;
+
+  return (
+    <div className="rounded-lg border border-[#4ADE80]/35 bg-[#10251A] p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-[#4ADE80]">
+          Coach Focus
+        </h3>
+        <span className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+          next session
+        </span>
+      </div>
+
+      {mainLesson?.title ? (
+        <h4 className="text-xl font-semibold leading-snug tracking-tight text-white">
+          {mainLesson.title}
+        </h4>
+      ) : null}
+
+      {mainLesson?.why_it_matters ? (
+        <p className="mt-3 text-base leading-7 text-[#E0E0E0]">
+          {mainLesson.why_it_matters}
+        </p>
+      ) : null}
+
+      {quote ? (
+        <blockquote className="mt-4 border-l-2 border-[#4ADE80] pl-4 text-sm italic leading-relaxed text-[#D1D1D1]/80">
+          "{quote}"
+        </blockquote>
+      ) : null}
+
+      <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+        {nextMove ? (
+          <div className="rounded border border-[#4ADE80]/20 bg-[#0A0B0D]/35 p-4">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+              Main Move
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{nextMove}</p>
+          </div>
+        ) : null}
+        {assignment.speaking_drill ? (
+          <div className="rounded border border-[#4ADE80]/20 bg-[#0A0B0D]/35 p-4">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+              Speaking Drill
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{assignment.speaking_drill}</p>
+          </div>
+        ) : null}
+        {assignment.behavioral_action ? (
+          <div className="rounded border border-[#4ADE80]/20 bg-[#0A0B0D]/35 p-4">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+              Action
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{assignment.behavioral_action}</p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function CoachingReport({ analysis, onSeek }) {
   const report = analysis?.coaching_report || {};
   const headline = readableText(report.headline) || readableText(analysis?.prose_verdict);
@@ -814,6 +1157,12 @@ function CoachingReport({ analysis, onSeek }) {
         ) : null}
       </div>
 
+      <ReportReadingPath analysis={analysis} />
+      <CoachFocus analysis={analysis} />
+      <CoachingLessons lessons={report.top_lessons} />
+      <PracticeAssignment assignment={report.practice_assignment} />
+      <MomentFeedback moments={report.moment_feedback} bestMoment={report.best_moment} onSeek={onSeek} />
+
       {(report.what_improved || report.what_held_back) ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {report.what_improved ? (
@@ -825,11 +1174,8 @@ function CoachingReport({ analysis, onSeek }) {
         </div>
       ) : null}
 
-      <CoachingScorecard analysis={analysis} />
-      <CoachingLessons lessons={report.top_lessons} />
-      <MomentFeedback moments={report.moment_feedback} bestMoment={report.best_moment} onSeek={onSeek} />
       <BehavioralPatterns patterns={report.behavioral_patterns} />
-      <PracticeAssignment assignment={report.practice_assignment} />
+      <CoachingScorecard analysis={analysis} />
       <LanguageCoach languageCoach={analysis.language_coach} />
     </>
   );
@@ -848,6 +1194,8 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
   const [mediaDuration, setMediaDuration] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [analysisProvider, setAnalysisProvider] = useState("");
+  const [analysisModel, setAnalysisModel] = useState("");
   const [subtitleLanguage, setSubtitleLanguage] = useState("fr");
   const [subtitleExporting, setSubtitleExporting] = useState(false);
   const videoRef = useRef(null);
@@ -983,13 +1331,14 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
     );
   }, [bundle?.meta?.language, sessionId]);
 
+  useEffect(() => {
+    const provider = config?.llm?.provider ?? "openrouter";
+    setAnalysisProvider(provider);
+    setAnalysisModel(config?.llm?.model ?? config?.openrouter?.default_model ?? "");
+  }, [config?.llm?.provider, config?.llm?.model, config?.openrouter?.default_model, sessionId]);
+
   if (loading && !bundle) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-[#E0E0E0] opacity-60">
-        <Clock size={20} className="animate-pulse" />
-        <p className="mt-2 text-xs uppercase tracking-widest">Loading session...</p>
-      </div>
-    );
+    return <LoadingSessionState />;
   }
 
   if (error || !bundle) {
@@ -1025,10 +1374,22 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
       ? mediaDuration
       : Math.max(duration, Number(transcript.at(-1)?.end_seconds) || 0) || 0;
   const videoSrc = meta.video_filename ? getSessionVideoUrl(sessionId) : null;
-  const modelLabel = (meta.processing?.model_used ?? config?.openrouter?.default_model ?? "—")
+  const modelLabel = (meta.processing?.model_used ?? config?.llm?.model ?? config?.openrouter?.default_model ?? "—")
     .split("/")
     .at(-1)
     ?.toUpperCase() ?? "—";
+  const activeAnalysisProvider = analysisProvider || config?.llm?.provider || "openrouter";
+  const providerConfigured = config?.llm?.provider_configured?.[activeAnalysisProvider] ?? config?.llm?.configured;
+  const analysisModelOptions =
+    activeAnalysisProvider === "opencode_go"
+      ? OPENCODE_GO_MODELS
+      : [
+          config?.llm?.provider_models?.[activeAnalysisProvider],
+          activeAnalysisProvider === "openrouter" ? config?.openrouter?.default_model : null,
+          config?.llm?.model,
+        ].filter(Boolean);
+  const canRunAnalysisProvider =
+    activeAnalysisProvider === "litellm_proxy" || Boolean(providerConfigured);
 
   function handleSeek(seconds) {
     if (!videoRef.current) return;
@@ -1086,8 +1447,16 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
   async function handleReanalyze() {
     setReanalyzing(true);
     try {
-      await reanalyzeSession(sessionId);
-      pushToast({ kind: "success", message: "Re-analysis queued with the latest coaching prompt." });
+      const result = await reanalyzeSession(sessionId, {
+        llm: {
+          provider: activeAnalysisProvider,
+          model: analysisModel,
+        },
+      });
+      pushToast({
+        kind: "success",
+        message: `Re-analysis queued with ${result.model || analysisModel || activeAnalysisProvider}.`,
+      });
       await refreshIndex().catch(() => {});
       await refreshBundle();
     } catch (caught) {
@@ -1116,6 +1485,21 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
       });
     } finally {
       setSubtitleExporting(false);
+    }
+  }
+
+  async function handlePracticeUpdate(payload) {
+    try {
+      await updateSessionPractice(sessionId, payload);
+      pushToast({ kind: "success", message: "Practice tracking updated." });
+      await refreshBundle();
+      await refreshIndex().catch(() => {});
+    } catch (caught) {
+      pushToast({
+        kind: "error",
+        message: caught instanceof Error ? caught.message : "Failed to update practice tracking.",
+      });
+      throw caught;
     }
   }
 
@@ -1178,16 +1562,71 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
             </button>
           ) : null}
           {isReady && transcript.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => void handleReanalyze()}
-              disabled={reanalyzing}
-              className="px-3 py-2 bg-[#2A2C31] hover:bg-[#32353B] rounded text-xs font-medium transition-colors flex items-center gap-2 disabled:opacity-60"
-              title="Re-analyze with latest coaching prompt"
-            >
-              <RotateCcw size={14} />
-              {reanalyzing ? "Queued..." : "Re-analyze"}
-            </button>
+            <div className="flex items-center gap-2 rounded border border-[#2A2C31] bg-[#1C1D21] p-1">
+              <SlidersHorizontal size={14} className="ml-1 text-[#D1D1D1]/60" />
+              <select
+                value={activeAnalysisProvider}
+                onChange={(event) => {
+                  const nextProvider = event.target.value;
+                  setAnalysisProvider(nextProvider);
+                  const nextModel =
+                    nextProvider === "opencode_go"
+                      ? "deepseek-v4-flash"
+                      : nextProvider === "openrouter"
+                        ? config?.openrouter?.default_model ?? config?.llm?.provider_models?.openrouter ?? ""
+                        : config?.llm?.provider_models?.[nextProvider] ?? "";
+                  setAnalysisModel(nextModel);
+                }}
+                disabled={reanalyzing}
+                className="px-2 py-1.5 bg-[#0A0B0D] border border-[#2A2C31] rounded text-[10px] font-mono text-[#E0E0E0] focus:outline-none focus:border-[#4ADE80] disabled:opacity-60"
+                aria-label="Analysis provider"
+              >
+                {ANALYSIS_PROVIDER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {analysisModelOptions.length > 0 ? (
+                <select
+                  value={analysisModel}
+                  onChange={(event) => setAnalysisModel(event.target.value)}
+                  disabled={reanalyzing}
+                  className="max-w-[190px] px-2 py-1.5 bg-[#0A0B0D] border border-[#2A2C31] rounded text-[10px] font-mono text-[#E0E0E0] focus:outline-none focus:border-[#4ADE80] disabled:opacity-60"
+                  aria-label="Analysis model"
+                >
+                  {[...new Set(analysisModelOptions)].map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={analysisModel}
+                  onChange={(event) => setAnalysisModel(event.target.value)}
+                  disabled={reanalyzing}
+                  placeholder="model"
+                  className="w-[150px] px-2 py-1.5 bg-[#0A0B0D] border border-[#2A2C31] rounded text-[10px] font-mono text-[#E0E0E0] focus:outline-none focus:border-[#4ADE80] disabled:opacity-60"
+                  aria-label="Analysis model"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => void handleReanalyze()}
+                disabled={reanalyzing || !canRunAnalysisProvider}
+                className="px-3 py-1.5 bg-[#2A2C31] hover:bg-[#32353B] rounded text-xs font-medium transition-colors flex items-center gap-2 disabled:opacity-60"
+                title={
+                  canRunAnalysisProvider
+                    ? "Re-analyze with selected provider"
+                    : "Save an API key for this provider in Settings first"
+                }
+              >
+                <RotateCcw size={14} />
+                {reanalyzing ? "Queued..." : "Analyze"}
+              </button>
+            </div>
           ) : null}
           {isReady && transcript.length > 0 ? (
             <div className="flex items-center gap-2">
@@ -1383,6 +1822,11 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
                   analysis ? (
                     <>
                       <CoachingReport analysis={analysis} onSeek={handleSeek} />
+                      <PracticeTracker
+                        meta={meta}
+                        practiceContext={bundle.practice_context}
+                        onUpdate={handlePracticeUpdate}
+                      />
 
                       {!hasReadableCoachingReport(analysis) ? (
                         <div className="space-y-3">

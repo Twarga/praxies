@@ -5,14 +5,16 @@
   "description": "AI-assisted video journaling desktop app",
   "author": "Twarga",
   "type": "module",
-  "main": "electron/main.js",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "electron:dev": "sh -c 'unset ELECTRON_RUN_AS_NODE; exec electron electron/main.cjs'",
     "build": "vite build",
     "preview": "vite preview",
+    "prepare:resources": "../scripts/prepare-electron-resources.sh",
     "electron:build": "npm run build && electron-builder",
-    "electron:build:dir": "npm run build && electron-builder --dir"
+    "electron:build:dir": "npm run build && electron-builder --dir",
+    "release:linux": "../scripts/release-linux.sh"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.8",
@@ -29,6 +31,8 @@
     "autoprefixer": "^10.4.21",
     "electron": "^37.4.0",
     "electron-builder": "^26.8.1",
+    "ffmpeg-static": "^5.3.0",
+    "ffprobe-static": "^3.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "vite": "^7.1.12"

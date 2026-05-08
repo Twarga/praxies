@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from app.models import ConfigModel, MetaModel
+from app.services.media_tools import resolve_media_binary
 from app.services.sessions import (
     append_session_processing_event,
     discover_session_dirs,
@@ -103,7 +104,7 @@ def compress_session_to_audio_only(
 
     retained_audio_path = get_retained_audio_path(config, session_id)
     command = [
-        "ffmpeg",
+        resolve_media_binary("ffmpeg"),
         "-i",
         str(video_path),
         "-vn",

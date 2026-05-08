@@ -144,6 +144,27 @@ textarea,
   animation: praxis-fade-in 220ms ease-out;
 }
 
+@keyframes praxis-shimmer {
+  from {
+    background-position: 180% 0;
+  }
+  to {
+    background-position: -180% 0;
+  }
+}
+
+.praxis-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(42, 44, 49, 0.55) 0%,
+    rgba(74, 222, 128, 0.08) 42%,
+    rgba(242, 125, 38, 0.10) 55%,
+    rgba(42, 44, 49, 0.55) 100%
+  );
+  background-size: 220% 100%;
+  animation: praxis-shimmer 1.6s ease-in-out infinite;
+}
+
 @keyframes streak-cell-arrive {
   from {
     opacity: 0.35;
@@ -195,6 +216,7 @@ textarea,
 
 @media (prefers-reduced-motion: reduce) {
   .praxis-fade-in,
+  .praxis-shimmer,
   .streak-cell,
   .streak-flame,
   .streak-progress {

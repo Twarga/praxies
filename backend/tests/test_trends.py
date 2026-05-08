@@ -410,6 +410,71 @@ def test_build_trends_volume_counts_real_sessions_without_analysis(config):
     }
 
 
+def test_build_trends_payload_scorecard_dimensions_show_weakest_and_trend(config):
+    first = create_session(
+        config,
+        language="en",
+        title="first scorecard",
+        created_at=datetime(2026, 4, 27, 9, 0, tzinfo=timezone.utc),
+    )
+    second = create_session(
+        config,
+        language="en",
+        title="second scorecard",
+        created_at=datetime(2026, 4, 28, 9, 0, tzinfo=timezone.utc),
+    )
+    third = create_session(
+        config,
+        language="en",
+        title="third scorecard",
+        created_at=datetime(2026, 4, 29, 9, 0, tzinfo=timezone.utc),
+    )
+    fourth = create_session(
+        config,
+        language="en",
+        title="fourth scorecard",
+        created_at=datetime(2026, 4, 30, 9, 0, tzinfo=timezone.utc),
+    )
+
+    _write_analysis_with_scorecard(config, first.id, specificity=3, actionability=4, clarity=6)
+    _write_analysis_with_scorecard(config, second.id, specificity=3, actionability=4, clarity=6)
+    _write_analysis_with_scorecard(config, third.id, specificity=5, actionability=4, clarity=7)
+    _write_analysis_with_scorecard(config, fourth.id, specificity=6, actionability=4, clarity=7)
+
+    payload = build_trends_payload(
+        config,
+        trend_range="30d",
+        now=datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc),
+    )
+
+    dimensions = {dimension["metric"]: dimension for dimension in payload["scorecard_dimensions"]}
+    assert dimensions["specificity"]["trend"] == "improving"
+    assert dimensions["specificity"]["copy"] == "Specificity is improving."
+    assert dimensions["actionability"]["trend"] == "stable"
+    assert dimensions["actionability"]["copy"] == "Actionability is still weak."
+    assert payload["scorecard_dimensions"][0]["metric"] == "actionability"
+
+
+def test_build_trends_payload_sparse_data_degrades_without_fake_scorecard(config):
+    session = create_session(
+        config,
+        language="en",
+        title="no analysis yet",
+        created_at=datetime(2026, 4, 30, 9, 0, tzinfo=timezone.utc),
+    )
+    update_session_meta(config, session.id, updates={"status": "ready", "duration_seconds": 180})
+
+    payload = build_trends_payload(
+        config,
+        trend_range="30d",
+        now=datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc),
+    )
+
+    assert payload["analysis_summary"]["sessions"] == 0
+    assert payload["scorecard_dimensions"] == []
+    assert payload["scorecard_by_language"] == {"en": [], "fr": [], "es": []}
+
+
 def _write_analysis_with_score(
     config,
     session_id: str,
@@ -450,6 +515,69 @@ def _write_analysis_with_score(
                 "philosophical_pushback": "",
             },
             "recurring_patterns_hit": pattern_hits or [],
+            "actionable_improvements": ["Land the final sentence."],
+        },
+    )
+
+
+def _write_analysis_with_scorecard(
+    config,
+    session_id: str,
+    *,
+    specificity: int,
+    actionability: int,
+    clarity: int,
+) -> None:
+    update_session_meta(config, session_id, updates={"status": "ready", "duration_seconds": 180})
+    write_session_analysis(
+        config,
+        session_id,
+        {
+            "schema_version": 2,
+            "language": "en",
+            "prose_verdict": "Useful practice session.",
+            "session_summary": "The speaker practiced one clear idea.",
+            "main_topics": ["practice"],
+            "coaching_report": {
+                "headline": "Use one example before explaining the lesson.",
+                "opening_read": "The session becomes easier to coach when it names a concrete scene.",
+                "practice_assignment": {
+                    "reflection_question": "What example proves the point?",
+                    "speaking_drill": "Record two minutes with one example.",
+                    "behavioral_action": "Write the next action before recording.",
+                    "next_session_goal": "Give one example for every major claim.",
+                },
+            },
+            "scorecard": {
+                "clarity": {"score": clarity, "evidence": "Clear topic.", "practice_focus": "Name the point."},
+                "specificity": {"score": specificity, "evidence": "Examples used.", "practice_focus": "Add one scene."},
+                "actionability": {"score": actionability, "evidence": "Action named.", "practice_focus": "Close with action."},
+            },
+            "language_coach": {
+                "strongest_sentence": "I need to make the next step explicit.",
+                "main_language_gap": "Some setup phrases are too long.",
+                "rewrite_drills": [],
+            },
+            "grammar_and_language": {
+                "errors": [],
+                "fluency_score": 7,
+                "vocabulary_level": "B2",
+                "filler_words": {},
+            },
+            "speaking_quality": {
+                "clarity": clarity,
+                "pace": "steady",
+                "structure": "clear",
+                "executive_presence_notes": "direct",
+            },
+            "ideas_and_reasoning": {
+                "strong_points": ["Clear point."],
+                "weak_points": [],
+                "logical_flaws": [],
+                "factual_errors": [],
+                "philosophical_pushback": "",
+            },
+            "recurring_patterns_hit": [],
             "actionable_improvements": ["Land the final sentence."],
         },
     )

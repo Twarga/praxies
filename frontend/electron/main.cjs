@@ -1,13 +1,37 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { appendFileSync, mkdirSync } = require("node:fs");
+const { homedir } = require("node:os");
 const { join } = require("node:path");
 const { launchBackend } = require("./backend-launcher.cjs");
 
 app.disableHardwareAcceleration();
 
 const isDev = !app.isPackaged;
+const electronLogFile = join(homedir(), ".cache", "praxis", "electron.log");
+const appIconPath = isDev
+  ? join(__dirname, "..", "public", "app-icon.png")
+  : join(__dirname, "..", "dist", "app-icon.png");
 
 let backendProcess;
 const devFrontendUrl = process.env.PRAXIES_FRONTEND_URL || "http://127.0.0.1:5173";
+
+function logElectron(message, error) {
+  const suffix = error ? ` ${error.stack || error.message || String(error)}` : "";
+  const line = `[${new Date().toISOString()}] ${message}${suffix}\n`;
+  try {
+    mkdirSync(join(homedir(), ".cache", "praxis"), { recursive: true });
+    appendFileSync(electronLogFile, line);
+  } catch {}
+  console.log(line.trim());
+}
+
+process.on("uncaughtException", (error) => {
+  logElectron("uncaught exception", error);
+});
+
+process.on("unhandledRejection", (error) => {
+  logElectron("unhandled rejection", error);
+});
 
 async function waitForBackend(port, timeoutMs = 10000) {
   const start = Date.now();
@@ -27,6 +51,7 @@ async function waitForBackend(port, timeoutMs = 10000) {
 }
 
 async function createWindow() {
+  logElectron(`creating window; packaged=${app.isPackaged}`);
   const { child, port } = await launchBackend();
   backendProcess = child;
 
@@ -38,14 +63,23 @@ async function createWindow() {
     child.stderr.on("data", (chunk) => {
       process.stderr.write(`[backend] ${chunk}`);
     });
+
+    child.on("error", (error) => {
+      logElectron("backend process error", error);
+    });
+
+    child.on("exit", (code, signal) => {
+      logElectron(`backend process exited code=${code ?? "null"} signal=${signal ?? "null"}`);
+    });
   }
 
   try {
     await waitForBackend(port);
-  } catch {
+  } catch (error) {
+    logElectron(`backend failed to start on port ${port}`, error);
     dialog.showErrorBox(
       "backend failed to start",
-      "backend failed to start — see logs at ~/.cache/praxis/backend.log",
+      "backend failed to start. See logs at ~/.cache/praxis/backend.log and ~/.cache/praxis/electron.log",
     );
     app.quit();
     return;
@@ -57,6 +91,7 @@ async function createWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: "#0a0a0a",
+    icon: appIconPath,
     title: "Praxis",
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
@@ -70,6 +105,7 @@ async function createWindow() {
   } else {
     await win.loadFile(join(__dirname, "..", "dist", "index.html"));
   }
+  logElectron("main window loaded");
 }
 
 app.whenReady().then(() => {
@@ -95,19 +131,21 @@ app.whenReady().then(() => {
   });
 
   void createWindow().catch((error) => {
-    console.error("[electron] failed to create main window:", error);
+    logElectron("failed to create main window", error);
     dialog.showErrorBox("startup failed", "praxis failed to create the main window.");
     app.quit();
   });
 });
 
 app.on("window-all-closed", () => {
+  logElectron("all windows closed");
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
 app.on("before-quit", () => {
+  logElectron("before quit");
   if (backendProcess && !backendProcess.killed) {
     backendProcess.kill("SIGTERM");
   }
