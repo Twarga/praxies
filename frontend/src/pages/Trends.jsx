@@ -1,6 +1,6 @@
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Check, Loader2, Pencil, Trash2, Unlink2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { loadTrends } from "../api/trends.js";
+import { calibratePattern, loadPatterns, loadTrends } from "../api/trends.js";
 
 const RANGE_OPTIONS = [
   { id: "7d", label: "7D" },
@@ -313,6 +313,237 @@ function PatternTrendList({ patternsByLanguage }) {
   );
 }
 
+function PatternCalibrationPanel() {
+  const [language, setLanguage] = useState("en");
+  const [payload, setPayload] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [savingKey, setSavingKey] = useState("");
+  const [drafts, setDrafts] = useState({});
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError("");
+
+    loadPatterns(language)
+      .then((nextPayload) => {
+        if (!cancelled) setPayload(nextPayload);
+      })
+      .catch((caught) => {
+        if (!cancelled) {
+          setPayload(null);
+          setError(caught instanceof Error ? caught.message : "Failed to load recurring patterns.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [language]);
+
+  const patterns = payload?.patterns ?? [];
+
+  async function runCalibration(patternName, nextPayload) {
+    const actionKey = `${language}:${patternName}:${nextPayload.action}`;
+    setSavingKey(actionKey);
+    setError("");
+    try {
+      const updated = await calibratePattern(language, {
+        pattern_name: patternName,
+        ...nextPayload,
+      });
+      setPayload(updated);
+      if (nextPayload.action !== "confirm") {
+        setDrafts((current) => {
+          const next = { ...current };
+          delete next[`${language}:${patternName}`];
+          return next;
+        });
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Failed to update pattern.");
+    } finally {
+      setSavingKey("");
+    }
+  }
+
+  function getDraft(pattern) {
+    return (
+      drafts[`${language}:${pattern.name}`] ?? {
+        target_name: pattern.name,
+        target_description: pattern.description || pattern.name,
+      }
+    );
+  }
+
+  function updateDraft(patternName, patch) {
+    const key = `${language}:${patternName}`;
+    setDrafts((current) => ({
+      ...current,
+      [key]: {
+        ...(current[key] ?? {}),
+        ...patch,
+      },
+    }));
+  }
+
+  return (
+    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
+            Pattern Calibration
+          </h3>
+          <p className="mt-2 text-sm leading-relaxed text-[#D1D1D1]/65">
+            Confirm useful names, merge duplicates, rename vague hits, or dismiss noise.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {LANGUAGE_SERIES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setLanguage(option.id)}
+              className={`rounded border px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-colors ${
+                language === option.id
+                  ? "text-black"
+                  : "border-[#2A2C31] bg-[#1C1D21] text-[#D1D1D1]/60 hover:text-white"
+              }`}
+              style={language === option.id ? { backgroundColor: option.color, borderColor: option.color } : undefined}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-3 text-[11px] font-mono uppercase tracking-widest opacity-50">
+          <Loader2 size={14} className="animate-spin text-[#F27D26]" />
+          Loading pattern memory
+        </div>
+      ) : error ? (
+        <div className="rounded border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-100">
+          {error}
+        </div>
+      ) : patterns.length === 0 ? (
+        <p className="text-sm leading-relaxed text-[#D1D1D1]/70">
+          No recurring patterns are stored for this language yet.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {patterns.map((pattern) => {
+            const draft = getDraft(pattern);
+            const busyPrefix = `${language}:${pattern.name}:`;
+            const isBusy = savingKey.startsWith(busyPrefix);
+            return (
+              <div key={`${language}:${pattern.name}`} className="rounded border border-[#2A2C31] bg-[#1C1D21] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium text-white">{pattern.name}</p>
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/40">
+                        {pattern.count} hits
+                      </span>
+                      <span
+                        className={`rounded px-2 py-0.5 text-[9px] font-mono uppercase tracking-widest ${
+                          pattern.confirmed
+                            ? "bg-[#4ADE80]/15 text-[#4ADE80]"
+                            : "bg-[#F27D26]/15 text-[#F27D26]"
+                        }`}
+                      >
+                        {pattern.confirmed ? "confirmed" : "review"}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-relaxed text-[#D1D1D1]/70">
+                      {pattern.description || pattern.name}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isBusy || pattern.confirmed}
+                    onClick={() => void runCalibration(pattern.name, { action: "confirm" })}
+                    className="inline-flex items-center gap-2 rounded border border-[#4ADE80]/30 bg-[#4ADE80]/10 px-3 py-2 text-[10px] font-mono uppercase tracking-widest text-[#4ADE80] transition-colors hover:bg-[#4ADE80]/15 disabled:opacity-50"
+                  >
+                    <Check size={13} />
+                    Confirm
+                  </button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1fr_auto_auto]">
+                  <input
+                    type="text"
+                    value={draft.target_name}
+                    onChange={(event) => updateDraft(pattern.name, { target_name: event.target.value })}
+                    placeholder="Canonical pattern name"
+                    className="min-w-0 rounded border border-[#2A2C31] bg-[#0A0B0D] px-3 py-2 text-sm text-white outline-none focus:border-[#4ADE80]"
+                  />
+                  <input
+                    type="text"
+                    value={draft.target_description}
+                    onChange={(event) => updateDraft(pattern.name, { target_description: event.target.value })}
+                    placeholder="Short explanation"
+                    className="min-w-0 rounded border border-[#2A2C31] bg-[#0A0B0D] px-3 py-2 text-sm text-white outline-none focus:border-[#4ADE80]"
+                  />
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() =>
+                      void runCalibration(pattern.name, {
+                        action: "rename",
+                        target_name: draft.target_name,
+                        target_description: draft.target_description,
+                      })
+                    }
+                    className="inline-flex items-center justify-center gap-2 rounded border border-[#2A2C31] bg-[#0A0B0D] px-3 py-2 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/70 transition-colors hover:text-white disabled:opacity-50"
+                  >
+                    <Pencil size={13} />
+                    Rename
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() =>
+                      void runCalibration(pattern.name, {
+                        action: "merge",
+                        target_name: draft.target_name,
+                        target_description: draft.target_description,
+                      })
+                    }
+                    className="inline-flex items-center justify-center gap-2 rounded border border-[#2A2C31] bg-[#0A0B0D] px-3 py-2 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/70 transition-colors hover:text-white disabled:opacity-50"
+                  >
+                    <Unlink2 size={13} />
+                    Merge
+                  </button>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/35">
+                    Last seen {pattern.last_seen}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => void runCalibration(pattern.name, { action: "dismiss" })}
+                    className="inline-flex items-center gap-2 rounded border border-red-500/25 bg-red-950/20 px-3 py-2 text-[10px] font-mono uppercase tracking-widest text-red-200 transition-colors hover:bg-red-950/35 disabled:opacity-50"
+                  >
+                    <Trash2 size={13} />
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FillerWordsPanel({ fillerWordsByLanguage }) {
   const sections = LANGUAGE_SERIES.map((language) => ({
     ...language,
@@ -546,6 +777,7 @@ export function Trends({ scrollRef }) {
               <FluencyChart series={payload?.fluency_by_language} />
               <ScorecardDimensionsPanel dimensions={payload?.scorecard_dimensions} />
               <PatternTrendList patternsByLanguage={payload?.pattern_hits_by_language} />
+              <PatternCalibrationPanel />
               <FillerWordsPanel fillerWordsByLanguage={payload?.filler_words_by_language} />
               <LanguageMixPanel summary={summary} analysisSummary={analysisSummary} />
             </div>

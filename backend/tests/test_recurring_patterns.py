@@ -7,6 +7,7 @@ import pytest
 from app.models import RecurringPatternsModel
 from app.services.json_io import read_json_file
 from app.services.recurring_patterns import (
+    apply_pattern_calibration,
     cleanup_recurring_patterns,
     get_patterns_file_path,
     load_recurring_patterns,
@@ -86,6 +87,7 @@ def test_merge_recurring_patterns_creates_new_hits(config):
     assert updated.patterns[0].first_seen == "2026-05-01"
     assert updated.patterns[0].last_seen == "2026-05-01"
     assert updated.patterns[0].recent_sessions == ["2026-05-01_en_take"]
+    assert updated.patterns[0].confirmed is False
 
 
 def test_merge_recurring_patterns_matches_names_case_insensitively(config):
@@ -122,6 +124,131 @@ def test_merge_recurring_patterns_matches_names_case_insensitively(config):
         "2026-04-30_en_take",
         "2026-05-01_en_take",
     ]
+
+
+def test_apply_pattern_calibration_confirms_pattern():
+    existing = RecurringPatternsModel(
+        language="en",
+        updated_at="2026-05-01T12:00:00+00:00",
+        patterns=[
+            {
+                "name": "weak close",
+                "description": "Ends without a decisive final sentence.",
+                "count": 2,
+                "first_seen": "2026-04-25",
+                "last_seen": "2026-04-30",
+                "recent_sessions": ["a", "b"],
+            }
+        ],
+    )
+
+    updated = apply_pattern_calibration(
+        existing,
+        calibration={"action": "confirm", "pattern_name": "weak close"},
+        now=datetime.fromisoformat("2026-05-01T12:30:00+00:00"),
+    )
+
+    assert updated.patterns[0].confirmed is True
+
+
+def test_apply_pattern_calibration_renames_pattern():
+    existing = RecurringPatternsModel(
+        language="en",
+        updated_at="2026-05-01T12:00:00+00:00",
+        patterns=[
+            {
+                "name": "weak close",
+                "description": "Ends without a decisive final sentence.",
+                "count": 2,
+                "first_seen": "2026-04-25",
+                "last_seen": "2026-04-30",
+                "recent_sessions": ["a", "b"],
+            }
+        ],
+    )
+
+    updated = apply_pattern_calibration(
+        existing,
+        calibration={
+            "action": "rename",
+            "pattern_name": "weak close",
+            "target_name": "soft ending",
+            "target_description": "The take trails off instead of landing a final point.",
+        },
+        now=datetime.fromisoformat("2026-05-01T12:30:00+00:00"),
+    )
+
+    assert len(updated.patterns) == 1
+    assert updated.patterns[0].name == "soft ending"
+    assert updated.patterns[0].description == "The take trails off instead of landing a final point."
+    assert updated.patterns[0].confirmed is True
+
+
+def test_apply_pattern_calibration_merges_patterns():
+    existing = RecurringPatternsModel(
+        language="en",
+        updated_at="2026-05-01T12:00:00+00:00",
+        patterns=[
+            {
+                "name": "weak close",
+                "description": "Ends without a decisive final sentence.",
+                "count": 2,
+                "first_seen": "2026-04-25",
+                "last_seen": "2026-04-30",
+                "recent_sessions": ["a", "b"],
+            },
+            {
+                "name": "soft ending",
+                "description": "The take trails off instead of landing a final point.",
+                "count": 1,
+                "first_seen": "2026-04-28",
+                "last_seen": "2026-04-29",
+                "recent_sessions": ["c"],
+                "confirmed": True,
+            },
+        ],
+    )
+
+    updated = apply_pattern_calibration(
+        existing,
+        calibration={
+            "action": "merge",
+            "pattern_name": "weak close",
+            "target_name": "soft ending",
+        },
+        now=datetime.fromisoformat("2026-05-01T12:30:00+00:00"),
+    )
+
+    assert len(updated.patterns) == 1
+    assert updated.patterns[0].name == "soft ending"
+    assert updated.patterns[0].count == 3
+    assert updated.patterns[0].recent_sessions == ["c", "a", "b"]
+    assert updated.patterns[0].confirmed is True
+
+
+def test_apply_pattern_calibration_dismisses_pattern():
+    existing = RecurringPatternsModel(
+        language="en",
+        updated_at="2026-05-01T12:00:00+00:00",
+        patterns=[
+            {
+                "name": "weak close",
+                "description": "Ends without a decisive final sentence.",
+                "count": 2,
+                "first_seen": "2026-04-25",
+                "last_seen": "2026-04-30",
+                "recent_sessions": ["a", "b"],
+            }
+        ],
+    )
+
+    updated = apply_pattern_calibration(
+        existing,
+        calibration={"action": "dismiss", "pattern_name": "weak close"},
+        now=datetime.fromisoformat("2026-05-01T12:30:00+00:00"),
+    )
+
+    assert updated.patterns == []
 
 
 def test_merge_recurring_patterns_is_idempotent_for_same_session(config):

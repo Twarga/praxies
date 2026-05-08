@@ -301,12 +301,20 @@ class RecurringPatternEntry(StrictModel):
     first_seen: str
     last_seen: str
     recent_sessions: list[str]
+    confirmed: bool = False
 
 
 class RecurringPatternsModel(StrictModel):
     language: Literal["en", "fr", "es"]
     updated_at: str
     patterns: list[RecurringPatternEntry]
+
+
+class PatternCalibrationRequestModel(StrictModel):
+    action: Literal["confirm", "rename", "merge", "dismiss"]
+    pattern_name: str
+    target_name: str = ""
+    target_description: str = ""
 
 
 class WeeklyRollupModel(StrictModel):

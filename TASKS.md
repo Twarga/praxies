@@ -357,7 +357,7 @@ Goal: make Trends show whether the user is improving, not just whether they reco
 - [x] T184 Track completion of practice assignments from one session to the next.
 - [x] T185 Compare the previous next-session goal against the next recording and mark followed, partially followed, or missed.
 - [x] T186 Add trend copy such as "specificity is improving" or "actionability is still weak" based on scorecard movement.
-- [ ] T187 Add a calibration view for recurring behavior patterns: confirm, rename, merge, or dismiss.
+- [x] T187 Add a calibration view for recurring behavior patterns: confirm, rename, merge, or dismiss.
 - [x] T188 Add tests for scorecard aggregation, trend labels, and sparse-data behavior.
 
 Phase gate:

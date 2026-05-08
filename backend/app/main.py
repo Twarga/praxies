@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Res
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 from app.core.settings import APP_VERSION, PATHS
-from app.models import ConfigModel
+from app.models import ConfigModel, PatternCalibrationRequestModel
 from app.services.analysis_service import (
     AnalysisNeedsAttentionError,
     AnalysisRetryExhaustedError,
@@ -38,7 +38,7 @@ from app.services.prompt_builder import (
     build_analysis_system_prompt,
     build_transcript_user_message,
 )
-from app.services.recurring_patterns import load_recurring_patterns
+from app.services.recurring_patterns import calibrate_recurring_patterns, load_recurring_patterns
 from app.services.retention import RETENTION_INTERVAL_SECONDS, run_retention_pass
 from app.services.sessions import (
     append_session_processing_event,
@@ -1281,6 +1281,24 @@ async def get_patterns(language: str) -> dict[str, object]:
     normalized_language = language.strip().lower()
     try:
         patterns = load_recurring_patterns(load_config(), normalized_language)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from None
+
+    return patterns.model_dump(mode="json")
+
+
+@app.post("/api/patterns/{language}/calibrate")
+async def post_pattern_calibration(
+    language: str,
+    payload: PatternCalibrationRequestModel,
+) -> dict[str, object]:
+    normalized_language = language.strip().lower()
+    try:
+        patterns = calibrate_recurring_patterns(
+            load_config(),
+            language=normalized_language,
+            calibration=payload,
+        )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
 
