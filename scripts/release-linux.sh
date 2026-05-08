@@ -51,6 +51,16 @@ require_executable "${resources_dir}/ffmpeg/ffmpeg"
 require_executable "${resources_dir}/ffmpeg/ffprobe"
 require_file "${resources_dir}/whisper/.gitkeep"
 
+if [[ -n "${PRESEED_WHISPER_FROM:-}" || "${PRESEED_WHISPER:-0}" == "1" ]]; then
+  whisper_file_count="$(find "${resources_dir}/whisper" -type f ! -name '.gitkeep' | wc -l | tr -d ' ')"
+  if [[ "${whisper_file_count}" == "0" ]]; then
+    echo "Whisper preseed was requested, but no model files were bundled." >&2
+    exit 1
+  fi
+  run_step "Bundled Whisper cache"
+  echo "Bundled ${whisper_file_count} Whisper cache files into the AppImage resources."
+fi
+
 run_step "Checking bundled Python imports"
 "${resources_dir}/python/bin/python" - <<'PY'
 import fastapi

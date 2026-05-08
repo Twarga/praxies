@@ -308,7 +308,7 @@ Goal: ship a usable Arch Linux desktop build and verify the v1 acceptance list.
 - [x] T159 Bundle backend source/runtime paths for production launch.
 - [x] T160 Bundle Python runtime for AppImage. Verified unpacked production build and AppImage boot with bundled Python backend.
 - [x] T161 Bundle static ffmpeg for AppImage. Verified bundled `ffmpeg` and `ffprobe` binaries in production output.
-- [ ] T162 Bundle/pre-seed Whisper model cache behavior. PARTIAL: packaged app supports `PRAXIS_RESOURCES_PATH/whisper`, explicit `PRAXIS_WHISPER_CACHE_DIR`, and `scripts/preseed-whisper-cache.sh`; the generated AppImage does not currently include a pre-seeded model.
+- [x] T162 Bundle/pre-seed Whisper model cache behavior. Release builds now support `PRESEED_WHISPER=1` or `PRESEED_WHISPER_FROM=/path` and bundle the seeded cache into `electron/resources/whisper`.
 - [x] T163 Desktop entry and launcher behavior.
 - [x] T164 README install/launch/Sway keybind docs.
 - [ ] T165 Full acceptance checklist on real files.

@@ -13,6 +13,7 @@ Date: 2026-05-07
 - Linux AppImage packaging with bundled Python runtime and static FFmpeg/FFprobe resources.
 - Production release script with tests, AppImage build, smoke launch, and SHA-256 checksum.
 - AppImage installer that creates a local launcher and desktop entry.
+- Optional Whisper cache pre-seeding during AppImage builds via `PRESEED_WHISPER=1` or `PRESEED_WHISPER_FROM=/path`.
 
 ## Artifacts
 
@@ -33,8 +34,7 @@ Install locally with:
 
 ## Known Gaps
 
-- Whisper model files are not pre-seeded inside the AppImage by default.
+- Whisper model files are not pre-seeded inside the AppImage by default, but release builds can bundle them explicitly.
 - Prompt calibration still needs 10 real English/French/Spanish recordings.
 - Recurring behavior pattern calibration UI is not implemented yet.
-- Production icon/branding pass is still pending.
 - Full manual fresh-machine release QA is still pending.

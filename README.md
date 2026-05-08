@@ -133,6 +133,18 @@ Build and verify the Linux AppImage release:
 ./scripts/release-linux.sh
 ```
 
+To bundle a pre-seeded Whisper cache from your current machine into the AppImage:
+
+```bash
+PRESEED_WHISPER=1 ./scripts/release-linux.sh
+```
+
+Or point at a specific Whisper cache directory:
+
+```bash
+PRESEED_WHISPER_FROM=/path/to/whisper-cache ./scripts/release-linux.sh
+```
+
 The release script prepares bundled resources, runs backend tests, builds the
 AppImage, smoke-tests launch, and writes:
 
