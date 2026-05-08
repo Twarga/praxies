@@ -391,14 +391,14 @@ Phase gate:
 
 ## Cross-Cutting Testing And Quality
 
-- [ ] Q001 Backend unit tests for config/meta/index/recurring/weekly schemas. PARTIAL: schema validation is exercised indirectly; no dedicated coverage for recurring/weekly behavior.
-- [ ] Q002 File-service tests for safe reads/writes/rebuild/corrupt-index recovery.
+- [x] Q001 Backend unit tests for config/meta/index/recurring/weekly schemas.
+- [x] Q002 File-service tests for safe reads/writes/rebuild/corrupt-index recovery.
 - [x] Q003 Backend integration tests for session create/chunk/finalize/delete/retry. PARTIAL note: retry is covered via API code path less directly than lifecycle.
-- [ ] Q004 Prompt-builder tests for personal context, recurring block, schema, language instructions.
+- [x] Q004 Prompt-builder tests for personal context, recurring block, schema, language instructions.
 - [x] Q005 Streak calculation tests for short sessions/normal/multi-session/video-only.
 - [x] Q006 Recurring-pattern merge and decay tests.
 - [x] Q007 Weekly rollup due-check tests.
-- [ ] Q008 Frontend component tests for StreakGrid/DigestCard/SessionCard/language filters.
+- [x] Q008 Frontend component tests for StreakGrid/DigestCard/SessionCard/language filters.
 - [ ] Q009 Manual QA checklist for camera permissions, crash recovery, OpenRouter failure, phone upload, retention.
 
 Additional current tests:
