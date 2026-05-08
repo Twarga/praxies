@@ -2,7 +2,7 @@
 
 Last audited: 2026-05-01
 
-This file tracks the current project state against the original `Twarga Journal` backlog from `IMPLEMENTATION_PLAN.md`.
+This file tracks the current project state against the original `Twarga Journal` backlog. The earlier implementation-plan document was removed during repo cleanup, but the original task IDs are preserved here.
 The app has since been renamed in code/UI to `Praxis`, but the original task IDs are kept so progress stays traceable.
 
 Legend:

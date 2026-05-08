@@ -6,7 +6,7 @@ Last updated: April 29, 2026
 
 Remake Praxis from a rough utility interface into a polished desktop app for private recording, review, and analysis.
 
-This spec defines the new visual system and UX architecture to use before continuing later backlog work in `TASKS.md`.
+This spec defines the new visual system and UX architecture to use before continuing later backlog work in `docs/TASKS.md`.
 
 ## Product framing
 

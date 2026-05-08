@@ -66,6 +66,13 @@ updates, crash recovery, retention, first-run onboarding, and Linux AppImage
 packaging are implemented. Current release notes are in
 [`docs/RELEASE_NOTES_0.1.0.md`](docs/RELEASE_NOTES_0.1.0.md).
 
+## Product docs
+
+- [`SCOPE.md`](SCOPE.md) - current product direction and future roadmap
+- [`docs/TASKS.md`](docs/TASKS.md) - implementation backlog and verification history
+- [`docs/UI_REDESIGN_SPEC.md`](docs/UI_REDESIGN_SPEC.md) - UI system and interaction direction
+- [`docs/RELEASE_NOTES_0.1.0.md`](docs/RELEASE_NOTES_0.1.0.md) - current packaged release notes
+
 ## Development
 
 Prerequisites:
