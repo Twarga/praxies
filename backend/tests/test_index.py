@@ -64,6 +64,73 @@ def test_video_only_session_counts_for_streak_when_duration_qualifies(config):
     assert index.streak.last_active_date == "2026-05-01"
 
 
+def test_streak_tracks_longest_run_and_current_run_separately(config):
+    first = create_session(
+        config,
+        language="en",
+        title="first",
+        created_at=datetime(2026, 4, 26, 9, 0, tzinfo=timezone.utc),
+    )
+    second = create_session(
+        config,
+        language="en",
+        title="second",
+        created_at=datetime(2026, 4, 27, 9, 0, tzinfo=timezone.utc),
+    )
+    third = create_session(
+        config,
+        language="en",
+        title="third",
+        created_at=datetime(2026, 4, 28, 9, 0, tzinfo=timezone.utc),
+    )
+    latest = create_session(
+        config,
+        language="en",
+        title="latest",
+        created_at=datetime(2026, 5, 1, 9, 0, tzinfo=timezone.utc),
+    )
+
+    for session_id in (first.id, second.id, third.id, latest.id):
+        update_session_meta(config, session_id, updates={"status": "ready", "duration_seconds": 180})
+
+    index = rebuild_index(config, now=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc))
+
+    assert index.streak.current == 1
+    assert index.streak.longest == 3
+    assert index.streak.last_active_date == "2026-05-01"
+    assert index.streak.last_reset_date == "2026-04-30"
+
+
+def test_multiple_qualifying_sessions_on_same_day_count_as_one_streak_day(config):
+    morning = create_session(
+        config,
+        language="en",
+        title="morning",
+        created_at=datetime(2026, 4, 30, 9, 0, tzinfo=timezone.utc),
+    )
+    evening = create_session(
+        config,
+        language="en",
+        title="evening",
+        created_at=datetime(2026, 4, 30, 18, 0, tzinfo=timezone.utc),
+    )
+    latest = create_session(
+        config,
+        language="en",
+        title="latest",
+        created_at=datetime(2026, 5, 1, 9, 0, tzinfo=timezone.utc),
+    )
+
+    for session_id in (morning.id, evening.id, latest.id):
+        update_session_meta(config, session_id, updates={"status": "ready", "duration_seconds": 180})
+
+    index = rebuild_index(config, now=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc))
+
+    assert index.streak.current == 2
+    assert index.streak.longest == 2
+    assert index.streak.last_active_date == "2026-05-01"
+
+
 def test_rebuild_repairs_zero_duration_from_transcript_timestamps(config):
     session = create_session(
         config,
