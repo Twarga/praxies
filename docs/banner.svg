@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" role="img" aria-label="Praxis — Private AI video journaling for deliberate practice">
+  <title>Praxis — Private AI video journaling for deliberate practice</title>
+
+  <defs>
+    <radialGradient id="glow-amber" cx="78%" cy="28%" r="55%">
+      <stop offset="0%" stop-color="#d6a85f" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#d6a85f" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow-green" cx="18%" cy="82%" r="38%">
+      <stop offset="0%" stop-color="#4ade80" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#4ade80" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d6a85f"/>
+      <stop offset="100%" stop-color="#d6a85f" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#08090a" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#08090a" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M 48 0 L 0 0 0 48" fill="none" stroke="#1a1c20" stroke-width="1" opacity="0.55"/>
+    </pattern>
+  </defs>
+
+  <!-- Background stack -->
+  <rect width="1280" height="400" fill="#08090a"/>
+  <rect width="1280" height="400" fill="url(#grid)"/>
+  <rect width="1280" height="400" fill="url(#glow-amber)"/>
+  <rect width="1280" height="400" fill="url(#glow-green)"/>
+
+  <!-- Left content -->
+  <g transform="translate(72, 92)">
+    <!-- Hex logo -->
+    <g transform="translate(0, 36)">
+      <path d="M32 3 L57 17.5 L57 46.5 L32 61 L7 46.5 L7 17.5 Z" fill="#0f1012" stroke="#d6a85f" stroke-width="2"/>
+      <path d="M24 44V18h11.5c6.2 0 10.5 3.7 10.5 9.2 0 5.7-4.3 9.4-10.7 9.4H30v7.4h-6Zm6-13h5.1c2.9 0 4.8-1.4 4.8-3.8 0-2.3-1.8-3.6-4.8-3.6H30V31Z" fill="#f4f1e8"/>
+    </g>
+
+    <!-- Eyebrow -->
+    <text x="88" y="34" font-family="'JetBrains Mono', 'SFMono-Regular', Consolas, monospace" font-size="13" font-weight="700" letter-spacing="3" fill="#d6a85f">PRIVATE AI VIDEO JOURNAL</text>
+
+    <!-- Wordmark -->
+    <text x="84" y="118" font-family="'Space Grotesk', 'Inter', system-ui, sans-serif" font-size="108" font-weight="700" letter-spacing="-5" fill="#f4f1e8">Praxis</text>
+
+    <!-- Tagline -->
+    <text x="88" y="166" font-family="'Inter', system-ui, sans-serif" font-size="26" font-weight="500" fill="#a5a29a">Record. Transcribe. Analyze. Improve.</text>
+
+    <!-- Proof chips -->
+    <g transform="translate(88, 196)" font-family="'JetBrains Mono', monospace" font-size="11" letter-spacing="2">
+      <g>
+        <rect x="0" y="0" width="118" height="26" fill="none" stroke="#2a2c31"/>
+        <text x="10" y="17" fill="#d6a85f">01</text>
+        <text x="30" y="17" fill="#a5a29a">LOCAL-FIRST</text>
+      </g>
+      <g transform="translate(126, 0)">
+        <rect x="0" y="0" width="102" height="26" fill="none" stroke="#2a2c31"/>
+        <text x="10" y="17" fill="#d6a85f">02</text>
+        <text x="30" y="17" fill="#a5a29a">WHISPER</text>
+      </g>
+      <g transform="translate(236, 0)">
+        <rect x="0" y="0" width="112" height="26" fill="none" stroke="#2a2c31"/>
+        <text x="10" y="17" fill="#d6a85f">03</text>
+        <text x="30" y="17" fill="#a5a29a">LITELLM</text>
+      </g>
+      <g transform="translate(356, 0)">
+        <rect x="0" y="0" width="80" height="26" fill="none" stroke="#2a2c31"/>
+        <text x="10" y="17" fill="#d6a85f">04</text>
+        <text x="30" y="17" fill="#a5a29a">MIT</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Right: console preview -->
+  <g transform="translate(732, 68)">
+    <!-- Outer frame shadow -->
+    <rect x="6" y="8" width="492" height="280" fill="#0b0c0e" opacity="0.6"/>
+    <!-- Panel -->
+    <rect x="0" y="0" width="492" height="280" fill="#0f1012" stroke="#3a3d44" stroke-width="1"/>
+    <!-- Top bar -->
+    <rect x="0" y="0" width="492" height="40" fill="#151619"/>
+    <line x1="0" y1="40" x2="492" y2="40" stroke="#2a2c31" stroke-width="1"/>
+    <circle cx="20" cy="20" r="4.5" fill="#ef4444">
+      <!-- no animation (GitHub strips) -->
+    </circle>
+    <circle cx="20" cy="20" r="8" fill="none" stroke="#ef4444" stroke-width="1" opacity="0.35"/>
+    <text x="40" y="25" font-family="'JetBrains Mono', monospace" font-size="12" fill="#a5a29a">today_en_take.webm</text>
+    <text x="432" y="25" font-family="'JetBrains Mono', monospace" font-size="12" fill="#f4f1e8">00:04:12</text>
+
+    <!-- Section: Waveform -->
+    <text x="20" y="64" font-family="'JetBrains Mono', monospace" font-size="10" letter-spacing="2" fill="#6f716e">VOICE WAVEFORM</text>
+    <g transform="translate(20, 76)">
+      <rect x="0"   y="36" width="6" height="16" fill="url(#wave)"/>
+      <rect x="10"  y="22" width="6" height="30" fill="url(#wave)"/>
+      <rect x="20"  y="30" width="6" height="22" fill="url(#wave)"/>
+      <rect x="30"  y="12" width="6" height="40" fill="url(#wave)"/>
+      <rect x="40"  y="26" width="6" height="26" fill="url(#wave)"/>
+      <rect x="50"  y="4"  width="6" height="48" fill="url(#wave)"/>
+      <rect x="60"  y="28" width="6" height="24" fill="url(#wave)"/>
+      <rect x="70"  y="18" width="6" height="34" fill="url(#wave)"/>
+      <rect x="80"  y="0"  width="6" height="52" fill="url(#wave)"/>
+      <rect x="90"  y="24" width="6" height="28" fill="url(#wave)"/>
+      <rect x="100" y="14" width="6" height="38" fill="url(#wave)"/>
+      <rect x="110" y="30" width="6" height="22" fill="url(#wave)"/>
+      <rect x="120" y="8"  width="6" height="44" fill="url(#wave)"/>
+      <rect x="130" y="20" width="6" height="32" fill="url(#wave)"/>
+      <rect x="140" y="2"  width="6" height="50" fill="url(#wave)"/>
+      <rect x="150" y="22" width="6" height="30" fill="url(#wave)"/>
+      <rect x="160" y="10" width="6" height="42" fill="url(#wave)"/>
+      <rect x="170" y="32" width="6" height="20" fill="url(#wave)"/>
+      <rect x="180" y="16" width="6" height="36" fill="url(#wave)"/>
+      <rect x="190" y="6"  width="6" height="46" fill="url(#wave)"/>
+      <rect x="200" y="28" width="6" height="24" fill="url(#wave)"/>
+      <rect x="210" y="20" width="6" height="32" fill="url(#wave)"/>
+      <rect x="220" y="12" width="6" height="40" fill="url(#wave)"/>
+      <rect x="230" y="34" width="6" height="18" fill="url(#wave)"/>
+      <rect x="240" y="24" width="6" height="28" fill="url(#wave)"/>
+      <rect x="250" y="8"  width="6" height="44" fill="url(#wave)"/>
+      <rect x="260" y="18" width="6" height="34" fill="url(#wave)"/>
+      <rect x="270" y="30" width="6" height="22" fill="url(#wave)"/>
+      <rect x="280" y="14" width="6" height="38" fill="url(#wave)"/>
+      <rect x="290" y="26" width="6" height="26" fill="url(#wave)"/>
+      <rect x="300" y="6"  width="6" height="46" fill="url(#wave)"/>
+      <rect x="310" y="20" width="6" height="32" fill="url(#wave)"/>
+      <rect x="320" y="12" width="6" height="40" fill="url(#wave)"/>
+      <rect x="330" y="32" width="6" height="20" fill="url(#wave)"/>
+      <rect x="340" y="24" width="6" height="28" fill="url(#wave)"/>
+      <rect x="350" y="16" width="6" height="36" fill="url(#wave)"/>
+      <rect x="360" y="4"  width="6" height="48" fill="url(#wave)"/>
+      <rect x="370" y="28" width="6" height="24" fill="url(#wave)"/>
+      <rect x="380" y="18" width="6" height="34" fill="url(#wave)"/>
+      <rect x="390" y="30" width="6" height="22" fill="url(#wave)"/>
+      <rect x="400" y="10" width="6" height="42" fill="url(#wave)"/>
+      <rect x="410" y="22" width="6" height="30" fill="url(#wave)"/>
+      <rect x="420" y="14" width="6" height="38" fill="url(#wave)"/>
+      <rect x="430" y="26" width="6" height="26" fill="url(#wave)"/>
+      <rect x="440" y="8"  width="6" height="44" fill="url(#wave)"/>
+    </g>
+
+    <!-- Section: Transcript -->
+    <text x="20" y="158" font-family="'JetBrains Mono', monospace" font-size="10" letter-spacing="2" fill="#6f716e">TRANSCRIPT</text>
+    <text x="20" y="180" font-family="'JetBrains Mono', monospace" font-size="11" fill="#d6a85f">01:18</text>
+    <text x="64" y="180" font-family="'Inter', system-ui, sans-serif" font-size="13" fill="#a5a29a">I keep explaining the plan, but I never</text>
+    <text x="64" y="198" font-family="'Inter', system-ui, sans-serif" font-size="13" fill="#a5a29a">define the next shipped action.</text>
+
+    <!-- Section: AI analysis -->
+    <text x="20" y="226" font-family="'JetBrains Mono', monospace" font-size="10" letter-spacing="2" fill="#6f716e">AI ANALYSIS</text>
+    <text x="20" y="248" font-family="'JetBrains Mono', monospace" font-size="12" fill="#4ade80">whisper: transcript ready</text>
+    <text x="20" y="266" font-family="'JetBrains Mono', monospace" font-size="12" fill="#4ade80">analysis: coach report ready</text>
+  </g>
+
+  <!-- Bottom fade for polish -->
+  <rect x="0" y="380" width="1280" height="20" fill="url(#fade)" opacity="0.6"/>
+</svg>
