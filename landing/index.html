@@ -3,23 +3,68 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Praxis - Private AI video journaling</title>
+    <title>Praxis — Private AI video journaling for speaking practice</title>
     <meta
       name="description"
-      content="Praxis is a private desktop video journal for recording yourself, transcribing with Whisper, analyzing with AI, and tracking recurring speaking patterns."
+      content="Praxis is a private, local-first desktop video journal. Record a session, transcribe it with Whisper, get an AI coach report, and watch your speaking, thinking, and language fluency improve over time."
     >
+    <meta name="keywords" content="video journal, AI journaling, Whisper transcription, speaking practice, language learning, self-review, desktop app, local-first, privacy, faster-whisper, LiteLLM, OpenRouter">
+    <meta name="author" content="Twarga">
     <meta name="theme-color" content="#08090a">
-    <meta property="og:title" content="Praxis - Private AI video journaling">
+    <meta name="color-scheme" content="dark">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Praxis — Private AI video journaling">
     <meta
       property="og:description"
       content="Record yourself. Get the transcript, the critique, the patterns, and the proof that you are improving."
     >
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://twarga.github.io/praxies/">
+    <meta property="og:image" content="https://twarga.github.io/praxies/app-icon.png">
+    <meta property="og:image:alt" content="Praxis app icon">
+    <meta property="og:site_name" content="Praxis">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Praxis — Private AI video journaling">
+    <meta
+      name="twitter:description"
+      content="Record yourself. Get the transcript, the critique, the patterns, and the proof that you are improving."
+    >
+    <meta name="twitter:image" content="https://twarga.github.io/praxies/app-icon.png">
+
     <link rel="canonical" href="https://twarga.github.io/praxies/">
     <link rel="icon" type="image/png" href="./app-icon.png">
+    <link rel="apple-touch-icon" href="./app-icon.png">
     <link rel="stylesheet" href="./styles.css">
+
+    <!-- Structured data: SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Praxis",
+      "description": "A private, local-first desktop video journal that records sessions, transcribes them with Whisper, analyzes them with a configurable LLM, and tracks speaking, thinking, and language fluency over time.",
+      "applicationCategory": "ProductivityApplication",
+      "operatingSystem": "Linux",
+      "url": "https://twarga.github.io/praxies/",
+      "downloadUrl": "https://github.com/Twarga/praxies/releases/latest",
+      "softwareVersion": "0.1.0",
+      "license": "https://github.com/Twarga/praxies/blob/main/LICENSE",
+      "author": {
+        "@type": "Person",
+        "name": "Twarga",
+        "url": "https://github.com/Twarga"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
@@ -39,7 +84,9 @@
           <a href="#screenshots">Screenshots</a>
           <a href="#workflow">Workflow</a>
           <a href="#features">Features</a>
+          <a href="#stack">Stack</a>
           <a href="#privacy">Privacy</a>
+          <a href="#faq">FAQ</a>
         </div>
         <a class="nav-cta" href="https://github.com/Twarga/praxies" aria-label="Open Praxis on GitHub">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .8a11.2 11.2 0 0 0-3.5 21.8c.56.1.77-.24.77-.54v-2c-3.12.68-3.78-1.34-3.78-1.34-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.68.08-.68 1.13.08 1.73 1.16 1.73 1.16 1 1.72 2.63 1.22 3.27.94.1-.73.39-1.22.71-1.5-2.49-.28-5.1-1.24-5.1-5.54 0-1.23.44-2.23 1.16-3.01-.12-.28-.5-1.43.11-2.98 0 0 .94-.3 3.08 1.15a10.6 10.6 0 0 1 5.6 0c2.13-1.45 3.07-1.15 3.07-1.15.61 1.55.23 2.7.11 2.98.72.78 1.16 1.78 1.16 3.01 0 4.31-2.62 5.25-5.12 5.53.4.35.76 1.03.76 2.08v3.08c0 .3.2.65.78.54A11.2 11.2 0 0 0 12 .8Z"></path></svg>
@@ -61,17 +108,18 @@
             <span>Private AI Video Journal</span>
           </div>
           <h1>Praxis</h1>
-          <p class="hero-lede">A private desktop video journal that turns recordings into transcripts, coach reports, language drills, and visible progress over time.</p>
+          <p class="hero-lede">A private, local-first desktop video journal. Record a session, transcribe it with Whisper, get an AI coach report, and watch your speaking, thinking, and language fluency actually improve.</p>
           <div class="hero-actions" aria-label="Primary actions">
             <a class="button button-primary" href="https://github.com/Twarga/praxies/releases/latest">
-              Download AppImage
+              Download for Linux
             </a>
             <a class="button button-secondary" href="https://github.com/Twarga/praxies">View source</a>
           </div>
           <div class="hero-proof" aria-label="Project signals">
             <span><i>01</i> Local journal folder</span>
-            <span><i>02</i> Whisper transcription</span>
+            <span><i>02</i> Whisper runs offline</span>
             <span><i>03</i> Multi-provider AI</span>
+            <span><i>04</i> Open source, MIT</span>
           </div>
         </div>
 
@@ -131,6 +179,22 @@ practice: record a 2-minute answer with one concrete example</code></pre>
             </article>
           </div>
         </div>
+      </section>
+
+      <section id="stack" class="section-shell stack-strip" aria-label="Tech stack">
+        <p class="eyebrow stack-eyebrow">Built with</p>
+        <ul class="stack-chips reveal">
+          <li><span>Electron</span></li>
+          <li><span>React</span></li>
+          <li><span>Vite</span></li>
+          <li><span>Tailwind</span></li>
+          <li><span>FastAPI</span></li>
+          <li><span>Python 3.12</span></li>
+          <li><span>faster-whisper</span></li>
+          <li><span>LiteLLM</span></li>
+          <li><span>FFmpeg</span></li>
+          <li><span>AppImage</span></li>
+        </ul>
       </section>
 
       <section id="screenshots" class="section-shell section-block">
@@ -304,7 +368,7 @@ practice: record a 2-minute answer with one concrete example</code></pre>
           </article>
           <article>
             <strong>Your AI provider</strong>
-            <p>You choose OpenRouter, OpenCode Go, OpenAI-compatible endpoints, or a LiteLLM proxy for report generation.</p>
+            <p>You choose OpenRouter, OpenAI-compatible endpoints, or a LiteLLM proxy for report generation. Switch models per session without leaving the app.</p>
           </article>
         </div>
       </section>
@@ -343,6 +407,63 @@ practice: record a 2-minute answer with one concrete example</code></pre>
         </div>
       </section>
 
+      <section id="faq" class="section-shell section-block">
+        <div class="section-heading reveal">
+          <p class="eyebrow">FAQ</p>
+          <h2>Short answers to the questions that keep coming up.</h2>
+        </div>
+        <div class="faq-grid">
+          <details class="faq-item reveal">
+            <summary>
+              <span class="faq-index">01</span>
+              <span>Is Praxis free and open source?</span>
+              <span class="faq-mark" aria-hidden="true">+</span>
+            </summary>
+            <p>Yes. Praxis is released under the MIT license. The source, the release builds, and the landing page all live on GitHub.</p>
+          </details>
+          <details class="faq-item reveal">
+            <summary>
+              <span class="faq-index">02</span>
+              <span>Where are my recordings stored?</span>
+              <span class="faq-mark" aria-hidden="true">+</span>
+            </summary>
+            <p>In the journal folder you pick on first launch. Videos, transcripts, subtitles, analysis, thumbnails, and metadata all sit next to each other as plain files you can back up, move, or delete.</p>
+          </details>
+          <details class="faq-item reveal">
+            <summary>
+              <span class="faq-index">03</span>
+              <span>Does my data leave my machine?</span>
+              <span class="faq-mark" aria-hidden="true">+</span>
+            </summary>
+            <p>Whisper runs locally, so recordings and transcripts stay on your device. Only the transcript text is sent to the LLM provider you configure (OpenRouter, an OpenAI-compatible endpoint, or a LiteLLM proxy) to generate the coach report. Nothing is uploaded to a Praxis server — there isn't one.</p>
+          </details>
+          <details class="faq-item reveal">
+            <summary>
+              <span class="faq-index">04</span>
+              <span>Which LLMs can I use?</span>
+              <span class="faq-mark" aria-hidden="true">+</span>
+            </summary>
+            <p>Anything reachable through OpenRouter, any OpenAI-compatible chat endpoint, or a LiteLLM proxy. You set the model per session and can swap providers without reinstalling.</p>
+          </details>
+          <details class="faq-item reveal">
+            <summary>
+              <span class="faq-index">05</span>
+              <span>Which platforms are supported?</span>
+              <span class="faq-mark" aria-hidden="true">+</span>
+            </summary>
+            <p>Linux (x86_64) via AppImage today. The app also builds from source on macOS and Windows, but only Linux is packaged right now. Cross-platform builds are planned for v1.</p>
+          </details>
+          <details class="faq-item reveal">
+            <summary>
+              <span class="faq-index">06</span>
+              <span>Is there a mobile version?</span>
+              <span class="faq-mark" aria-hidden="true">+</span>
+            </summary>
+            <p>No standalone mobile app. Praxis does include a LAN phone-upload feature: scan the QR code shown in the app to send a recording from your phone into your desktop journal.</p>
+          </details>
+        </div>
+      </section>
+
       <section class="section-shell final-cta reveal">
         <p class="eyebrow">Release Track</p>
         <h2>Download the AppImage or build it yourself from source.</h2>
@@ -355,8 +476,16 @@ practice: record a 2-minute answer with one concrete example</code></pre>
 
     <footer class="site-footer">
       <div class="section-shell footer-inner">
-        <span>Praxis</span>
-        <span>Private AI video journaling for deliberate practice.</span>
+        <div class="footer-left">
+          <span class="footer-brand">Praxis</span>
+          <span class="footer-tag">Private AI video journaling for deliberate practice.</span>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/Twarga/praxies">GitHub</a>
+          <a href="https://github.com/Twarga/praxies/releases/latest">Download</a>
+          <a href="https://github.com/Twarga/praxies/blob/main/CHANGELOG.md">Changelog</a>
+          <a href="https://github.com/Twarga/praxies/blob/main/LICENSE">MIT License</a>
+        </div>
       </div>
     </footer>
 
