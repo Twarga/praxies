@@ -1,0 +1,70 @@
+name: Bug report
+description: Something in Praxis is broken or behaves incorrectly.
+title: "[Bug] <short summary>"
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        Please fill out what you can so we can reproduce and fix it.
+  - type: input
+    id: version
+    attributes:
+      label: Praxis version
+      description: The app version or git commit you are running.
+      placeholder: "0.1.0 AppImage, or commit abc1234"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How are you running Praxis?
+      options:
+        - Packaged AppImage
+        - Built from source (uv + npm)
+        - Dev mode (./scripts/dev.sh run)
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "Arch Linux, kernel 6.9, Wayland / Sway"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug. Include the exact steps you took.
+      placeholder: |
+        1. Start a new recording
+        2. Stop after ~30s
+        3. Click Save -> ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Relevant log excerpts if you have them. The installer prints the log
+        path; backend errors are usually the most useful.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I am not including private recordings, transcripts, or API keys.
+          required: true

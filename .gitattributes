@@ -1,0 +1,31 @@
+# Normalize line endings across platforms
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.webp binary
+*.webm binary
+*.mp4 binary
+*.wav binary
+*.mp3 binary
+*.AppImage binary
+*.zip binary
+*.tar binary
+*.tar.gz binary
+*.pdf binary
+
+# Keep shell scripts LF
+*.sh text eol=lf
+
+# Hide generated/vendored paths from GitHub language stats
+frontend/node_modules/** linguist-vendored
+frontend/dist/** linguist-generated
+frontend/release/** linguist-generated
+.venv/** linguist-vendored
+venv/** linguist-vendored
+uv.lock linguist-generated
+frontend/package-lock.json linguist-generated
+TwargaJournal/** linguist-vendored
