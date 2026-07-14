@@ -22,6 +22,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - uses: astral-sh/setup-uv@v6
+      - name: Install Python dependencies
+        run: uv sync --extra dev
       - name: Install frontend dependencies
         run: npm ci
         working-directory: frontend
@@ -29,7 +31,6 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y xvfb xauth libgtk-3-0 libnss3 libasound2t64 libxss1 libgbm1
       - name: Build and verify release
         env:
-          PRAXIS_CONTAINER_RUNTIME_BUILD: "0"
           PRAXIS_RELEASE_BASE_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
         run: xvfb-run -a ./scripts/release-linux.sh
       - name: Sign AppImage
@@ -50,6 +51,7 @@ jobs:
             frontend/release/Praxis-*.AppImage
             frontend/release/Praxis-*.AppImage.sha256
             frontend/release/Praxis-*.AppImage.minisig
+            frontend/release/Praxis-install.sh
             frontend/release/latest-linux.json
           if-no-files-found: error
       - name: Publish GitHub release assets
@@ -61,4 +63,5 @@ jobs:
             frontend/release/Praxis-*.AppImage
             frontend/release/Praxis-*.AppImage.sha256
             frontend/release/Praxis-*.AppImage.minisig
+            frontend/release/Praxis-install.sh
             frontend/release/latest-linux.json

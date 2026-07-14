@@ -42,13 +42,25 @@ Praxis is a Linux-first Electron desktop app with a FastAPI backend.
 ```bash
 git clone https://github.com/Twarga/praxies.git
 cd praxies
-./scripts/install.sh
+uv sync --extra dev
+cd frontend && npm install && cd ..
 ./scripts/dev.sh
 ```
 
 The launcher starts the backend, Vite frontend, and Electron desktop window. Use `./scripts/dev.sh --web` when you only need the browser surface.
 
-Requirements: Python 3.12+, Node.js/npm, and the normal desktop dependencies needed by Electron. The installer prepares the Python environment and frontend dependencies.
+Requirements: Python 3.12+, [uv](https://docs.astral.sh/uv/), Node.js/npm, and the normal desktop dependencies needed by Electron.
+
+### Install the released desktop app
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Twarga/praxies/main/scripts/install.sh | bash
+```
+
+The installer downloads the latest Linux AppImage, verifies its SHA-256 checksum,
+adds a `praxis` launcher and desktop entry, then starts onboarding. Use
+`praxis --check` to verify an existing installation or `scripts/install.sh --uninstall`
+to remove only application files.
 
 ## How your data is handled
 

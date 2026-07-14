@@ -7,20 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-14
+
 ### Added
 
-- MIT license, contributing guide, security policy, and code of conduct.
-- GitHub issue forms (bug, feature) and pull request template.
-- `.gitattributes` for consistent line endings and language stats.
-- Landing page: tech-stack strip, FAQ section, Open Graph image, and
-  JSON-LD `SoftwareApplication` structured data.
+- A complete desktop workspace remake with six selectable visual themes.
+- A redesigned first-run flow that lets people activate multiple coaching tracks
+  together, including journaling, language practice, interviews, and presentations.
+- Camera and microphone preview before recording, advanced device controls, and
+  clearer exit and navigation behavior.
+- Local Faster-Whisper runtime verification and a repaired transcription speed
+  benchmark path.
+- A direct "Run fresh analysis" action from every completed session.
+- Single-language and bilingual subtitle export, translation with the selected
+  AI provider, and burned-in MP4 output.
+- Provider activation and diagnostics surfaces that use explicit connections
+  rather than legacy connection reuse.
+- A new professional repository identity: a continuous-loop logo, release
+  banner, refreshed README, product metadata, and GitHub Pages landing site.
+- Reproducible Linux AppImage packaging scripts, release metadata, and a
+  one-command installer that downloads and verifies the latest release.
 
 ### Changed
 
-- Landing page copy: clarified supported LLM providers (OpenRouter, LiteLLM
-  proxy, OpenAI-compatible endpoints) and tightened wording.
-- `README.md`: added accurate badges, screenshot, installation vs development
-  sections, license and contributing links.
+- Reports now lead with one main lesson, evidence, and the next drill instead
+  of dense scorecards and divider-heavy layouts.
+- Coaching prompts use the selected tracks and actual recording context, so a
+  product-testing session is not incorrectly treated as a generic personal
+  journal entry.
+- Recording, practice, progress, settings, and onboarding surfaces are calmer,
+  more readable, and use top-centre desktop notifications.
+- The landing site is rebuilt around the record → understand → practise loop.
+
+### Fixed
+
+- Provider configuration no longer depends on stale inherited connections.
+- The local Whisper benchmark uses the correct operating-system import.
 
 ## [0.1.0] - 2026-05-07
 
@@ -60,5 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Recurring behavior pattern calibration UI is not implemented yet.
 - Full manual fresh-machine release QA is still pending.
 
-[Unreleased]: https://github.com/Twarga/praxies/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Twarga/praxies/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Twarga/praxies/releases/tag/v0.2.0
 [0.1.0]: https://github.com/Twarga/praxies/releases/tag/v0.1.0

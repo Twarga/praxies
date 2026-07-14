@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="0.1.0"
+VERSION="0.2.0"
 APP_NAME="Praxis"
+RELEASE_METADATA_URL="${PRAXIS_RELEASE_METADATA_URL:-https://github.com/Twarga/praxies/releases/latest/download/latest-linux.json}"
 INSTALL_ROOT="${PRAXIS_INSTALL_ROOT:-${HOME}/.local/share/praxis}"
 BIN_DIR="${PRAXIS_BIN_DIR:-${HOME}/.local/bin}"
 APPS_DIR="${PRAXIS_APPS_DIR:-${HOME}/.local/share/applications}"
@@ -18,8 +19,8 @@ usage() {
 Praxis ${VERSION} Linux installer
 
 Usage: install.sh [options]
-  --artifact PATH|URL    AppImage to install
-  --checksum PATH|URL    SHA-256 file (defaults to ARTIFACT.sha256)
+  --artifact PATH|URL    AppImage to install (defaults to the latest release)
+  --checksum PATH|URL    SHA-256 file (defaults to the latest release checksum)
   --signature PATH|URL   minisign signature (requires --public-key)
   --public-key KEY       minisign public key
   --check                Check an existing installation without changing it
@@ -40,6 +41,11 @@ fetch() {
   else
     cp "${source#file://}" "$target"
   fi
+}
+
+json_value() {
+  local key="$1" file="$2"
+  sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$file" | head -n 1
 }
 
 while (($#)); do
@@ -89,16 +95,19 @@ if [[ "$mode" == check ]]; then
   exit 0
 fi
 
-if [[ -z "$artifact" ]]; then
-  artifact="$(find "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/frontend/release" -maxdepth 1 -name 'Praxis-*.AppImage' -type f -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')"
-fi
-[[ -n "$artifact" ]] || die "provide --artifact PATH|URL or build a release first"
-
 available_kb="$(df -Pk "$HOME" | awk 'NR==2 {print $4}')"
 required_kb=2097152
 ((available_kb >= required_kb)) || die "at least 2 GiB free disk space is required"
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+if [[ -z "$artifact" ]]; then
+  metadata="$tmp/latest-linux.json"
+  fetch "$RELEASE_METADATA_URL" "$metadata" || die "could not fetch release metadata"
+  artifact="$(json_value appimage_url "$metadata")"
+  checksum="${checksum:-$(json_value sha256_url "$metadata")}"
+  [[ -n "$artifact" && -n "$checksum" ]] || die "latest release metadata is incomplete"
+  note "Release" "$(json_value version "$metadata")"
+fi
 appimage="$tmp/Praxis.AppImage"
 fetch "$artifact" "$appimage"
 chmod +x "$appimage"
