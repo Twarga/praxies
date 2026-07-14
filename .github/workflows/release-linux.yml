@@ -28,7 +28,7 @@ jobs:
         run: npm ci
         working-directory: frontend
       - name: Install release runtime dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y xvfb xauth libgtk-3-0 libnss3 libasound2t64 libxss1 libgbm1
+        run: sudo apt-get update -qq && sudo apt-get install -y xvfb xauth ffmpeg libgtk-3-0 libnss3 libasound2t64 libxss1 libgbm1
       - name: Build and verify release
         env:
           PRAXIS_RELEASE_BASE_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
