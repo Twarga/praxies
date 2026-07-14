@@ -1,6 +1,8 @@
 # Praxis Landing Page Design
 
-Last updated: May 3, 2026
+Last updated: 2026-07-12
+
+**Scope**: This document controls the GitHub Pages landing page at `landing/` only. It does not apply to the desktop application UI. The desktop application design is defined in `docs/UI_REDESIGN_SPEC.md`.
 
 ## Direction
 

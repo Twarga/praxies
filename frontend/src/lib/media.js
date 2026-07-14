@@ -30,18 +30,19 @@ export const RECORDING_PERMISSION_COPY = {
   requesting: "requesting camera and microphone access…",
 };
 
-function buildCameraConstraints(videoQuality = DEFAULT_RECORDING_QUALITY) {
+function buildCameraConstraints(videoQuality = DEFAULT_RECORDING_QUALITY, { videoDeviceId = "", audioDeviceId = "" } = {}) {
   const profile = getRecordingProfile(videoQuality);
 
   return {
     video: {
       aspectRatio: { ideal: profile.width / profile.height },
-      facingMode: "user",
+      ...(videoDeviceId ? { deviceId: { exact: videoDeviceId } } : { facingMode: "user" }),
       width: { ideal: profile.width, max: profile.width },
       height: { ideal: profile.height, max: profile.height },
       frameRate: { ideal: profile.frameRate, max: profile.frameRate },
     },
     audio: {
+      ...(audioDeviceId ? { deviceId: { exact: audioDeviceId } } : {}),
       autoGainControl: true,
       channelCount: 1,
       echoCancellation: true,
@@ -106,13 +107,13 @@ export async function playReadySound() {
 
 export async function requestRecordingStream(
   mediaDevices = globalThis.navigator?.mediaDevices,
-  { videoQuality = DEFAULT_RECORDING_QUALITY } = {},
+  { videoQuality = DEFAULT_RECORDING_QUALITY, videoDeviceId = "", audioDeviceId = "" } = {},
 ) {
   if (!mediaDevices?.getUserMedia) {
     throw new Error("Camera capture is not available.");
   }
 
-  const stream = await mediaDevices.getUserMedia(buildCameraConstraints(videoQuality));
+  const stream = await mediaDevices.getUserMedia(buildCameraConstraints(videoQuality, { videoDeviceId, audioDeviceId }));
 
   for (const track of stream.getVideoTracks()) {
     try {

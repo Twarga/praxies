@@ -1,7 +1,7 @@
 appId: com.twarga.praxis
 productName: Praxis
 copyright: Copyright 2026 Twarga
-icon: build/icon.png
+icon: public/app-icon.png
 asar: true
 directories:
   output: release
@@ -11,24 +11,20 @@ files:
   - "!electron/resources/**"
   - package.json
 extraResources:
-  - from: electron/resources/python
-    to: python
+  - from: electron/resources/backend-runtime
+    to: backend-runtime
   - from: electron/resources/ffmpeg
     to: ffmpeg
   - from: electron/resources/whisper
     to: whisper
-  - from: ../backend
-    to: backend
-    filter:
-      - app/**/*
-      - pyproject.toml
-      - uv.lock
   - from: ../scripts
     to: scripts
     filter:
       - dev.sh
+  - from: ../assets/benchmark
+    to: benchmark
 linux:
-  icon: build/icon.png
+  icon: public/app-icon.png
   target:
     - target: AppImage
       arch:

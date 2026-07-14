@@ -78,13 +78,10 @@ def build_default_config(paths: AppPaths = PATHS) -> ConfigModel:
         llm={
             "provider": "openrouter",
             "api_key": "",
-            "model": "google/gemini-2.5-flash-lite",
+            "model": "",
             "base_url": "",
             "provider_api_keys": {},
-            "provider_models": {
-                "openrouter": "google/gemini-2.5-flash-lite",
-                "opencode_go": "deepseek-v4-flash",
-            },
+            "provider_models": {},
             "provider_base_urls": {},
         },
         whisper={
@@ -115,7 +112,10 @@ def write_config(config: ConfigModel, config_file: Path) -> None:
 def load_config(paths: AppPaths = PATHS) -> ConfigModel:
     if not paths.config_file.exists():
         if paths.legacy_config_file.exists():
-            legacy_payload = _normalize_legacy_config_payload(read_json_file(paths.legacy_config_file))
+            legacy_raw = read_json_file(paths.legacy_config_file)
+            if not isinstance(legacy_raw, dict):
+                raise ValueError(f"Corrupted legacy config: expected dict, got {type(legacy_raw).__name__}")
+            legacy_payload = _normalize_legacy_config_payload(legacy_raw)
             migrated_config = ConfigModel.model_validate(legacy_payload)
             write_config(migrated_config, paths.config_file)
             return migrated_config
@@ -125,6 +125,8 @@ def load_config(paths: AppPaths = PATHS) -> ConfigModel:
         return default_config
 
     raw_payload = read_json_file(paths.config_file)
+    if not isinstance(raw_payload, dict):
+        raise ValueError(f"Corrupted config: expected dict, got {type(raw_payload).__name__}")
     payload = _normalize_legacy_config_payload(raw_payload)
     config = ConfigModel.model_validate(payload)
     if payload != raw_payload or payload != config.model_dump(mode="json"):

@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.models import AnalysisModel
+from app.models.schemas import AnalysisModelV3
 from app.services.llm_client import LiteLLMOpenRouterClient
 
 
@@ -120,6 +121,40 @@ def run_analysis_with_retries(
                 continue
 
             raise
+
+
+def run_report_v3_with_retries(
+    *, client, config, system_prompt: str, user_message: str,
+) -> tuple[AnalysisModelV3, str]:
+    """Generate report v3, retrying once when the provider returns malformed JSON."""
+    from app.services.prompt_builder_v3 import parse_report_v3_response
+    from app.services.report_compat import map_v2_to_v3
+
+    last_raw = ""
+    current_prompt = system_prompt
+    for attempt in range(2):
+        try:
+            last_raw = client.analyze_session(
+                config=config,
+                system_prompt=current_prompt,
+                user_message=user_message,
+            )
+            try:
+                return parse_report_v3_response(last_raw), last_raw
+            except ValueError:
+                payload = json.loads(last_raw)
+                if isinstance(payload, dict) and int(payload.get("schema_version", 0) or 0) in {1, 2}:
+                    return AnalysisModelV3.model_validate(map_v2_to_v3(payload)), last_raw
+                raise
+        except (ValueError, AnalysisValidationError) as error:
+            if attempt == 1:
+                raise AnalysisRetryExhaustedError(
+                    "Report remained malformed after retry.", last_raw=last_raw,
+                ) from error
+            current_prompt = f"{system_prompt}\n\nRetry: return ONLY VALID JSON matching schema version 3."
+        except Exception:
+            raise
+    raise AnalysisRetryExhaustedError("Report generation failed.", last_raw=last_raw)
 
 
 def _extract_status_code(error: Exception) -> int | None:

@@ -6,6 +6,18 @@ from app.core.settings import APP_VERSION, AppPaths
 from app.models import ConfigModel
 
 
+@pytest.fixture(autouse=True)
+def isolate_provider_state(tmp_path, monkeypatch):
+    """Keep tests from reading or mutating the user's real provider connections."""
+    from app.providers import state as provider_state
+
+    monkeypatch.setattr(
+        provider_state,
+        "PROVIDER_STATE_PATH",
+        tmp_path / "provider-state" / "providers.json",
+    )
+
+
 @pytest.fixture
 def app_paths(tmp_path) -> AppPaths:
     home = tmp_path / "home"

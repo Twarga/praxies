@@ -1,0 +1,47 @@
+/* Theme 4: Brutalist Terminal — monospace, terminal green, raw data */
+[data-theme="4"],
+[data-theme="4"] :root {
+  --praxis-bg-app: #0D0D0D;
+  --praxis-bg-canvas: #0D0D0D;
+  --praxis-bg-panel: #141414;
+  --praxis-bg-panel-raised: #141414;
+  --praxis-bg-elevated: #1A1A1A;
+  --praxis-glass-chrome: rgba(20, 20, 20, 0.92);
+  --praxis-glass-overlay: rgba(20, 20, 20, 0.96);
+  --praxis-glass-reading: #141414;
+  --praxis-glass-highlight: rgba(0, 227, 94, 0.06);
+  --praxis-text-primary: #EFEFEF;
+  --praxis-text-secondary: #D4D4D4;
+  --praxis-text-muted: #8A8A8A;
+  --praxis-on-accent: #0A0A0A;
+  --praxis-on-record: #FFFFFF;
+  --praxis-on-warning: #0A0A0A;
+  --praxis-on-success: #0A0A0A;
+  --praxis-video-surface: #000000;
+  --praxis-line-subtle: rgba(255, 255, 255, 0.08);
+  --praxis-line-strong: rgba(255, 255, 255, 0.16);
+  --praxis-accent: #00E35E;
+  --praxis-accent-soft: rgba(0, 227, 94, 0.1);
+  --praxis-accent-muted: rgba(0, 227, 94, 0.05);
+  --praxis-success: #00E35E;
+  --praxis-success-soft: rgba(0, 227, 94, 0.1);
+  --praxis-warning: #E3A000;
+  --praxis-warning-soft: rgba(227, 160, 0, 0.1);
+  --praxis-danger: #E32E00;
+  --praxis-danger-soft: rgba(227, 46, 0, 0.1);
+  --praxis-record: #E32E00;
+  --praxis-focus-ring: rgba(0, 227, 94, 0.5);
+  --praxis-focus: #00E35E;
+  --praxis-hover: rgba(255, 255, 255, 0.04);
+  --praxis-bg-hover: rgba(255, 255, 255, 0.04);
+  --praxis-active: rgba(255, 255, 255, 0.08);
+  --praxis-selected: rgba(0, 227, 94, 0.1);
+  --praxis-disabled: rgba(107, 107, 107, 0.3);
+  --praxis-shadow-overlay: none;
+  --praxis-radius-sm: 0px;
+  --praxis-radius-md: 0px;
+  --praxis-radius-lg: 0px;
+  --praxis-radius-modal: 0px;
+  --praxis-font-sans: "JetBrains Mono", "IBM Plex Mono", monospace;
+  --praxis-font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+}

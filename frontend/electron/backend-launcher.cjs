@@ -16,6 +16,10 @@ function getBackendPaths() {
   }
 
   const resourcesPath = process.resourcesPath;
+  const frozenBackend = join(resourcesPath, "backend-runtime", "praxis-backend", "praxis-backend");
+  if (existsSync(frozenBackend)) {
+    return { backendRoot: resourcesPath, pythonExecutable: frozenBackend, frozen: true };
+  }
   const bundledPython = join(resourcesPath, "python", "bin", "python");
   const hasBundledPython = existsSync(bundledPython);
 
@@ -24,6 +28,7 @@ function getBackendPaths() {
     pythonExecutable: hasBundledPython
       ? bundledPython
       : (process.env.PRAXIES_PYTHON || "python3"),
+    frozen: false,
   };
 }
 
@@ -56,11 +61,11 @@ async function launchBackend() {
     };
   }
 
-  const { backendRoot, pythonExecutable } = getBackendPaths();
+  const { backendRoot, pythonExecutable, frozen = false } = getBackendPaths();
 
   const child = spawn(
     pythonExecutable,
-    ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", String(defaultPort)],
+    frozen ? [] : ["-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", String(defaultPort)],
     {
       cwd: backendRoot,
       env: {

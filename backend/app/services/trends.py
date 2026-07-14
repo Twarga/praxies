@@ -45,6 +45,12 @@ def build_trends_payload(
     entries = _load_trend_entries(config, start_date=start_date, reference=reference)
     volume_metas = _load_volume_metas(config, start_date=start_date, reference=reference)
 
+    from app.services.coaching_repository import get_assignment_history, get_goal_history
+    goals = get_goal_history(config)
+    assignments = get_assignment_history(config)
+    completed_goals = sum(1 for goal in goals if goal.status == "completed")
+    completed_assignments = sum(1 for assignment in assignments if assignment.completed)
+
     return {
         "range": normalized_range,
         "generated_at": reference.isoformat(timespec="seconds"),
@@ -64,6 +70,14 @@ def build_trends_payload(
                 "fr": sum(1 for meta, _analysis in entries if meta.language == "fr"),
                 "es": sum(1 for meta, _analysis in entries if meta.language == "es"),
             },
+        },
+        "goal_summary": {
+            "goals_total": len(goals),
+            "goals_completed": completed_goals,
+            "goal_completion_rate": round(completed_goals / len(goals) * 100, 1) if goals else None,
+            "assignments_total": len(assignments),
+            "assignments_completed": completed_assignments,
+            "assignment_completion_rate": round(completed_assignments / len(assignments) * 100, 1) if assignments else None,
         },
         "fluency_by_language": _build_fluency_by_language(entries, reference),
         "scorecard_by_language": _build_scorecard_by_language(entries, reference),

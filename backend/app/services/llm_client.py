@@ -1,23 +1,12 @@
 from __future__ import annotations
 
 from typing import Any
+import asyncio
 
 from app.models import ConfigModel
 
 
 OPENCODE_GO_BASE_URL = "https://opencode.ai/zen/go/v1"
-OPENCODE_GO_MODELS = [
-    "glm-5.1",
-    "glm-5",
-    "kimi-k2.6",
-    "kimi-k2.5",
-    "deepseek-v4-pro",
-    "deepseek-v4-flash",
-    "mimo-v2.5",
-    "mimo-v2.5-pro",
-    "qwen3.6-plus",
-    "qwen3.5-plus",
-]
 
 
 class LlmClientError(RuntimeError):
@@ -60,7 +49,6 @@ def get_llm_provider_options() -> dict[str, object]:
                 "description": "OpenCode Go subscription endpoint using an OpenAI-compatible API.",
                 "requires_base_url": False,
                 "base_url": OPENCODE_GO_BASE_URL,
-                "models": OPENCODE_GO_MODELS,
             },
             {
                 "id": "openai_compatible",
@@ -109,6 +97,16 @@ class LiteLLMClient:
         temperature: float = 0.2,
         max_tokens: int = 4000,
     ) -> str:
+        managed_content = self._complete_with_provider_connection(
+            system_prompt=system_prompt,
+            user_message=user_message,
+            model_id=model_id,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        if managed_content is not None:
+            return managed_content
+
         completion = self._get_completion_fn()
         request = self._build_request(
             config=config,
@@ -136,6 +134,48 @@ class LiteLLMClient:
 
         return content
 
+    def _complete_with_provider_connection(
+        self, *, system_prompt: str, user_message: str, model_id: str | None,
+        temperature: float, max_tokens: int,
+    ) -> str | None:
+        """Use the active v2 provider connection when one is configured."""
+        from app.providers.adapters import get_adapter
+        from app.providers.state import get_active_connection_id, get_connection
+        from app.storage.secrets import read_secret
+
+        connection_id = get_active_connection_id()
+        if not connection_id:
+            return None
+        connection = get_connection(connection_id)
+        if not connection:
+            return None
+        adapter = get_adapter(str(connection.get("provider_id", "")))
+        selected_model = model_id or str(connection.get("selected_model_id", ""))
+        if adapter is None or not selected_model:
+            raise LlmClientError("Active provider connection or model is unavailable.")
+        credentials = {"base_url": connection.get("base_url", "")}
+        secret_id = str(connection.get("auth_profile_id", ""))
+        if secret_id:
+            secret = read_secret(secret_id)
+            if secret is None:
+                raise LlmClientError("Stored provider credential is unavailable.")
+            credentials["api_key"] = secret
+        result = asyncio.run(adapter.generate(
+            credentials,
+            selected_model,
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format={"type": "json_object"},
+        ))
+        content = str(result.get("content", ""))
+        if not content:
+            raise LlmClientError("Provider response did not contain message content.")
+        return content
+
     def _build_request(
         self,
         *,
@@ -159,7 +199,9 @@ class LiteLLMClient:
         elif provider == "opencode_go":
             if not api_key:
                 raise LlmClientError("OpenCode Go API key is missing.")
-            model = f"openai/{selected_model or OPENCODE_GO_MODELS[0]}"
+            if not selected_model:
+                raise LlmClientError("No model selected for OpenCode Go.")
+            model = f"openai/{selected_model}"
             api_base = OPENCODE_GO_BASE_URL
         elif provider == "openai_compatible":
             if not api_key:

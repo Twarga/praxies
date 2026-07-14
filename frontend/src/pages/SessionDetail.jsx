@@ -9,7 +9,6 @@ import {
   Download,
   Loader2,
   RotateCcw,
-  SlidersHorizontal,
   Target,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -22,6 +21,7 @@ import {
   getSessionVideoUrl,
   loadSession,
   markSessionRead,
+  renameSession,
   reanalyzeSession,
   retrySessionProcessing,
   updateSessionPractice,
@@ -39,32 +39,26 @@ import {
   isProcessingStatus,
   isReadyStatus,
 } from "../lib/sessionUi.js";
+import { openDesktopPath } from "../lib/desktop.js";
+import { SessionCheckin } from "../components/praxis/SessionCheckin.jsx";
+import { SessionWaveform } from "../components/praxis/SessionWaveform.jsx";
+import { SessionReviewWorkspace } from "../components/praxis/SessionReviewWorkspace.jsx";
+import {
+  CoachingReport,
+  FillerWords,
+  hasReadableCoachingReport,
+  ListBlock,
+  PatternsHitTodayBlock,
+  PracticeTracker,
+  StatBlock,
+} from "../components/praxis/SessionReportSections.jsx";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/Tabs.jsx";
 
 const SUBTITLE_LANGUAGE_OPTIONS = [
   { code: "en", label: "EN" },
   { code: "fr", label: "FR" },
   { code: "es", label: "ES" },
   { code: "ar", label: "AR" },
-];
-
-const ANALYSIS_PROVIDER_OPTIONS = [
-  { value: "openrouter", label: "OpenRouter" },
-  { value: "opencode_go", label: "OpenCode Go" },
-  { value: "openai_compatible", label: "OpenAI API" },
-  { value: "litellm_proxy", label: "LiteLLM proxy" },
-];
-
-const OPENCODE_GO_MODELS = [
-  "deepseek-v4-flash",
-  "deepseek-v4-pro",
-  "qwen3.6-plus",
-  "qwen3.5-plus",
-  "glm-5.1",
-  "glm-5",
-  "kimi-k2.6",
-  "kimi-k2.5",
-  "mimo-v2.5",
-  "mimo-v2.5-pro",
 ];
 
 function getDefaultSubtitleLanguage(sourceLanguage) {
@@ -121,29 +115,6 @@ function readTimelineDurationFromVideo(video, fallbackDuration = 0) {
   } catch {}
 
   return normalizeMediaDuration(fallbackDuration);
-}
-
-function buildFallbackWaveformBars(segments, duration, count = 72) {
-  if (!segments || segments.length === 0) {
-    return Array.from({ length: count }, (_, index) => 0.22 + ((index % 5) * 0.04));
-  }
-
-  const totalDuration =
-    Math.max(
-      Number(duration) || 0,
-      Number(segments.at(-1)?.end_seconds) || 0,
-      1,
-    ) || 1;
-
-  return Array.from({ length: count }, (_, index) => {
-    const time = (index / count) * totalDuration;
-    const segment = segments.find(
-      (entry) =>
-        Number(entry.start_seconds) <= time && Number(entry.end_seconds) >= time,
-    );
-    const textLength = segment?.text?.length ?? 0;
-    return clamp01(0.18 + ((textLength % 24) / 24) * 0.72);
-  });
 }
 
 async function copyText(text) {
@@ -212,76 +183,20 @@ function getProcessingStepTone(step, meta) {
 }
 
 function getTerminalLineTone(level) {
-  if (level === "success") return "text-[#4ADE80]";
-  if (level === "warning") return "text-[#F27D26]";
-  if (level === "error") return "text-red-400";
-  return "text-[#D1D1D1]";
-}
-
-function Waveform({ bars, segments, currentTime, duration, onSeek }) {
-  const waveformBars = useMemo(() => {
-    if (Array.isArray(bars) && bars.length > 0) {
-      return bars.map((value) => clamp01(value));
-    }
-    return buildFallbackWaveformBars(segments, duration);
-  }, [bars, segments, duration]);
-
-  const safeDuration = normalizeMediaDuration(Number(duration));
-  const transcriptDuration = Math.max(Number(segments?.at(-1)?.end_seconds) || 0, 0);
-  const playedRatio = safeDuration > 0 ? Math.min(1, currentTime / safeDuration) : 0;
-  const displayedDuration = safeDuration > 0 ? safeDuration : transcriptDuration;
-
-  return (
-    <div className="h-24 bg-[#151619] p-4 flex flex-col justify-between border-t border-[#2A2C31]">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-mono opacity-50 uppercase tracking-widest">
-          Voice waveform
-        </span>
-        <span className="text-[10px] font-mono opacity-50 tnum">
-          {formatSecondsTimestamp(currentTime)} / {formatSecondsTimestamp(displayedDuration)}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={(event) => {
-          if (!safeDuration) return;
-          const rect = event.currentTarget.getBoundingClientRect();
-          const ratio = (event.clientX - rect.left) / rect.width;
-          onSeek(Math.max(0, Math.min(1, ratio)) * safeDuration);
-        }}
-        className="relative flex items-end gap-[2px] h-10 w-full"
-        aria-label="Seek"
-      >
-        {waveformBars.map((height, index) => {
-          const ratio = (index + 0.5) / waveformBars.length;
-          const active = ratio <= playedRatio;
-          return (
-            <div
-              key={index}
-              className={`flex-1 rounded-t-sm transition-colors ${
-                active ? "bg-white" : "bg-white/30"
-              }`}
-              style={{ height: `${18 + height * 82}%` }}
-            />
-          );
-        })}
-        <div
-          className="pointer-events-none absolute inset-y-0 w-px bg-[#4ADE80]/90 shadow-[0_0_12px_rgba(74,222,128,0.45)]"
-          style={{ left: `calc(${playedRatio * 100}% - 0.5px)` }}
-        />
-      </button>
-    </div>
-  );
+  if (level === "success") return "text-[var(--praxis-success)]";
+  if (level === "warning") return "text-[var(--praxis-warning)]";
+  if (level === "error") return "text-[var(--praxis-danger)]";
+  return "text-[var(--praxis-text-secondary)]";
 }
 
 function PipelineStep({ step, meta }) {
   const tone = getProcessingStepTone(step, meta);
   const toneClass =
     tone === "done"
-      ? "border-[#4ADE80]/40 bg-[#1C3E2F] text-[#4ADE80]"
+      ? "border-[var(--praxis-success)]/40 bg-[var(--praxis-success-soft)] text-[var(--praxis-success)]"
       : tone === "active"
-        ? "border-[#F27D26]/40 bg-[#F27D26]/10 text-[#F27D26]"
-        : "border-[#2A2C31] bg-[#1C1D21] text-[#D1D1D1]";
+        ? "border-[var(--praxis-warning)]/40 bg-[var(--praxis-warning)]/10 text-[var(--praxis-warning)]"
+        : "border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)] text-[var(--praxis-text-secondary)]";
 
   return (
     <div className={`rounded-lg border px-3 py-2 transition-colors ${toneClass}`}>
@@ -293,27 +208,27 @@ function PipelineStep({ step, meta }) {
 
 function LoadingSessionState() {
   return (
-    <div className="flex h-full flex-col bg-[#0F1012]">
-      <header className="h-16 shrink-0 border-b border-[#2A2C31] bg-[#151619] px-8 flex items-center justify-between">
-        <div className="h-4 w-32 rounded bg-[#2A2C31] praxis-shimmer" />
-        <div className="h-6 w-24 rounded bg-[#2A2C31] praxis-shimmer" />
+    <div className="flex h-full flex-col bg-[var(--praxis-bg-app)]" role="status" aria-label="Loading session">
+      <header className="h-16 shrink-0 border-b border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel)] px-8 flex items-center justify-between">
+        <div className="h-4 w-32 rounded bg-[var(--praxis-line-subtle)] praxis-shimmer" />
+        <div className="h-6 w-24 rounded bg-[var(--praxis-line-subtle)] praxis-shimmer" />
       </header>
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 p-8 lg:grid-cols-[420px_1fr]">
-        <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-4">
-          <div className="aspect-video rounded bg-[#0A0B0D] praxis-shimmer" />
-          <div className="mt-4 h-3 w-2/3 rounded bg-[#2A2C31] praxis-shimmer" />
-          <div className="mt-3 h-3 w-1/2 rounded bg-[#2A2C31] praxis-shimmer" />
+        <div className="rounded-lg border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel)] p-4">
+          <div className="aspect-video rounded bg-[var(--praxis-bg-app)] praxis-shimmer" />
+          <div className="mt-4 h-3 w-2/3 rounded bg-[var(--praxis-line-subtle)] praxis-shimmer" />
+          <div className="mt-3 h-3 w-1/2 rounded bg-[var(--praxis-line-subtle)] praxis-shimmer" />
         </div>
         <div className="space-y-4">
-          <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
-            <div className="h-3 w-28 rounded bg-[#2A2C31] praxis-shimmer" />
-            <div className="mt-5 h-5 w-3/4 rounded bg-[#2A2C31] praxis-shimmer" />
-            <div className="mt-3 h-3 w-full rounded bg-[#2A2C31] praxis-shimmer" />
-            <div className="mt-2 h-3 w-5/6 rounded bg-[#2A2C31] praxis-shimmer" />
+          <div className="rounded-lg border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel)] p-5">
+            <div className="h-3 w-28 rounded bg-[var(--praxis-line-subtle)] praxis-shimmer" />
+            <div className="mt-5 h-5 w-3/4 rounded bg-[var(--praxis-line-subtle)] praxis-shimmer" />
+            <div className="mt-3 h-3 w-full rounded bg-[var(--praxis-line-subtle)] praxis-shimmer" />
+            <div className="mt-2 h-3 w-5/6 rounded bg-[var(--praxis-line-subtle)] praxis-shimmer" />
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {[0, 1, 2, 3].map((index) => (
-              <div key={index} className="h-28 rounded-lg border border-[#2A2C31] bg-[#151619] praxis-shimmer" />
+              <div key={index} className="h-28 rounded-lg border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel)] praxis-shimmer" />
             ))}
           </div>
         </div>
@@ -326,6 +241,7 @@ function ProcessingPanel({ meta, transcript, analysis, retrying, onRetry }) {
   const processing = meta?.processing || {};
   const progressPercent = getProcessingPercent(meta?.status, processing);
   const progressLabel = getProcessingLabel(meta?.status, processing, meta?.save_mode);
+  const needsAttention = isAttentionStatus(meta?.status);
   const terminalLines = processing.terminal_lines || [];
   const steps =
     meta?.save_mode === "transcribe_only"
@@ -343,28 +259,29 @@ function ProcessingPanel({ meta, transcript, analysis, retrying, onRetry }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-lg border border-[#2A2C31] bg-[#1C1D21] p-5">
+      <div className="rounded-lg border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)] p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-widest opacity-50">
               Live pipeline
             </div>
-            <h3 className="mt-2 text-lg font-semibold text-white">{progressLabel}</h3>
-            <p className="mt-2 text-sm text-[#D1D1D1] opacity-75 max-w-xl">
-              The recording is already saved. Whisper transcription and AI review continue in the
-              background while this page streams the latest state.
+            <h3 className="mt-2 text-lg font-semibold text-[var(--praxis-text-primary)]">{progressLabel}</h3>
+            <p className="mt-2 text-sm text-[var(--praxis-text-secondary)] max-w-xl">
+              {needsAttention
+                ? "Your recording is safe, but processing stopped before the report was ready. Read the error below, repair the provider or model if needed, then retry."
+                : "The recording is already saved. Whisper transcription and AI review continue in the background while this page streams the latest state."}
             </p>
           </div>
-          <div className="shrink-0 rounded-lg border border-[#2A2C31] bg-[#0F1012] px-3 py-2 text-right">
+          <div className="shrink-0 rounded-lg border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-app)] px-3 py-2 text-right">
             <div className="text-[10px] font-mono uppercase tracking-widest opacity-50">Progress</div>
-            <div className="mt-1 text-2xl font-light tnum text-white">{progressPercent}%</div>
+            <div className="mt-1 text-2xl font-light tnum text-[var(--praxis-text-primary)]">{progressPercent}%</div>
           </div>
         </div>
 
-        <div className="mt-4 h-2 rounded-full bg-[#0F1012] overflow-hidden">
+        <div className="mt-4 h-2 rounded-full bg-[var(--praxis-bg-app)] overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-[#F27D26] via-[#F4B26D] to-[#4ADE80] transition-[width] duration-500"
-            style={{ width: `${progressPercent}%` }}
+            className={`h-full origin-left transition-transform duration-[var(--praxis-duration-pane)] ease-[var(--praxis-ease-out)] ${needsAttention ? "bg-[var(--praxis-warning)]" : "bg-gradient-to-r from-[var(--praxis-warning)] via-[var(--praxis-warning)] to-[var(--praxis-success)]"}`}
+            style={{ transform: `scaleX(${progressPercent / 100})` }}
           />
         </div>
 
@@ -388,13 +305,13 @@ function ProcessingPanel({ meta, transcript, analysis, retrying, onRetry }) {
         />
       </div>
 
-      <div className="rounded-lg border border-[#2A2C31] bg-[#1C1D21] p-5">
+      <div className="rounded-lg border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)] p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="text-[10px] font-mono uppercase tracking-widest opacity-50">
               Mini terminal
             </div>
-            <div className="mt-1 text-sm text-[#D1D1D1] opacity-75">
+            <div className="mt-1 text-sm text-[var(--praxis-text-secondary)]">
               Stage-by-stage output from the local processing pipeline.
             </div>
           </div>
@@ -403,7 +320,7 @@ function ProcessingPanel({ meta, transcript, analysis, retrying, onRetry }) {
               type="button"
               disabled={retrying}
               onClick={() => void onRetry()}
-              className="px-3 py-2 bg-[#F27D26]/20 hover:bg-[#F27D26]/30 border border-[#F27D26]/40 text-[#F27D26] rounded text-xs font-semibold uppercase tracking-widest transition-colors flex items-center gap-2 disabled:opacity-60"
+              className="px-3 py-2 bg-[var(--praxis-warning)]/20 hover:bg-[var(--praxis-warning)]/30 border border-[var(--praxis-warning)]/40 text-[var(--praxis-warning)] rounded text-xs font-semibold uppercase tracking-widest transition-colors flex items-center gap-2 disabled:opacity-60"
             >
               <RotateCcw size={14} />
               {retrying ? "Retrying..." : "Retry"}
@@ -416,13 +333,13 @@ function ProcessingPanel({ meta, transcript, analysis, retrying, onRetry }) {
           )}
         </div>
 
-        <div className="mt-4 max-h-64 overflow-auto rounded-lg border border-[#2A2C31] bg-[#0A0B0D] px-4 py-3 font-mono text-[11px] leading-6">
+        <div className="mt-4 max-h-64 overflow-auto rounded-lg border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-app)] px-4 py-3 font-mono text-[11px] leading-6">
           {terminalLines.length === 0 ? (
-            <div className="text-[#A0A0A0] opacity-70">Waiting for the backend to emit processing logs.</div>
+            <div className="text-[var(--praxis-text-secondary)]">Waiting for the backend to emit processing logs.</div>
           ) : (
             terminalLines.map((line, index) => (
               <div key={`${line.created_at}-${index}`} className="grid grid-cols-[70px_1fr] gap-3">
-                <span className="text-[#7E8086]">{formatTerminalTimestamp(line.created_at)}</span>
+                <span className="text-[var(--praxis-text-muted)]">{formatTerminalTimestamp(line.created_at)}</span>
                 <span className={getTerminalLineTone(line.level)}>{line.message}</span>
               </div>
             ))
@@ -430,14 +347,14 @@ function ProcessingPanel({ meta, transcript, analysis, retrying, onRetry }) {
         </div>
 
         {meta?.error ? (
-          <div className="mt-4 rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+          <div className="mt-4 rounded-lg border border-[var(--praxis-danger)]/40 bg-[var(--praxis-danger-soft)] px-4 py-3 text-sm text-[var(--praxis-danger)]">
             {meta.error}
           </div>
         ) : null}
       </div>
 
       {transcript.length > 0 ? (
-        <div className="rounded-lg border border-[#2A2C31] bg-[#1C1D21] p-5">
+        <div className="rounded-lg border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)] p-5">
           <div className="text-[10px] font-mono uppercase tracking-widest opacity-50">
             Transcript preview
           </div>
@@ -445,7 +362,7 @@ function ProcessingPanel({ meta, transcript, analysis, retrying, onRetry }) {
             {transcript.slice(0, 4).map((segment, index) => (
               <div
                 key={`${segment.start_seconds}-${index}`}
-                className="rounded border border-[#2A2C31] bg-[#151619] px-3 py-2 text-sm text-[#D1D1D1]"
+                className="rounded border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel)] px-3 py-2 text-sm text-[var(--praxis-text-secondary)]"
               >
                 <span className="mr-3 text-[10px] font-mono uppercase tracking-widest opacity-50">
                   {formatSecondsTimestamp(segment.start_seconds)}
@@ -457,727 +374,6 @@ function ProcessingPanel({ meta, transcript, analysis, retrying, onRetry }) {
         </div>
       ) : null}
     </div>
-  );
-}
-
-function ListBlock({ title, items, accent }) {
-  if (!items || items.length === 0) return null;
-  return (
-    <div className="flex flex-col gap-2">
-      <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">{title}</h3>
-      <div className="space-y-2">
-        {items.map((item, index) => (
-          <div
-            key={`${title}-${index}`}
-            className={`p-3 bg-[#1C1D21] border-l-2 text-sm text-[#E0E0E0] ${
-              accent === "accent"
-                ? "border-[#4ADE80]"
-                : accent === "danger"
-                  ? "border-red-500"
-                  : "border-[#F27D26]"
-            }`}
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PatternsHitTodayBlock({ items }) {
-  if (!items || items.length === 0) return null;
-
-  return (
-    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-4">
-      <div className="flex items-center justify-between gap-3 mb-3">
-        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-          Patterns Hit Today
-        </h3>
-        <span className="text-[10px] font-mono uppercase tracking-widest text-[#F27D26]">
-          {items.length} hit{items.length === 1 ? "" : "s"}
-        </span>
-      </div>
-      <div className="space-y-2">
-        {items.map((item, index) => (
-          <div
-            key={`patterns-hit-today-${index}`}
-            className="p-3 bg-[#1C1D21] border-l-2 border-[#F27D26] text-sm text-[#E0E0E0]"
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function StatBlock({ label, value }) {
-  return (
-    <div className="p-4 bg-[#1C1D21] border border-[#2A2C31] rounded-lg">
-      <div className="text-[10px] opacity-40 uppercase mb-1 font-mono tracking-widest">
-        {label}
-      </div>
-      <div className="text-sm font-medium mt-2 text-[#E0E0E0] leading-relaxed">{value}</div>
-    </div>
-  );
-}
-
-function FillerWords({ map }) {
-  const entries = Object.entries(map || {});
-  if (!entries.length) return null;
-  entries.sort((a, b) => b[1] - a[1]);
-  return (
-    <div className="flex flex-wrap gap-2">
-      {entries.map(([word, count]) => (
-        <span
-          key={word}
-          className="px-2 py-1 rounded bg-[#1C1D21] border border-[#2A2C31] text-xs text-[#D1D1D1] font-mono"
-        >
-          {word} <span className="opacity-50">.{count}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-const SCORECARD_METRICS = [
-  ["clarity", "Clarity"],
-  ["structure", "Structure"],
-  ["reflection_depth", "Reflection Depth"],
-  ["emotional_awareness", "Emotional Awareness"],
-  ["specificity", "Specificity"],
-  ["actionability", "Actionability"],
-  ["language_fluency", "Language Fluency"],
-];
-
-function readableText(value) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function hasReadableCoachingReport(analysis) {
-  const report = analysis?.coaching_report || {};
-  return Boolean(
-    readableText(report.headline) ||
-      readableText(report.opening_read) ||
-      readableText(report.what_improved) ||
-      readableText(report.what_held_back) ||
-      (Array.isArray(report.top_lessons) && report.top_lessons.length > 0) ||
-      (Array.isArray(report.moment_feedback) && report.moment_feedback.length > 0),
-  );
-}
-
-function metricFallbackScore(analysis, id) {
-  if (id === "clarity") return analysis?.speaking_quality?.clarity;
-  if (id === "language_fluency") return analysis?.grammar_and_language?.fluency_score;
-  return null;
-}
-
-function CoachingScorecard({ analysis }) {
-  const scorecard = analysis?.scorecard || {};
-  const rows = SCORECARD_METRICS.map(([id, label]) => {
-    const metric = scorecard[id] || {};
-    const score = metric.score ?? metricFallbackScore(analysis, id);
-    return {
-      id,
-      label,
-      score: Number.isFinite(Number(score)) ? Number(score) : null,
-      evidence: readableText(metric.evidence),
-      practiceFocus: readableText(metric.practice_focus),
-    };
-  }).filter((row) => row.score !== null || row.evidence || row.practiceFocus);
-
-  if (!rows.length) return null;
-
-  return (
-    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-          Session Scorecard
-        </h3>
-        <span className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/40">
-          evidence based
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {rows.map((row) => (
-          <div key={row.id} className="rounded border border-[#2A2C31] bg-[#1C1D21] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/50">
-                {row.label}
-              </div>
-              {row.score !== null ? (
-                <div className="rounded bg-[#0A0B0D] px-2 py-1 font-mono text-xs text-white tnum">
-                  {row.score}/10
-                </div>
-              ) : null}
-            </div>
-            {row.evidence ? (
-              <p className="mt-3 text-sm leading-relaxed text-[#E0E0E0]">{row.evidence}</p>
-            ) : null}
-            {row.practiceFocus ? (
-              <p className="mt-2 border-l-2 border-[#4ADE80] pl-3 text-xs leading-relaxed text-[#D1D1D1]/75">
-                {row.practiceFocus}
-              </p>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CoachingLessons({ lessons }) {
-  if (!Array.isArray(lessons) || lessons.length === 0) return null;
-
-  return (
-    <div className="flex flex-col gap-3">
-      <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-        Top Lessons
-      </h3>
-      <div className="grid grid-cols-1 gap-3">
-        {lessons.map((lesson, index) => (
-          <div key={`${lesson.title}-${index}`} className="rounded-lg border border-[#2A2C31] bg-[#151619] p-4">
-            <div className="flex items-start gap-4">
-              <div className="shrink-0 rounded bg-[#0A0B0D] px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-[#4ADE80]">
-                {String(index + 1).padStart(2, "0")}
-              </div>
-              <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-semibold text-white leading-snug">
-                  {lesson.title || "Untitled lesson"}
-                </h4>
-                {lesson.what_happened ? (
-                  <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">
-                    {lesson.what_happened}
-                  </p>
-                ) : null}
-                {lesson.why_it_matters ? (
-                  <p className="mt-2 text-sm leading-relaxed text-[#D1D1D1]/75">
-                    {lesson.why_it_matters}
-                  </p>
-                ) : null}
-                {lesson.next_move ? (
-                  <p className="mt-2 border-l-2 border-[#F27D26] pl-3 text-xs leading-relaxed text-[#D1D1D1]">
-                    {lesson.next_move}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MomentFeedback({ moments, bestMoment, onSeek }) {
-  const rows = [
-    ...(bestMoment?.coaching_note ? [{ ...bestMoment, label: bestMoment.label || "Best moment", isBest: true }] : []),
-    ...(Array.isArray(moments) ? moments : []),
-  ].filter((moment, index, all) => {
-    const key = `${Number(moment.timestamp_seconds) || 0}-${moment.label || ""}-${moment.transcript_quote || ""}`;
-    return all.findIndex((candidate) => `${Number(candidate.timestamp_seconds) || 0}-${candidate.label || ""}-${candidate.transcript_quote || ""}` === key) === index;
-  });
-
-  if (!rows.length) return null;
-
-  return (
-    <div className="flex flex-col gap-3">
-      <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-        Moments To Study
-      </h3>
-      <div className="space-y-2">
-        {rows.map((moment, index) => {
-          const timestamp = Number(moment.timestamp_seconds) || 0;
-          return (
-            <button
-              key={`${timestamp}-${index}`}
-              type="button"
-              onClick={() => onSeek(timestamp)}
-              className={`w-full rounded-lg border p-4 text-left transition-colors hover:border-[#4ADE80]/70 ${
-                moment.isBest
-                  ? "border-[#4ADE80]/45 bg-[#123021]"
-                  : "border-[#2A2C31] bg-[#151619]"
-              }`}
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-[10px] uppercase tracking-widest text-[#4ADE80] tnum">
-                  {formatSecondsTimestamp(timestamp)}
-                </span>
-                <span className="text-sm font-semibold text-white">
-                  {moment.label || "Session moment"}
-                </span>
-                {moment.kind ? (
-                  <span className="rounded bg-[#0A0B0D] px-2 py-0.5 font-mono text-[9px] uppercase tracking-widest text-[#D1D1D1]/45">
-                    {moment.kind.replace("_", " ")}
-                  </span>
-                ) : null}
-              </div>
-              {moment.transcript_quote ? (
-                <p className="mt-3 text-sm italic leading-relaxed text-[#E0E0E0]">
-                  "{moment.transcript_quote}"
-                </p>
-              ) : null}
-              {moment.coaching_note ? (
-                <p className="mt-3 text-sm leading-relaxed text-[#D1D1D1]/80">
-                  {moment.coaching_note}
-                </p>
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function BehavioralPatterns({ patterns }) {
-  if (!Array.isArray(patterns) || patterns.length === 0) return null;
-
-  return (
-    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
-      <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-4">
-        Behavior Patterns
-      </h3>
-      <div className="space-y-3">
-        {patterns.map((pattern, index) => (
-          <div key={`${pattern.name}-${index}`} className="border-l-2 border-[#F27D26] pl-4">
-            <h4 className="text-sm font-semibold text-white">{pattern.name}</h4>
-            {pattern.evidence ? (
-              <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{pattern.evidence}</p>
-            ) : null}
-            {pattern.impact ? (
-              <p className="mt-2 text-sm leading-relaxed text-[#D1D1D1]/75">{pattern.impact}</p>
-            ) : null}
-            {pattern.correction ? (
-              <p className="mt-2 text-xs leading-relaxed text-[#4ADE80]">{pattern.correction}</p>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PracticeAssignment({ assignment }) {
-  if (!assignment) return null;
-  const rows = [
-    ["Reflection Question", assignment.reflection_question],
-    ["Speaking Drill", assignment.speaking_drill],
-    ["Behavioral Action", assignment.behavioral_action],
-    ["Next Session Goal", assignment.next_session_goal],
-  ].filter(([, value]) => readableText(value));
-
-  if (!rows.length) return null;
-
-  return (
-    <div className="rounded-lg border border-[#4ADE80]/35 bg-[#123021] p-5">
-      <h3 className="text-xs font-bold uppercase tracking-widest text-[#4ADE80] mb-4">
-        Practice Before Next Session
-      </h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {rows.map(([label, value]) => (
-          <div key={label} className="rounded border border-[#4ADE80]/20 bg-[#0A0B0D]/35 p-4">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
-              {label}
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{value}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ReportReadingPath({ analysis }) {
-  const report = analysis?.coaching_report || {};
-  const mainLesson = Array.isArray(report.top_lessons) ? report.top_lessons[0] : null;
-  const assignment = report.practice_assignment || {};
-  const bestMoment = report.best_moment || {};
-  const practiceText =
-    readableText(assignment.next_session_goal) ||
-    readableText(assignment.speaking_drill) ||
-    readableText(assignment.behavioral_action);
-
-  const rows = [
-    {
-      key: "read",
-      icon: BookOpen,
-      label: "First Read",
-      title: readableText(report.headline) || "What this session is about",
-      body: readableText(report.opening_read) || readableText(analysis?.session_summary),
-      tone: "orange",
-    },
-    {
-      key: "lesson",
-      icon: Target,
-      label: "Lesson",
-      title: readableText(mainLesson?.title) || "Main lesson",
-      body: readableText(mainLesson?.why_it_matters) || readableText(mainLesson?.what_happened),
-      tone: "green",
-    },
-    {
-      key: "moment",
-      icon: Clock,
-      label: "Moment",
-      title: bestMoment?.timestamp_seconds !== undefined
-        ? `Study ${formatSecondsTimestamp(bestMoment.timestamp_seconds)}`
-        : "Best moment",
-      body: readableText(bestMoment.coaching_note) || readableText(bestMoment.transcript_quote),
-      tone: "neutral",
-    },
-    {
-      key: "practice",
-      icon: CheckCircle2,
-      label: "Practice",
-      title: "Before the next session",
-      body: practiceText,
-      tone: "green",
-    },
-  ].filter((row) => readableText(row.body));
-
-  if (rows.length < 2) return null;
-
-  return (
-    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5 praxis-fade-in">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-widest text-[#D1D1D1]/60">
-            Read In This Order
-          </h3>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#D1D1D1]/70">
-            Start here, then go deeper only if you want the evidence.
-          </p>
-        </div>
-        <div className="rounded border border-[#2A2C31] bg-[#0A0B0D] px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
-          explain mode
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
-        {rows.map((row, index) => {
-          const Icon = row.icon;
-          const accent =
-            row.tone === "green"
-              ? "border-[#4ADE80]/35 text-[#4ADE80] bg-[#4ADE80]/10"
-              : row.tone === "orange"
-                ? "border-[#F27D26]/35 text-[#F27D26] bg-[#F27D26]/10"
-                : "border-[#2A2C31] text-[#D1D1D1] bg-[#1C1D21]";
-
-          return (
-            <article key={row.key} className="rounded-lg border border-[#2A2C31] bg-[#1C1D21] p-4">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className={`flex h-8 w-8 items-center justify-center rounded border ${accent}`}>
-                  <Icon size={15} />
-                </div>
-                <span className="font-mono text-[10px] uppercase tracking-widest text-[#D1D1D1]/35 tnum">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-              </div>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
-                {row.label}
-              </div>
-              <h4 className="mt-2 text-sm font-semibold leading-snug text-white">{row.title}</h4>
-              <p className="mt-3 text-sm leading-6 text-[#E0E0E0]">{row.body}</p>
-            </article>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-const PREVIOUS_GOAL_RESULTS = [
-  { value: "followed", label: "Followed" },
-  { value: "partially_followed", label: "Partial" },
-  { value: "missed", label: "Missed" },
-];
-
-function PracticeTracker({ meta, practiceContext, onUpdate }) {
-  const practice = meta?.practice || {};
-  const assignmentCompleted = Boolean(practice.assignment_completed);
-  const previousGoal = readableText(practice.previous_goal) || readableText(practiceContext?.goal);
-  const previousGoalSourceId =
-    practice.previous_goal_source_session_id || practiceContext?.source_session_id || null;
-  const [saving, setSaving] = useState(false);
-  const [note, setNote] = useState(practice.previous_goal_note || "");
-
-  useEffect(() => {
-    setNote(practice.previous_goal_note || "");
-  }, [practice.previous_goal_note, meta?.id]);
-
-  async function savePractice(payload) {
-    setSaving(true);
-    try {
-      await onUpdate(payload);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-          Practice Tracking
-        </h3>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => void savePractice({ assignment_completed: !assignmentCompleted })}
-          className={`rounded border px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-colors disabled:opacity-60 ${
-            assignmentCompleted
-              ? "border-[#4ADE80]/40 bg-[#4ADE80]/15 text-[#4ADE80]"
-              : "border-[#2A2C31] bg-[#1C1D21] text-[#D1D1D1]/65 hover:text-white"
-          }`}
-        >
-          {assignmentCompleted ? "Completed" : "Mark Complete"}
-        </button>
-      </div>
-
-      {previousGoal ? (
-        <div className="rounded border border-[#2A2C31] bg-[#1C1D21] p-4">
-          <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
-            Previous Goal
-          </div>
-          <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{previousGoal}</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {PREVIOUS_GOAL_RESULTS.map((result) => (
-              <button
-                key={result.value}
-                type="button"
-                disabled={saving}
-                onClick={() =>
-                  void savePractice({
-                    previous_goal: previousGoal,
-                    previous_goal_source_session_id: previousGoalSourceId,
-                    previous_goal_result: result.value,
-                  })
-                }
-                className={`rounded border px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest transition-colors disabled:opacity-60 ${
-                  practice.previous_goal_result === result.value
-                    ? "border-[#F27D26]/50 bg-[#F27D26]/15 text-[#F27D26]"
-                    : "border-[#2A2C31] bg-[#0A0B0D] text-[#D1D1D1]/60 hover:text-white"
-                }`}
-              >
-                {result.label}
-              </button>
-            ))}
-          </div>
-          <div className="mt-3 flex gap-2">
-            <input
-              type="text"
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              placeholder="optional note"
-              className="min-w-0 flex-1 rounded border border-[#2A2C31] bg-[#0A0B0D] px-3 py-2 text-xs text-[#E0E0E0] outline-none focus:border-[#4ADE80]"
-            />
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() =>
-                void savePractice({
-                  previous_goal: previousGoal,
-                  previous_goal_source_session_id: previousGoalSourceId,
-                  previous_goal_note: note,
-                })
-              }
-              className="rounded bg-[#2A2C31] px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-[#32353B] disabled:opacity-60"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      ) : (
-        <p className="text-sm leading-relaxed text-[#D1D1D1]/70">
-          No previous next-session goal is available yet.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function LanguageCoach({ languageCoach }) {
-  if (!languageCoach) return null;
-  const drills = Array.isArray(languageCoach.rewrite_drills) ? languageCoach.rewrite_drills : [];
-  const hasContent =
-    readableText(languageCoach.strongest_sentence) ||
-    readableText(languageCoach.main_language_gap) ||
-    drills.length > 0;
-
-  if (!hasContent) return null;
-
-  return (
-    <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
-      <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-4">
-        Language Coach
-      </h3>
-      {languageCoach.strongest_sentence ? (
-        <p className="text-sm leading-relaxed text-[#E0E0E0]">
-          <span className="text-[#4ADE80]">Strong sentence:</span>{" "}
-          "{languageCoach.strongest_sentence}"
-        </p>
-      ) : null}
-      {languageCoach.main_language_gap ? (
-        <p className="mt-3 text-sm leading-relaxed text-[#D1D1D1]/80">
-          {languageCoach.main_language_gap}
-        </p>
-      ) : null}
-      {drills.length ? (
-        <div className="mt-4 space-y-3">
-          {drills.map((drill, index) => (
-            <div key={`${drill.timestamp_seconds}-${index}`} className="rounded border border-[#2A2C31] bg-[#1C1D21] p-4">
-              <div className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[#D1D1D1]/45 tnum">
-                {formatSecondsTimestamp(drill.timestamp_seconds)}
-              </div>
-              <div className="text-sm leading-relaxed text-[#D1D1D1]/65">
-                {drill.original}
-              </div>
-              <div className="mt-2 text-sm leading-relaxed text-[#4ADE80]">
-                {drill.improved}
-              </div>
-              {drill.explanation ? (
-                <p className="mt-2 text-xs leading-relaxed text-[#D1D1D1]/65">
-                  {drill.explanation}
-                </p>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function CoachFocus({ analysis }) {
-  const report = analysis?.coaching_report || {};
-  const mainLesson = Array.isArray(report.top_lessons) ? report.top_lessons[0] : null;
-  const assignment = report.practice_assignment || {};
-  const bestMoment = report.best_moment || {};
-  const nextMove = readableText(mainLesson?.next_move) || readableText(assignment.next_session_goal);
-  const quote = readableText(bestMoment.transcript_quote);
-  const hasContent =
-    readableText(mainLesson?.title) ||
-    readableText(mainLesson?.why_it_matters) ||
-    readableText(nextMove) ||
-    readableText(assignment.speaking_drill) ||
-    readableText(assignment.behavioral_action);
-
-  if (!hasContent) return null;
-
-  return (
-    <div className="rounded-lg border border-[#4ADE80]/35 bg-[#10251A] p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-[#4ADE80]">
-          Coach Focus
-        </h3>
-        <span className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
-          next session
-        </span>
-      </div>
-
-      {mainLesson?.title ? (
-        <h4 className="text-xl font-semibold leading-snug tracking-tight text-white">
-          {mainLesson.title}
-        </h4>
-      ) : null}
-
-      {mainLesson?.why_it_matters ? (
-        <p className="mt-3 text-base leading-7 text-[#E0E0E0]">
-          {mainLesson.why_it_matters}
-        </p>
-      ) : null}
-
-      {quote ? (
-        <blockquote className="mt-4 border-l-2 border-[#4ADE80] pl-4 text-sm italic leading-relaxed text-[#D1D1D1]/80">
-          "{quote}"
-        </blockquote>
-      ) : null}
-
-      <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-        {nextMove ? (
-          <div className="rounded border border-[#4ADE80]/20 bg-[#0A0B0D]/35 p-4">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
-              Main Move
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{nextMove}</p>
-          </div>
-        ) : null}
-        {assignment.speaking_drill ? (
-          <div className="rounded border border-[#4ADE80]/20 bg-[#0A0B0D]/35 p-4">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
-              Speaking Drill
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{assignment.speaking_drill}</p>
-          </div>
-        ) : null}
-        {assignment.behavioral_action ? (
-          <div className="rounded border border-[#4ADE80]/20 bg-[#0A0B0D]/35 p-4">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
-              Action
-            </div>
-            <p className="mt-2 text-sm leading-relaxed text-[#E0E0E0]">{assignment.behavioral_action}</p>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function CoachingReport({ analysis, onSeek }) {
-  const report = analysis?.coaching_report || {};
-  const headline = readableText(report.headline) || readableText(analysis?.prose_verdict);
-  const hasReport = hasReadableCoachingReport(analysis) || headline;
-
-  if (!hasReport) return null;
-
-  return (
-    <>
-      <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-[#F27D26]" />
-          <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-            Coaching Read
-          </h3>
-        </div>
-        {headline ? (
-          <h4 className="text-xl font-semibold tracking-tight text-white leading-snug">
-            {headline}
-          </h4>
-        ) : null}
-        {report.opening_read ? (
-          <p className="mt-4 whitespace-pre-wrap text-base leading-7 text-[#E0E0E0]">
-            {report.opening_read}
-          </p>
-        ) : analysis?.session_summary ? (
-          <p className="mt-4 text-base leading-7 text-[#E0E0E0]">
-            {analysis.session_summary}
-          </p>
-        ) : null}
-      </div>
-
-      <ReportReadingPath analysis={analysis} />
-      <CoachFocus analysis={analysis} />
-      <CoachingLessons lessons={report.top_lessons} />
-      <PracticeAssignment assignment={report.practice_assignment} />
-      <MomentFeedback moments={report.moment_feedback} bestMoment={report.best_moment} onSeek={onSeek} />
-
-      {(report.what_improved || report.what_held_back) ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {report.what_improved ? (
-            <StatBlock label="What Improved" value={report.what_improved} />
-          ) : null}
-          {report.what_held_back ? (
-            <StatBlock label="What Held You Back" value={report.what_held_back} />
-          ) : null}
-        </div>
-      ) : null}
-
-      <BehavioralPatterns patterns={report.behavioral_patterns} />
-      <CoachingScorecard analysis={analysis} />
-      <LanguageCoach languageCoach={analysis.language_coach} />
-    </>
   );
 }
 
@@ -1194,14 +390,14 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
   const [mediaDuration, setMediaDuration] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
-  const [analysisProvider, setAnalysisProvider] = useState("");
-  const [analysisModel, setAnalysisModel] = useState("");
   const [subtitleLanguage, setSubtitleLanguage] = useState("fr");
+  const [secondarySubtitleLanguage, setSecondarySubtitleLanguage] = useState("");
   const [subtitleExporting, setSubtitleExporting] = useState(false);
   const videoRef = useRef(null);
   const markedReadRef = useRef(false);
   const playbackFrameRef = useRef(null);
   const playbackFrameModeRef = useRef("raf");
+  const lastPlaybackUiUpdateRef = useRef(0);
 
   async function refreshBundle() {
     setLoading(true);
@@ -1229,7 +425,12 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
     playbackFrameRef.current = null;
   }
 
-  function syncPlaybackTime() {
+  function syncPlaybackTime(force = false) {
+    const now = performance.now();
+    // Video callbacks can run at 60+ fps. Ten UI updates per second are smooth
+    // for the playhead while avoiding a full report-tree render per frame.
+    if (!force && now - lastPlaybackUiUpdateRef.current < 100) return;
+    lastPlaybackUiUpdateRef.current = now;
     const nextTime = videoRef.current?.currentTime ?? 0;
     setCurrentTime(nextTime);
     setMediaDuration(readTimelineDurationFromVideo(videoRef.current, duration));
@@ -1275,6 +476,7 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
     setError(null);
     setCurrentTime(0);
     setMediaDuration(0);
+    lastPlaybackUiUpdateRef.current = 0;
     markedReadRef.current = false;
     stopPlaybackTracking();
 
@@ -1331,28 +533,31 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
     );
   }, [bundle?.meta?.language, sessionId]);
 
-  useEffect(() => {
-    const provider = config?.llm?.provider ?? "openrouter";
-    setAnalysisProvider(provider);
-    setAnalysisModel(config?.llm?.model ?? config?.openrouter?.default_model ?? "");
-  }, [config?.llm?.provider, config?.llm?.model, config?.openrouter?.default_model, sessionId]);
-
   if (loading && !bundle) {
     return <LoadingSessionState />;
   }
 
   if (error || !bundle) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-[#E0E0E0] opacity-70 gap-3">
-        <AlertCircle size={20} className="text-red-400" />
+      <div className="flex flex-col items-center justify-center h-full text-[var(--praxis-text-muted)] gap-3">
+        <AlertCircle size={20} className="text-[var(--praxis-danger)]" />
         <p className="text-sm">{error || "Session not found."}</p>
-        <button
-          type="button"
-          className="text-xs text-white underline opacity-80 hover:opacity-100"
-          onClick={() => onNavigate("gallery")}
-        >
-          Back to gallery
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            className="rounded border border-[var(--praxis-line-subtle)] px-3 py-2 text-xs text-[var(--praxis-text-primary)] hover:bg-[var(--praxis-bg-panel-raised)]"
+            onClick={() => void refreshBundle()}
+          >
+            Retry
+          </button>
+          <button
+            type="button"
+            className="text-xs text-[var(--praxis-text-secondary)] underline hover:text-[var(--praxis-text-primary)]"
+            onClick={() => onNavigate("gallery")}
+          >
+            Back to gallery
+          </button>
+        </div>
       </div>
     );
   }
@@ -1378,18 +583,6 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
     .split("/")
     .at(-1)
     ?.toUpperCase() ?? "—";
-  const activeAnalysisProvider = analysisProvider || config?.llm?.provider || "openrouter";
-  const providerConfigured = config?.llm?.provider_configured?.[activeAnalysisProvider] ?? config?.llm?.configured;
-  const analysisModelOptions =
-    activeAnalysisProvider === "opencode_go"
-      ? OPENCODE_GO_MODELS
-      : [
-          config?.llm?.provider_models?.[activeAnalysisProvider],
-          activeAnalysisProvider === "openrouter" ? config?.openrouter?.default_model : null,
-          config?.llm?.model,
-        ].filter(Boolean);
-  const canRunAnalysisProvider =
-    activeAnalysisProvider === "litellm_proxy" || Boolean(providerConfigured);
 
   function handleSeek(seconds) {
     if (!videoRef.current) return;
@@ -1448,14 +641,11 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
     setReanalyzing(true);
     try {
       const result = await reanalyzeSession(sessionId, {
-        llm: {
-          provider: activeAnalysisProvider,
-          model: analysisModel,
-        },
+        llm: {},
       });
       pushToast({
         kind: "success",
-        message: `Re-analysis queued with ${result.model || analysisModel || activeAnalysisProvider}.`,
+        message: `Re-analysis queued${result.model ? ` with ${result.model}` : " using your active AI connection"}.`,
       });
       await refreshIndex().catch(() => {});
       await refreshBundle();
@@ -1472,7 +662,7 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
   async function handleExportSubtitledVideo() {
     setSubtitleExporting(true);
     try {
-      const result = await exportSessionSubtitledVideo(sessionId, subtitleLanguage);
+      const result = await exportSessionSubtitledVideo(sessionId, subtitleLanguage, secondarySubtitleLanguage || null);
       pushToast({
         kind: "success",
         message: `Exported ${result.filename || "subtitled video"}.`,
@@ -1503,520 +693,88 @@ export function SessionDetail({ sessionId, onNavigate, scrollRef }) {
     }
   }
 
+  async function handleRename(title) {
+    const normalized = String(title || "").trim();
+    if (!normalized || normalized === meta.title) return;
+    try {
+      await renameSession(sessionId, normalized);
+      await refreshBundle();
+      await refreshIndex();
+      pushToast({ kind: "success", message: "Session renamed." });
+    } catch (caught) {
+      pushToast({ kind: "error", message: caught instanceof Error ? caught.message : "Could not rename session." });
+    }
+  }
+
+  async function handleOpenLocalFiles() {
+    const journalFolder = config?.journal_folder;
+    if (!journalFolder) {
+      pushToast({ kind: "error", message: "Journal folder is not configured." });
+      return;
+    }
+    await openDesktopPath(`${journalFolder.replace(/\/$/, "")}/${sessionId}`);
+  }
+
   return (
-    <div className="flex flex-col h-full bg-[#0F1012]">
-      <header className="h-16 border-b border-[#2A2C31] flex items-center justify-between px-8 shrink-0 bg-[#151619] gap-4">
-        <div className="flex items-center gap-4 min-w-0">
-          <button
-            type="button"
-            onClick={() => onNavigate("gallery")}
-            className="p-1 hover:bg-[#2A2C31] rounded text-[#E0E0E0] opacity-60 hover:opacity-100 transition-colors"
-            aria-label="Back to gallery"
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <div className="h-4 w-px bg-[#2A2C31]" />
-          <div className="flex items-center gap-3 min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight text-white truncate">
-              {getSessionTitle(meta)}
-            </h1>
-            <div
-              className={`px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-widest ${getStatusBadgeStyle(
-                meta.status,
-              )}`}
-            >
-              {getStatusLabel(meta.status)}
-            </div>
+    <SessionReviewWorkspace
+      meta={meta}
+      analysis={analysis}
+      analysisRaw={analysisRaw}
+      transcript={transcript}
+      waveform={waveform}
+      currentTime={currentTime}
+      duration={mediaTimelineDuration}
+      videoSrc={videoSrc}
+      videoRef={videoRef}
+      subtitleTracks={subtitleTracks.map((track) => ({
+        ...track,
+        src: getSessionSubtitleUrl(sessionId, track.language, "vtt"),
+      }))}
+      subtitleExport={{
+        language: subtitleLanguage,
+        secondaryLanguage: secondarySubtitleLanguage,
+        exporting: subtitleExporting,
+        sourceLanguage: meta.language,
+        onLanguageChange: setSubtitleLanguage,
+        onSecondaryLanguageChange: setSecondarySubtitleLanguage,
+        onExport: () => void handleExportSubtitledVideo(),
+      }}
+      sessionId={sessionId}
+      onSeek={handleSeek}
+      onVideoMetadata={(event) => {
+        setMediaDuration(readTimelineDurationFromVideo(event.currentTarget, duration));
+        syncPlaybackTime(true);
+      }}
+      onPlay={startPlaybackTracking}
+      onPause={() => {
+        syncPlaybackTime(true);
+        stopPlaybackTracking();
+      }}
+      onTimeUpdate={() => syncPlaybackTime()}
+      onPracticeUpdate={handlePracticeUpdate}
+      onReanalyze={() => void handleReanalyze()}
+      reanalyzing={reanalyzing}
+      practiceContext={bundle.practice_context}
+      onNavigate={onNavigate}
+      onBack={() => onNavigate("gallery")}
+      onRename={handleRename}
+      onOpenLocalFiles={() => void handleOpenLocalFiles()}
+      formatTimestamp={formatSecondsTimestamp}
+      processingContent={
+        isVideoOnly ? (
+          <div className="py-8 text-sm leading-6 text-[var(--praxis-text-secondary)]">
+            This session is saved as video only. Record another session with transcription enabled to receive a report.
           </div>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <div className="text-right">
-            <div className="text-[11px] opacity-40 uppercase tracking-tighter font-mono">Duration</div>
-            <div className="text-sm font-mono tnum">{formatDuration(displayDuration)}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[11px] opacity-40 uppercase tracking-tighter font-mono">Date</div>
-            <div className="text-sm font-mono">{formatLongDate(meta.created_at)}</div>
-          </div>
-          {isReady && transcript.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => void handleExportTranscript()}
-              className="px-3 py-2 bg-[#2A2C31] hover:bg-[#32353B] rounded text-xs font-medium transition-colors flex items-center gap-2"
-              title="Copy transcript"
-            >
-              <Copy size={14} />
-              Transcript
-            </button>
-          ) : null}
-          {isReady && transcript.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => void handleExportPrompt()}
-              className="px-3 py-2 bg-[#2A2C31] hover:bg-[#32353B] rounded text-xs font-medium transition-colors flex items-center gap-2"
-              title="Copy analysis prompt"
-            >
-              <Download size={14} />
-              Prompt
-            </button>
-          ) : null}
-          {isReady && transcript.length > 0 ? (
-            <div className="flex items-center gap-2 rounded border border-[#2A2C31] bg-[#1C1D21] p-1">
-              <SlidersHorizontal size={14} className="ml-1 text-[#D1D1D1]/60" />
-              <select
-                value={activeAnalysisProvider}
-                onChange={(event) => {
-                  const nextProvider = event.target.value;
-                  setAnalysisProvider(nextProvider);
-                  const nextModel =
-                    nextProvider === "opencode_go"
-                      ? "deepseek-v4-flash"
-                      : nextProvider === "openrouter"
-                        ? config?.openrouter?.default_model ?? config?.llm?.provider_models?.openrouter ?? ""
-                        : config?.llm?.provider_models?.[nextProvider] ?? "";
-                  setAnalysisModel(nextModel);
-                }}
-                disabled={reanalyzing}
-                className="px-2 py-1.5 bg-[#0A0B0D] border border-[#2A2C31] rounded text-[10px] font-mono text-[#E0E0E0] focus:outline-none focus:border-[#4ADE80] disabled:opacity-60"
-                aria-label="Analysis provider"
-              >
-                {ANALYSIS_PROVIDER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {analysisModelOptions.length > 0 ? (
-                <select
-                  value={analysisModel}
-                  onChange={(event) => setAnalysisModel(event.target.value)}
-                  disabled={reanalyzing}
-                  className="max-w-[190px] px-2 py-1.5 bg-[#0A0B0D] border border-[#2A2C31] rounded text-[10px] font-mono text-[#E0E0E0] focus:outline-none focus:border-[#4ADE80] disabled:opacity-60"
-                  aria-label="Analysis model"
-                >
-                  {[...new Set(analysisModelOptions)].map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type="text"
-                  value={analysisModel}
-                  onChange={(event) => setAnalysisModel(event.target.value)}
-                  disabled={reanalyzing}
-                  placeholder="model"
-                  className="w-[150px] px-2 py-1.5 bg-[#0A0B0D] border border-[#2A2C31] rounded text-[10px] font-mono text-[#E0E0E0] focus:outline-none focus:border-[#4ADE80] disabled:opacity-60"
-                  aria-label="Analysis model"
-                />
-              )}
-              <button
-                type="button"
-                onClick={() => void handleReanalyze()}
-                disabled={reanalyzing || !canRunAnalysisProvider}
-                className="px-3 py-1.5 bg-[#2A2C31] hover:bg-[#32353B] rounded text-xs font-medium transition-colors flex items-center gap-2 disabled:opacity-60"
-                title={
-                  canRunAnalysisProvider
-                    ? "Re-analyze with selected provider"
-                    : "Save an API key for this provider in Settings first"
-                }
-              >
-                <RotateCcw size={14} />
-                {reanalyzing ? "Queued..." : "Analyze"}
-              </button>
-            </div>
-          ) : null}
-          {isReady && transcript.length > 0 ? (
-            <div className="flex items-center gap-2">
-              <select
-                value={subtitleLanguage}
-                onChange={(event) => setSubtitleLanguage(event.target.value)}
-                disabled={subtitleExporting}
-                className="px-2 py-2 bg-[#1C1D21] border border-[#2A2C31] rounded text-[10px] font-mono uppercase tracking-widest text-[#E0E0E0] focus:outline-none focus:border-[#4ADE80] disabled:opacity-60"
-                aria-label="Subtitle language"
-              >
-                {SUBTITLE_LANGUAGE_OPTIONS.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => void handleExportSubtitledVideo()}
-                disabled={subtitleExporting}
-                className="px-3 py-2 bg-[#2A2C31] hover:bg-[#32353B] rounded text-xs font-medium transition-colors flex items-center gap-2 disabled:opacity-60"
-                title={
-                  subtitledExports.some((entry) => entry.language === subtitleLanguage)
-                    ? `Re-export ${subtitleLanguage.toUpperCase()} subtitled MP4`
-                    : "Export subtitled MP4"
-                }
-              >
-                <Captions size={14} />
-                {subtitleExporting ? "Exporting..." : "Subtitled MP4"}
-              </button>
-            </div>
-          ) : null}
-          {isAttentionStatus(meta.status) ? (
-            <button
-              type="button"
-              disabled={retrying}
-              onClick={() => void handleRetry()}
-              className="px-3 py-2 bg-[#F27D26]/20 hover:bg-[#F27D26]/30 border border-[#F27D26]/40 text-[#F27D26] rounded text-xs font-semibold uppercase tracking-widest transition-colors flex items-center gap-2 disabled:opacity-60"
-            >
-              <RotateCcw size={14} />
-              {retrying ? "Retrying..." : "Retry"}
-            </button>
-          ) : null}
-        </div>
-      </header>
-
-      <div className="flex-1 flex overflow-hidden">
-        <section className="w-[540px] border-r border-[#2A2C31] bg-[#0A0B0D] flex flex-col shrink-0">
-          <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-            {videoSrc ? (
-              <video
-                ref={videoRef}
-                src={videoSrc}
-                crossOrigin="anonymous"
-                controls
-                playsInline
-                className="w-full h-full object-contain bg-black"
-                onLoadedMetadata={(event) => {
-                  setMediaDuration(readTimelineDurationFromVideo(event.currentTarget, duration));
-                  syncPlaybackTime();
-                }}
-                onDurationChange={(event) => {
-                  setMediaDuration(readTimelineDurationFromVideo(event.currentTarget, duration));
-                }}
-                onProgress={(event) => {
-                  setMediaDuration(readTimelineDurationFromVideo(event.currentTarget, duration));
-                }}
-                onPlay={() => startPlaybackTracking()}
-                onPause={() => {
-                  syncPlaybackTime();
-                  stopPlaybackTracking();
-                }}
-                onEnded={() => {
-                  syncPlaybackTime();
-                  stopPlaybackTracking();
-                }}
-                onSeeking={() => syncPlaybackTime()}
-                onSeeked={() => syncPlaybackTime()}
-                onTimeUpdate={() => syncPlaybackTime()}
-              >
-                {subtitleTracks.map((track) => (
-                  <track
-                    key={track.language}
-                    kind="subtitles"
-                    src={getSessionSubtitleUrl(sessionId, track.language, "vtt")}
-                    srcLang={track.language}
-                    label={track.language.toUpperCase()}
-                    default={track.language === meta.language}
-                  />
-                ))}
-              </video>
-            ) : (
-              <div className="flex flex-col items-center text-center px-6">
-                <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center">
-                  <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[18px] border-l-white border-b-[10px] border-b-transparent ml-1" />
-                </div>
-                <span className="mt-4 text-[11px] uppercase tracking-[0.2em] opacity-40">
-                  No video stored
-                </span>
-              </div>
-            )}
-          </div>
-          <Waveform
-            bars={waveform}
-            segments={transcript}
-            currentTime={currentTime}
-            duration={mediaTimelineDuration}
-            onSeek={handleSeek}
+        ) : (
+          <ProcessingPanel
+            meta={meta}
+            transcript={transcript}
+            analysis={analysis}
+            retrying={retrying}
+            onRetry={handleRetry}
           />
-        </section>
-
-        <section className="flex-1 flex flex-col bg-[#151619] min-w-0">
-          <div className="h-12 border-b border-[#2A2C31] flex shrink-0">
-            {[
-              { id: "analysis", label: "Analysis" },
-              { id: "transcript", label: "Transcript" },
-              { id: "raw", label: "Raw Notes" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 text-[11px] font-semibold uppercase tracking-widest transition-colors ${
-                  activeTab === tab.id
-                    ? "border-b-2 border-white text-white"
-                    : "opacity-40 hover:opacity-100 text-[#E0E0E0]"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 flex flex-col gap-6 praxis-fade-in" key={activeTab}>
-            {!isReviewable ? (
-              <ProcessingPanel
-                meta={meta}
-                transcript={transcript}
-                analysis={analysis}
-                retrying={retrying}
-                onRetry={handleRetry}
-              />
-            ) : (
-              <>
-                {activeTab === "transcript" ? (
-                  transcript.length === 0 ? (
-                    <p className="text-xs font-mono opacity-50 uppercase tracking-widest">
-                      No transcript stored for this session.
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {transcript.map((segment, index) => {
-                        const start = Number(segment.start_seconds) || 0;
-                        const end = Number(segment.end_seconds) || start;
-                        const isActive =
-                          currentTime >= start &&
-                          currentTime < (end || Number.POSITIVE_INFINITY);
-                        return (
-                          <button
-                            key={`${start}-${index}`}
-                            type="button"
-                            onClick={() => handleSeek(start)}
-                            className={`w-full flex gap-4 p-2 rounded transition-colors group cursor-pointer text-left ${
-                              isActive ? "bg-[#2A2C31]" : "hover:bg-[#1C1D21]"
-                            }`}
-                          >
-                            <div
-                              className={`w-12 text-[10px] font-mono pt-0.5 tnum ${
-                                isActive
-                                  ? "text-[#4ADE80]"
-                                  : "opacity-40 group-hover:opacity-100"
-                              }`}
-                            >
-                              {formatSecondsTimestamp(start)}
-                            </div>
-                            <div
-                              className={`flex-1 text-sm leading-relaxed ${
-                                isActive
-                                  ? "text-white"
-                                  : "text-[#D1D1D1] group-hover:text-white"
-                              } transition-colors`}
-                            >
-                              {segment.text}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )
-                ) : null}
-
-                {activeTab === "analysis" ? (
-                  analysis ? (
-                    <>
-                      <CoachingReport analysis={analysis} onSeek={handleSeek} />
-                      <PracticeTracker
-                        meta={meta}
-                        practiceContext={bundle.practice_context}
-                        onUpdate={handlePracticeUpdate}
-                      />
-
-                      {!hasReadableCoachingReport(analysis) ? (
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-[#F27D26]" />
-                            <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-                              Verdict
-                            </h3>
-                          </div>
-                          <p className="text-base leading-relaxed text-[#E0E0E0] italic border-l-2 border-[#F27D26] pl-4">
-                            "{analysis.prose_verdict}"
-                          </p>
-                          {analysis.session_summary ? (
-                            <p className="text-sm text-[#D1D1D1] opacity-80 leading-relaxed">
-                              {analysis.session_summary}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : null}
-
-                      {analysis.main_topics?.length ? (
-                        <div className="flex flex-wrap gap-2">
-                          {analysis.main_topics.map((topic) => (
-                            <span
-                              key={topic}
-                              className="px-2 py-1 rounded bg-[#1C1D21] border border-[#2A2C31] text-xs text-[#D1D1D1]"
-                            >
-                              {topic}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <StatBlock
-                          label="Speaking Quality"
-                          value={
-                            <>
-                              <div>Clarity: {analysis.speaking_quality?.clarity ?? "-"}/10</div>
-                              <div className="opacity-70 mt-1">
-                                Pace: {analysis.speaking_quality?.pace ?? "-"}
-                              </div>
-                              <div className="opacity-70 mt-1">
-                                Structure: {analysis.speaking_quality?.structure ?? "-"}
-                              </div>
-                            </>
-                          }
-                        />
-                        <StatBlock
-                          label="Language Fluency"
-                          value={
-                            <>
-                              <div>
-                                Score: {analysis.grammar_and_language?.fluency_score ?? "-"}/10
-                              </div>
-                              <div className="opacity-70 mt-1">
-                                Vocab: {analysis.grammar_and_language?.vocabulary_level ?? "-"}
-                              </div>
-                              <div className="opacity-70 mt-1">
-                                Errors: {analysis.grammar_and_language?.errors?.length ?? 0}
-                              </div>
-                            </>
-                          }
-                        />
-                      </div>
-
-                      {analysis.speaking_quality?.executive_presence_notes ? (
-                        <div>
-                          <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-2">
-                            Executive Presence
-                          </h3>
-                          <p className="text-sm text-[#E0E0E0] leading-relaxed bg-[#1C1D21] border border-[#2A2C31] rounded-lg p-4">
-                            {analysis.speaking_quality.executive_presence_notes}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      {Object.keys(analysis.grammar_and_language?.filler_words || {}).length ? (
-                        <div className="flex flex-col gap-2">
-                          <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-                            Filler Words
-                          </h3>
-                          <FillerWords map={analysis.grammar_and_language.filler_words} />
-                        </div>
-                      ) : null}
-
-                      {analysis.grammar_and_language?.errors?.length ? (
-                        <div className="flex flex-col gap-2">
-                          <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-                            Grammar Errors
-                          </h3>
-                          <div className="space-y-2">
-                            {analysis.grammar_and_language.errors.map((err, index) => (
-                              <button
-                                key={index}
-                                type="button"
-                                onClick={() => handleSeek(err.timestamp_seconds)}
-                                className="w-full p-3 bg-[#1C1D21] border-l-2 border-red-500 hover:bg-[#2A2C31] transition-colors text-left flex items-start gap-3"
-                              >
-                                <span className="text-[10px] font-mono opacity-50 mt-0.5 tnum">
-                                  {formatSecondsTimestamp(err.timestamp_seconds)}
-                                </span>
-                                <div className="flex-1">
-                                  <div className="text-sm text-[#E0E0E0]">
-                                    <span className="line-through opacity-60">{err.said}</span>{" "}
-                                    {"->"} <span className="text-[#4ADE80]">{err.correct}</span>
-                                  </div>
-                                  <div className="text-[10px] font-mono opacity-50 uppercase tracking-widest mt-1">
-                                    {err.type}
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      <ListBlock
-                        title="Strong Points"
-                        items={analysis.ideas_and_reasoning?.strong_points}
-                        accent="accent"
-                      />
-                      <ListBlock
-                        title="Weak Points"
-                        items={analysis.ideas_and_reasoning?.weak_points}
-                        accent="warning"
-                      />
-                      <ListBlock
-                        title="Logical Flaws"
-                        items={analysis.ideas_and_reasoning?.logical_flaws}
-                        accent="danger"
-                      />
-                      <ListBlock
-                        title="Factual Errors"
-                        items={analysis.ideas_and_reasoning?.factual_errors}
-                        accent="danger"
-                      />
-
-                      {analysis.ideas_and_reasoning?.philosophical_pushback ? (
-                        <div>
-                          <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-2">
-                            Philosophical Pushback
-                          </h3>
-                          <p className="text-sm text-[#E0E0E0] leading-relaxed bg-[#1C1D21] border border-[#2A2C31] rounded-lg p-4 italic">
-                            {analysis.ideas_and_reasoning.philosophical_pushback}
-                          </p>
-                        </div>
-                      ) : null}
-
-                      <PatternsHitTodayBlock items={analysis.recurring_patterns_hit} />
-                      <ListBlock
-                        title="Action Items"
-                        items={analysis.actionable_improvements}
-                        accent="accent"
-                      />
-                    </>
-                  ) : (
-                    <p className="text-xs font-mono opacity-50 uppercase tracking-widest">
-                      {isVideoOnly ? "Video-only save. No transcript or analysis was requested." : "No analysis stored yet."}
-                    </p>
-                  )
-                ) : null}
-
-                {activeTab === "raw" ? (
-                  <div className="p-4 bg-[#1C1D21] border border-[#2A2C31] rounded-lg">
-                    <pre className="text-[11px] text-[#A0A0A0] font-mono whitespace-pre-wrap break-words">
-                      {analysisRaw
-                        ? analysisRaw
-                        : analysis
-                          ? JSON.stringify(analysis, null, 2)
-                          : "No raw output stored."}
-                    </pre>
-                  </div>
-                ) : null}
-              </>
-            )}
-          </div>
-        </section>
-      </div>
-
-      <footer className="h-8 border-t border-[#2A2C31] bg-[#0A0B0D] px-4 flex items-center justify-between text-[10px] font-mono opacity-60 shrink-0 uppercase tracking-widest">
-        <div className="flex gap-4">
-          <span>Engine: {modelLabel}</span>
-          <span>Mode: Local-first</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#4ADE80]" />
-          Node Active
-        </div>
-      </footer>
-    </div>
+        )
+      }
+    />
   );
 }

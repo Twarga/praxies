@@ -25,12 +25,12 @@ export default {
       },
       keyframes: {
         "fade-in": {
-          "0%": { opacity: "0", transform: "translateY(6px)" },
+          "0%": { opacity: "0", transform: "translateY(4px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
       },
       animation: {
-        "fade-in": "fade-in 220ms ease-out",
+        "fade-in": "fade-in 160ms cubic-bezier(0.23, 1, 0.32, 1)",
       },
     },
   },

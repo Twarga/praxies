@@ -1,0 +1,1703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, initial-scale=1.0">
+<title>Praxis — Design Mockup</title>
+<style>
+/* ============================================================
+   Praxis Design System — Mockup
+   Principles: Emil Kowalski + Apple HIG
+   ============================================================ */
+
+:root {
+  /* Surfaces */
+  --bg-app: #0B0E12;
+  --bg-canvas: #10151C;
+  --bg-panel: #141B24;
+  --bg-raised: #1A222D;
+  --bg-elevated: #222B38;
+
+  --glass-chrome: rgba(20, 27, 36, 0.82);
+  --glass-overlay: rgba(34, 43, 56, 0.90);
+
+  /* Text */
+  --text-primary: #E8EEF5;
+  --text-secondary: #9AA7B5;
+  --text-muted: #6B7785;
+
+  /* Lines */
+  --line-subtle: rgba(255,255,255,0.08);
+  --line-strong: rgba(255,255,255,0.14);
+
+  /* States */
+  --accent: #4EA1FF;
+  --accent-soft: rgba(78,161,255,0.16);
+  --success: #2FBF86;
+  --success-soft: rgba(47,191,134,0.14);
+  --warning: #E0A84A;
+  --warning-soft: rgba(224,168,74,0.14);
+  --danger: #FF4D4D;
+  --record: #FF4D4D;
+  --selected: rgba(78,161,255,0.14);
+  --hover: rgba(255,255,255,0.06);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-instant: 80ms;
+  --dur-quick: 120ms;
+  --dur-control: 160ms;
+  --dur-pane: 200ms;
+  --dur-dialog: 220ms;
+
+  /* Spacing (4px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-modal: 10px;
+
+  /* Type */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+
+  /* Layout */
+  --sidebar-collapsed: 56px;
+  --sidebar-expanded: 220px;
+  --titlebar-h: 48px;
+  --row-h: 40px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-app);
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* ============================================================
+   LAYOUT — App Shell
+   ============================================================ */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.titlebar {
+  height: var(--titlebar-h);
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-4);
+  background: var(--glass-chrome);
+  backdrop-filter: blur(18px) saturate(120%);
+  border-bottom: 1px solid var(--line-subtle);
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+  position: relative;
+  z-index: 20;
+}
+
+.titlebar-mark {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-mark svg { width: 22px; height: 22px; }
+
+.titlebar-brand {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.titlebar-context {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-left: 2px;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-context span {
+  color: var(--text-secondary);
+}
+
+.titlebar-spacer { flex: 1; }
+
+.titlebar-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  -webkit-app-region: no-drag;
+}
+
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.local { background: var(--success); }
+.status-dot.processing { background: var(--warning); }
+.status-dot.recording { background: var(--record); animation: pulse-dot 1.6s ease-in-out infinite; }
+
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,77,77,0.55); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(255,77,77,0); }
+}
+
+.titlebar-cmdk {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--hover);
+  border: 1px solid var(--line-subtle);
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  -webkit-app-region: no-drag;
+  cursor: pointer;
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
+}
+
+.titlebar-cmdk:hover { background: rgba(255,255,255,0.1); color: var(--text-secondary); }
+
+.titlebar-cmdk kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.08);
+  color: var(--text-muted);
+  border: 1px solid var(--line-subtle);
+}
+
+.shell-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Sidebar */
+.sidebar {
+  width: var(--sidebar-expanded);
+  background: var(--glass-chrome);
+  backdrop-filter: blur(18px) saturate(120%);
+  border-right: 1px solid var(--line-subtle);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-3);
+  gap: 4px;
+  z-index: 10;
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed);
+  padding: var(--space-2);
+  align-items: center;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  min-height: 38px;
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out), transform var(--dur-quick) var(--ease-out);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.nav-item:active { transform: scale(0.97); }
+
+.nav-item:hover { background: var(--hover); color: var(--text-primary); }
+.nav-item.active { background: var(--selected); color: var(--accent); }
+.nav-item.active svg { color: var(--accent); }
+
+.nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+.sidebar-spacer { flex: 1; }
+
+.sidebar-bottom {
+  border-top: 1px solid var(--line-subtle);
+  padding-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.processing-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  border: 1px solid rgba(224,168,74,0.25);
+  font-size: 12px;
+  color: var(--warning);
+  margin-bottom: 4px;
+}
+
+.processing-badge .count {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* Canvas */
+.canvas {
+  flex: 1;
+  background: var(--bg-canvas);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Page toolbar */
+.page-toolbar {
+  height: var(--titlebar-h);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--line-subtle);
+  background: var(--bg-canvas);
+  flex-shrink: 0;
+}
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.toolbar-spacer { flex: 1; }
+
+/* ============================================================
+   COMPONENTS
+   ============================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  font-family: var(--font-sans);
+  transition: background var(--dur-quick) var(--ease-out),
+              color var(--dur-quick) var(--ease-out),
+              transform var(--dur-quick) var(--ease-out),
+              box-shadow var(--dur-quick) var(--ease-out);
+}
+
+.btn:active { transform: scale(0.97); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #07111D;
+  font-weight: 600;
+}
+
+.btn-primary:hover { background: #6AB4FF; }
+.btn-primary:active { background: #3788E6; }
+
+.btn-secondary {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--line-strong);
+}
+
+.btn-secondary:hover { background: var(--bg-elevated); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover { background: var(--hover); color: var(--text-primary); }
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+  font-weight: 600;
+}
+
+.btn-danger:hover { background: #FF6B6B; }
+
+.btn-danger-pulse {
+  animation: record-btn-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes record-btn-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,77,77,0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(255,77,77,0); }
+}
+
+.btn-xs { padding: 4px 8px; font-size: 11px; }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* Panel */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-md);
+}
+
+/* Glass card (overlays only) */
+.glass-card {
+  background: var(--glass-overlay);
+  backdrop-filter: blur(22px) saturate(120%);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+/* Row */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  min-height: var(--row-h);
+  border-bottom: 1px solid var(--line-subtle);
+  cursor: pointer;
+  transition: background var(--dur-quick) var(--ease-out);
+}
+
+.row:hover { background: var(--hover); }
+.row:active { background: var(--selected); }
+
+.row--dense { min-height: 36px; padding: 0 var(--space-3); }
+
+/* Separator */
+.sep { flex-shrink: 0; }
+.sep-h { width: 100%; height: 1px; background: var(--line-subtle); }
+.sep-v { width: 1px; height: 100%; background: var(--line-subtle); }
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.badge-success { background: var(--success-soft); color: var(--success); }
+.badge-warning { background: var(--warning-soft); color: var(--warning); }
+.badge-danger  { background: rgba(255,77,77,0.14); color: var(--danger); }
+.badge-neutral { background: var(--hover); color: var(--text-muted); }
+
+/* Mono label */
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Stats */
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Progress bar — uses scaleX, not width */
+.progress-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-app);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transform-origin: left;
+  transition: transform 500ms var(--ease-out);
+}
+
+.progress-fill.accent { background: var(--accent); }
+.progress-fill.success { background: var(--success); }
+.progress-fill.warning { background: var(--warning); }
+
+/* ============================================================
+   SCREENS
+   ============================================================ */
+
+.screen-section {
+  margin-bottom: var(--space-12);
+}
+
+.screen-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line-subtle);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-4);
+}
+
+.screen-label .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+}
+
+/* ── TODAY ──────────────────────────────────────────────── */
+
+.today-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+  gap: var(--space-6);
+}
+
+.today-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.goal-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-5) var(--space-6);
+}
+
+.goal-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.goal-card .criteria {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.goal-card .evidence {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-app);
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--accent);
+  margin-bottom: var(--space-3);
+}
+
+.goal-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line-subtle);
+  cursor: pointer;
+  transition: background var(--dur-quick) var(--ease-out);
+  min-height: 52px;
+}
+
+.recent-row:hover { background: var(--hover); }
+.recent-row:last-child { border-bottom: none; }
+
+.recent-thumb {
+  width: 48px; height: 27px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+  border: 1px solid var(--line-subtle);
+}
+
+.recent-info { flex: 1; min-width: 0; }
+
+.recent-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.recent-finding {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.today-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.readiness-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+.readiness-card h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-3);
+}
+
+.readiness-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.readiness-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.readiness-row .key { color: var(--text-muted); }
+.readiness-row .val { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.streak-compact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--success-soft);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(47,191,134,0.2);
+}
+
+.streak-compact svg { width: 14px; height: 14px; color: var(--success); }
+.streak-compact .streak-num {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.streak-compact .streak-label {
+  font-size: 12px;
+  color: var(--success);
+}
+
+/* ── RECORD ──────────────────────────────────────────────── */
+
+.record-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-app);
+  position: relative;
+}
+
+.record-viewport {
+  width: 900px;
+  max-width: calc(100% - 80px);
+  aspect-ratio: 16/9;
+  background: var(--bg-canvas);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.record-viewport .camera-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 60px;
+}
+
+.record-goal-strip {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  padding: 8px 14px;
+  background: var(--glass-overlay);
+  backdrop-filter: blur(22px);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-subtle);
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.9;
+}
+
+.record-goal-strip .goal-icon { color: var(--accent); flex-shrink: 0; }
+.record-goal-strip .goal-dismiss { margin-left: auto; cursor: pointer; color: var(--text-muted); font-size: 14px; }
+
+.record-transport {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2);
+  background: var(--glass-overlay);
+  backdrop-filter: blur(22px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line-subtle);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.record-timer {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  min-width: 52px;
+  text-align: center;
+}
+
+.record-level {
+  width: 80px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-subtle);
+  overflow: hidden;
+}
+
+.record-level-fill {
+  height: 100%;
+  width: 60%;
+  border-radius: 2px;
+  background: var(--success);
+  transform-origin: left;
+  transition: transform 75ms var(--ease-out);
+}
+
+/* ── SESSION REPORT ───────────────────────────────────────── */
+
+.report-split {
+  display: flex;
+  gap: 1px;
+  background: var(--line-subtle);
+  flex: 1;
+  overflow: hidden;
+}
+
+.report-left {
+  flex: 0 0 58%;
+  background: var(--bg-canvas);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.report-right {
+  flex: 0 0 42%;
+  background: var(--bg-canvas);
+  overflow-y: auto;
+}
+
+.video-stage {
+  aspect-ratio: 16/9;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--line-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+}
+
+.video-stage .play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.3);
+  opacity: 0;
+  transition: opacity var(--dur-quick) var(--ease-out);
+  border-radius: 50%;
+  width: 48px; height: 48px;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: var(--glass-overlay);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--line-subtle);
+}
+
+.video-stage:hover .play-overlay { opacity: 1; }
+
+.video-placeholder {
+  font-size: 48px;
+  color: var(--text-muted);
+}
+
+.transcript-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  background: var(--bg-panel);
+}
+
+.transcript-line {
+  display: flex;
+  gap: var(--space-3);
+  padding: 4px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background var(--dur-instant) var(--ease-out);
+}
+
+.transcript-line:hover { background: var(--hover); }
+.transcript-line.active { background: var(--accent-soft); color: var(--text-primary); }
+
+.transcript-ts {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  width: 52px;
+}
+
+/* Timeline strip — signature object */
+.timeline-strip {
+  height: 32px;
+  background: var(--bg-app);
+  border-top: 1px solid var(--line-subtle);
+  border-bottom: 1px solid var(--line-subtle);
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+}
+
+.timeline-wave {
+  flex: 1;
+  height: 18px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.timeline-bar {
+  flex: 1;
+  min-width: 1px;
+  background: var(--line-strong);
+  border-radius: 1px 1px 0 0;
+}
+
+.timeline-bar.high { height: 100%; background: var(--accent); }
+.timeline-bar.mid { height: 60%; }
+.timeline-bar.low { height: 30%; }
+.timeline-bar.none { height: 8%; }
+
+.timeline-marker {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: var(--warning);
+  z-index: 2;
+}
+
+.report-section {
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.report-verdict {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.report-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-2);
+}
+
+.report-finding {
+  padding: var(--space-2) 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.report-focus-cta {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.score-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.score-label { font-size: 13px; color: var(--text-secondary); }
+.score-bar {
+  width: 100px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line-subtle);
+  overflow: hidden;
+}
+
+.score-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transform-origin: left;
+}
+
+/* ── SESSIONS ─────────────────────────────────────────────── */
+
+.sessions-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sessions-list {
+  width: 300px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--line-subtle);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+}
+
+.sessions-search {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.sessions-search input {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--bg-app);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border var(--dur-quick) var(--ease-out);
+}
+
+.sessions-search input:focus { border-color: var(--accent); }
+.sessions-search input::placeholder { color: var(--text-muted); }
+
+.sessions-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.session-group-header {
+  padding: var(--space-2) var(--space-4);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line-subtle);
+  cursor: pointer;
+  transition: background var(--dur-quick) var(--ease-out);
+}
+
+.session-row:hover { background: var(--hover); }
+.session-row.active { background: var(--selected); }
+.session-row:active { transform: scale(0.99); }
+
+.session-meta { flex: 1; min-width: 0; }
+
+.session-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-details {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.sessions-preview {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: var(--space-3);
+  color: var(--text-muted);
+}
+
+.sessions-preview svg { width: 40px; height: 40px; opacity: 0.3; }
+
+/* ── SETTINGS ─────────────────────────────────────────────── */
+
+.settings-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.settings-nav {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--line-subtle);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-canvas);
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--dur-quick) var(--ease-out), color var(--dur-quick) var(--ease-out);
+  border-left: 2px solid transparent;
+}
+
+.settings-nav-item:hover { background: var(--hover); color: var(--text-primary); }
+.settings-nav-item.active { background: var(--selected); color: var(--accent); border-left-color: var(--accent); }
+
+.settings-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-6);
+}
+
+.settings-section {
+  margin-bottom: var(--space-8);
+}
+
+.settings-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.settings-section p.desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: var(--space-4);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.setting-row .label { font-size: 13px; color: var(--text-secondary); }
+.setting-row .hint { font-size: 11px; color: var(--text-muted); }
+
+.setting-toggle {
+  width: 36px; height: 20px;
+  border-radius: 10px;
+  background: var(--line-strong);
+  position: relative;
+  cursor: pointer;
+  transition: background var(--dur-control) var(--ease-out);
+}
+
+.setting-toggle.on { background: var(--accent); }
+
+.setting-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: white;
+  transition: transform var(--dur-control) var(--ease-out);
+}
+
+.setting-toggle.on::after { transform: translateX(16px); }
+
+.setting-select {
+  padding: 6px 10px;
+  background: var(--bg-app);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  outline: none;
+}
+
+.setting-select:focus { border-color: var(--accent); }
+
+/* ── COLOR SWATCHES ───────────────────────────────────────── */
+
+.swatches {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+}
+
+.swatch {
+  width: 32px; height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-subtle);
+  cursor: pointer;
+  transition: transform var(--dur-quick) var(--ease-out);
+}
+
+.swatch:hover { transform: scale(1.15); }
+.swatch:active { transform: scale(0.95); }
+
+.swatch-app     { background: var(--bg-app); }
+.swatch-canvas  { background: var(--bg-canvas); }
+.swatch-panel   { background: var(--bg-panel); }
+.swatch-raised  { background: var(--bg-raised); }
+.swatch-elevated{ background: var(--bg-elevated); }
+.swatch-accent  { background: var(--accent); }
+.swatch-success { background: var(--success); }
+.swatch-warning { background: var(--warning); }
+.swatch-danger  { background: var(--danger); }
+.swatch-glass   { background: var(--glass-chrome); backdrop-filter: blur(4px); }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+.container { max-width: 1280px; margin: 0 auto; padding: var(--space-8); }
+
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-2);
+}
+
+h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-4);
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  max-width: 560px;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   MOCKUP PAGE
+   ============================================================ */
+
+.mockup-header {
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--line-subtle);
+  padding: var(--space-6) 0;
+}
+
+.mockup-body {
+  padding: var(--space-10) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.screen-frame {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-canvas);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+
+.screen-frame.sm { max-width: 600px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="mockup-header">
+    <h1>Praxis</h1>
+    <p class="subtitle">
+      Private AI speaking coach. Record → transcript → evidence-backed report → one drill → one goal.<br>
+      Design system: <strong>Control Room Studio</strong>. Powered by Emil Kowalski's craft philosophy + Apple HIG.
+    </p>
+    <div class="swatches">
+      <div class="swatch swatch-app" title="--bg-app: #0B0E12"></div>
+      <div class="swatch swatch-canvas" title="--bg-canvas: #10151C"></div>
+      <div class="swatch swatch-panel" title="--bg-panel: #141B24"></div>
+      <div class="swatch swatch-raised" title="--bg-raised: #1A222D"></div>
+      <div class="swatch swatch-elevated" title="--bg-elevated: #222B38"></div>
+      <div class="swatch swatch-glass" title="Glass chrome"></div>
+      <div class="swatch swatch-accent" title="Accent: #4EA1FF"></div>
+      <div class="swatch swatch-success" title="Success: #2FBF86"></div>
+      <div class="swatch swatch-warning" title="Warning: #E0A84A"></div>
+      <div class="swatch swatch-danger" title="Record/Danger: #FF4D4D"></div>
+    </div>
+  </div>
+
+  <!-- SCREENS -->
+  <div class="mockup-body">
+
+    <!-- 1. TODAY -->
+    <div class="screen-section">
+      <div class="screen-label"><div class="dot" style="background:var(--accent)"></div> Today — Monitor surface</div>
+      <div class="screen-frame" style="height: 520px;">
+        <div class="app" style="height:100%">
+          <div class="titlebar">
+            <div class="titlebar-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9 9h6v6H9z"/></svg>
+              <span class="titlebar-brand">Praxis</span>
+            </div>
+            <div class="titlebar-context"><span>/</span> Today</div>
+            <div class="titlebar-spacer"></div>
+            <div class="titlebar-status">
+              <div class="status-dot local"></div> Local
+            </div>
+            <div class="titlebar-cmdk">⌘K <kbd>Ctrl</kbd><kbd>K</kbd></div>
+          </div>
+
+          <div class="shell-body" style="height:calc(100% - 48px)">
+            <div class="sidebar">
+              <a class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg>Today</a>
+              <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Record</a>
+              <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Practice</a>
+              <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>Sessions</a>
+              <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 8 14 12"/><polyline points="14 12 18 16 22 12"/><line x1="2" y1="12" x2="12" y2="12"/></svg>Progress</a>
+              <div class="sidebar-spacer"></div>
+              <div class="sidebar-bottom">
+                <div class="processing-badge" style="opacity:0.4">
+                  <div class="status-dot" style="background:var(--warning)"></div>
+                  <span>Idle</span>
+                </div>
+                <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>Settings</a>
+              </div>
+            </div>
+
+            <div class="canvas">
+              <div class="page-toolbar">
+                <div class="page-title">Today</div>
+                <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted)">Jul 13, 2026</span>
+                <div class="toolbar-spacer"></div>
+                <button class="btn btn-primary btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Record journal</button>
+              </div>
+
+              <div style="flex:1;overflow-y:auto;padding:var(--space-6)">
+                <div class="today-grid">
+                  <div class="today-main">
+                    <div class="goal-card">
+                      <div class="label-mono" style="margin-bottom:4px">Current goal</div>
+                      <h3>Eliminate filler words — under 3 per minute</h3>
+                      <div class="criteria">Success: fewer than 3 "um"/"like" in any 60-second window during practice recording.</div>
+                      <div class="evidence">
+                        <span style="color:var(--text-muted)">Last evidence</span> — Jul 12: 2.1 fillers/min, down from 5.4. "You've cut filler words by 61% this week."
+                      </div>
+                      <div class="goal-actions">
+                        <button class="btn btn-primary btn-sm">Start practice</button>
+                        <button class="btn btn-secondary btn-sm">Record journal</button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div class="label-mono" style="padding:0 4px 8px">Recent</div>
+                      <div class="panel">
+                        <div class="recent-row">
+                          <div class="recent-thumb"></div>
+                          <div class="recent-info">
+                            <div class="recent-title">Weekly check-in — project progress</div>
+                            <div class="recent-meta"><span>4:22</span><span>Jul 12</span></div>
+                          </div>
+                          <div class="recent-finding">Strong structure. Fillers down to 2.1/min.</div>
+                          <span class="badge badge-success">Ready</span>
+                        </div>
+                        <div class="recent-row">
+                          <div class="recent-thumb"></div>
+                          <div class="recent-info">
+                            <div class="recent-title">Practice — impromptu Q&A</div>
+                            <div class="recent-meta"><span>2:48</span><span>Jul 11</span></div>
+                          </div>
+                          <div class="recent-finding">Good pacing. Work on eye contact consistency.</div>
+                          <span class="badge badge-success">Ready</span>
+                        </div>
+                        <div class="recent-row">
+                          <div class="recent-thumb"></div>
+                          <div class="recent-info">
+                            <div class="recent-title">Morning reflection</div>
+                            <div class="recent-meta"><span>3:15</span><span>Jul 10</span></div>
+                          </div>
+                          <div class="recent-finding">Clear articulation. Expand vocabulary range.</div>
+                          <span class="badge badge-success">Ready</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="today-sidebar">
+                    <div class="readiness-card">
+                      <h4>Readiness</h4>
+                      <div class="readiness-stats">
+                        <div class="streak-compact">
+                          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                          <span class="streak-num">8</span>
+                          <span class="streak-label">day streak</span>
+                        </div>
+                        <div class="readiness-row"><span class="key">Last session</span><span class="val">Jul 12</span></div>
+                        <div class="readiness-row"><span class="key">Total this week</span><span class="val">4</span></div>
+                        <div class="readiness-row"><span class="key">Next assignment</span><span class="val">Q&A drill</span></div>
+                        <div class="readiness-row"><span class="key">Processing</span><span class="val" style="color:var(--success)">Idle</span></div>
+                      </div>
+                    </div>
+                    <div class="readiness-card">
+                      <h4>Processing</h4>
+                      <div style="font-size:13px;color:var(--text-muted);padding:12px 0;text-align:center">All sessions ready</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. RECORD -->
+    <div class="screen-section">
+      <div class="screen-label"><div class="dot" style="background:var(--record)"></div> Record — Operate surface</div>
+      <div class="screen-frame" style="height: 480px;">
+        <div class="app" style="height:100%">
+          <div class="titlebar" style="justify-content:space-between">
+            <div class="titlebar-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9 9h6v6H9z"/></svg>
+              <span class="titlebar-brand">Praxis</span>
+            </div>
+            <div class="titlebar-status" style="gap:16px">
+              <span style="color:var(--warning);font-size:12px">Select devices…</span>
+              <button class="btn btn-ghost btn-sm">Cancel</button>
+            </div>
+          </div>
+
+          <div class="shell-body" style="height:calc(100% - 48px)">
+            <div class="canvas">
+              <div class="record-stage">
+                <div class="record-viewport" style="aspect-ratio:16/9">
+                  <div class="camera-placeholder">⬤</div>
+
+                  <div class="record-goal-strip">
+                    <svg class="goal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                    Goal: Under 3 fillers/minute
+                    <span class="goal-dismiss">×</span>
+                  </div>
+
+                  <div class="record-transport">
+                    <span style="font-size:12px;color:var(--text-muted);margin-right:4px">EN</span>
+                    <div class="record-level"><div class="record-level-fill"></div></div>
+                    <button class="btn btn-danger btn-danger-pulse" style="width:48px;height:48px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>
+                    </button>
+                    <div class="record-timer">00:00</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. SESSION REPORT -->
+    <div class="screen-section">
+      <div class="screen-label"><div class="dot" style="background:var(--warning)"></div> Session Report — Compare surface</div>
+      <div class="screen-frame" style="height: 500px;">
+        <div class="app" style="height:100%">
+          <div class="titlebar">
+            <div class="titlebar-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9 9h6v6H9z"/></svg>
+              <span class="titlebar-brand">Praxis</span>
+            </div>
+            <div class="titlebar-context"><span>/</span> Weekly check-in</div>
+            <div class="titlebar-spacer"></div>
+            <button class="btn btn-ghost btn-xs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+          </div>
+
+          <div class="shell-body" style="height:calc(100% - 48px)">
+            <div class="sidebar collapsed" style="padding:8px 4px">
+              <a class="nav-item active" style="padding:8px;justify-content:center" title="Today"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg></a>
+              <a class="nav-item" style="padding:8px;justify-content:center" title="Record"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></a>
+              <a class="nav-item" style="padding:8px;justify-content:center" title="Practice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></a>
+              <a class="nav-item" style="padding:8px;justify-content:center" title="Sessions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></a>
+              <div class="sidebar-spacer"></div>
+              <a class="nav-item" style="padding:8px;justify-content:center" title="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></a>
+            </div>
+
+            <div class="canvas">
+              <div class="report-split">
+                <!-- Left: Media + Transcript -->
+                <div class="report-left">
+                  <div class="video-stage">
+                    <div class="video-placeholder">▶</div>
+                    <div class="play-overlay"><svg width="20" height="20" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg></div>
+                  </div>
+
+                  <div class="timeline-strip">
+                    <div class="timeline-wave">
+                      <div class="timeline-bar low"></div><div class="timeline-bar mid"></div><div class="timeline-bar high"></div><div class="timeline-bar mid"></div>
+                      <div class="timeline-bar high"></div><div class="timeline-bar mid"></div><div class="timeline-bar low"></div><div class="timeline-bar none"></div>
+                      <div class="timeline-bar low"></div><div class="timeline-bar mid"></div><div class="timeline-bar high"></div><div class="timeline-bar high"></div>
+                      <div class="timeline-bar mid"></div><div class="timeline-bar low"></div><div class="timeline-bar none"></div><div class="timeline-bar mid"></div>
+                      <div class="timeline-bar high"></div><div class="timeline-bar mid"></div><div class="timeline-bar low"></div><div class="timeline-bar none"></div>
+                      <div class="timeline-bar low"></div><div class="timeline-bar mid"></div><div class="timeline-bar high"></div><div class="timeline-bar mid"></div>
+                      <div class="timeline-bar high"></div><div class="timeline-bar mid"></div><div class="timeline-bar low"></div><div class="timeline-bar none"></div>
+                      <div class="timeline-bar low"></div><div class="timeline-bar mid"></div><div class="timeline-bar high"></div><div class="timeline-bar high"></div>
+                      <div class="timeline-bar mid"></div><div class="timeline-bar low"></div><div class="timeline-bar none"></div><div class="timeline-bar mid"></div>
+                      <div class="timeline-bar high"></div><div class="timeline-bar mid"></div><div class="timeline-bar low"></div><div class="timeline-bar none"></div>
+                    </div>
+                    <div class="timeline-marker" style="left:35%"></div>
+                    <div class="timeline-marker" style="left:62%;background:var(--success)"></div>
+                  </div>
+
+                  <div class="transcript-panel">
+                    <div class="transcript-line"><span class="transcript-ts">0:00</span><span>So, this week I focused on project progress across the team.</span></div>
+                    <div class="transcript-line active"><span class="transcript-ts">0:04</span><span>The main milestone we hit was shipping the authentication system...</span></div>
+                    <div class="transcript-line"><span class="transcript-ts">0:09</span><span>It took about three weeks, but we got it done, and the team is really proud.</span></div>
+                    <div class="transcript-line"><span class="transcript-ts">0:15</span><span>I think the biggest challenge was coordinating between frontend and backend.</span></div>
+                    <div class="transcript-line"><span class="transcript-ts">0:21</span><span>We used daily stand-ups which helped a lot with staying aligned.</span></div>
+                    <div class="transcript-line"><span class="transcript-ts">0:27</span><span>Next week, I want to focus on testing coverage since we're a bit behind.</span></div>
+                  </div>
+                </div>
+
+                <!-- Right: Report -->
+                <div class="report-right">
+                  <div class="report-section">
+                    <div class="report-verdict">
+                      You delivered a clear, structured update with strong pacing. Your team milestones came across confidently. Work on reducing filler words — "I think" appeared 4 times — and slowing down transitions between topics.
+                    </div>
+                  </div>
+
+                  <div class="report-section">
+                    <div class="report-heading">Scorecard</div>
+                    <div class="score-metric"><span class="score-label">Clarity</span><div class="score-bar"><div class="score-bar-fill" style="transform:scaleX(0.85);width:100%"></div></div></div>
+                    <div class="score-metric"><span class="score-label">Structure</span><div class="score-bar"><div class="score-bar-fill" style="transform:scaleX(0.78);width:100%"></div></div></div>
+                    <div class="score-metric"><span class="score-label">Fluency</span><div class="score-bar"><div class="score-bar-fill" style="transform:scaleX(0.62);width:100%"></div></div></div>
+                    <div class="score-metric"><span class="score-label">Confidence</span><div class="score-bar"><div class="score-bar-fill" style="transform:scaleX(0.80);width:100%"></div></div></div>
+                  </div>
+
+                  <div class="report-section">
+                    <div class="report-heading">What worked</div>
+                    <div class="report-finding">• Strong opening — stated the agenda clearly</div>
+                    <div class="report-finding">• Good use of specific numbers ("three weeks")</div>
+                    <div class="report-finding">• Natural closing with next-week focus</div>
+                  </div>
+
+                  <div class="report-section">
+                    <div class="report-heading">Focus next</div>
+                    <div class="report-finding" style="margin-bottom:12px">Practice reducing "I think" — replace with direct statements. Target: under 2 hedging phrases per minute.</div>
+                    <button class="btn btn-primary report-focus-cta">Practice this goal</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. SESSIONS -->
+    <div class="screen-section">
+      <div class="screen-label"><div class="dot" style="background:var(--text-muted)"></div> Sessions — Explore surface</div>
+      <div class="screen-frame" style="height: 400px;">
+        <div class="app" style="height:100%">
+          <div class="titlebar">
+            <div class="titlebar-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9 9h6v6H9z"/></svg>
+              <span class="titlebar-brand">Praxis</span>
+            </div>
+            <div class="titlebar-context"><span>/</span> Sessions</div>
+            <div class="titlebar-spacer"></div>
+            <div class="titlebar-cmdk">⌘K <kbd>Ctrl</kbd><kbd>K</kbd></div>
+          </div>
+
+          <div class="shell-body" style="height:calc(100% - 48px)">
+            <div class="sidebar collapsed" style="padding:8px 4px">
+              <a class="nav-item" style="padding:8px;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="12" y2="17"/></svg></a>
+              <a class="nav-item" style="padding:8px;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></a>
+              <a class="nav-item" style="padding:8px;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></a>
+              <a class="nav-item active" style="padding:8px;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></a>
+              <div class="sidebar-spacer"></div>
+              <a class="nav-item" style="padding:8px;justify-content:center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></a>
+            </div>
+
+            <div class="canvas">
+              <div class="sessions-layout">
+                <div class="sessions-list">
+                  <div class="sessions-search">
+                    <input type="text" placeholder="Search sessions…">
+                  </div>
+                  <div style="display:flex;padding:6px 12px;gap:6px;border-bottom:1px solid var(--line-subtle)">
+                    <span class="badge badge-neutral">All</span>
+                    <span class="badge badge-success">Ready</span>
+                    <span class="badge badge-warning">Processing</span>
+                  </div>
+                  <div class="sessions-scroll">
+                    <div class="session-group-header">This week</div>
+                    <div class="session-row active">
+                      <div class="session-meta">
+                        <div class="session-name">Weekly check-in — project progress</div>
+                        <div class="session-details"><span>4:22</span><span>Jul 12</span><span>EN</span></div>
+                      </div>
+                      <span class="badge badge-success">Ready</span>
+                    </div>
+                    <div class="session-row">
+                      <div class="session-meta">
+                        <div class="session-name">Practice — impromptu Q&A</div>
+                        <div class="session-details"><span>2:48</span><span>Jul 11</span><span>EN</span></div>
+                      </div>
+                      <span class="badge badge-success">Ready</span>
+                    </div>
+                    <div class="session-row">
+                      <div class="session-meta">
+                        <div class="session-name">Morning reflection</div>
+                        <div class="session-details"><span>3:15</span><span>Jul 10</span><span>EN</span></div>
+                      </div>
+                      <span class="badge badge-success">Ready</span>
+                    </div>
+                    <div class="session-group-header">Last week</div>
+                    <div class="session-row">
+                      <div class="session-meta">
+                        <div class="session-name">Technical presentation dry run</div>
+                        <div class="session-details"><span>6:10</span><span>Jul 7</span><span>EN</span></div>
+                      </div>
+                      <span class="badge badge-success">Ready</span>
+                    </div>
+                    <div class="session-row">
+                      <div class="session-meta">
+                        <div class="session-name">French practice — ordering food</div>
+                        <div class="session-details"><span>1:58</span><span>Jul 6</span><span>FR</span></div>
+                      </div>
+                      <span class="badge badge-success">Ready</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="sessions-preview">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                  <span style="font-size:13px">Select a session to preview</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. SETTINGS -->
+    <div class="screen-section">
+      <div class="screen-label"><div class="dot" style="background:var(--text-muted)"></div> Settings — Configure surface</div>
+      <div class="screen-frame" style="height: 380px;">
+        <div class="app" style="height:100%">
+          <div class="titlebar">
+            <div class="titlebar-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9 9h6v6H9z"/></svg>
+              <span class="titlebar-brand">Praxis</span>
+            </div>
+            <div class="titlebar-context"><span>/</span> Settings</div>
+          </div>
+
+          <div class="shell-body" style="height:calc(100% - 48px)">
+            <div class="canvas">
+              <div class="settings-layout">
+                <div class="settings-nav">
+                  <div class="settings-nav-item active">General</div>
+                  <div class="settings-nav-item">Recording</div>
+                  <div class="settings-nav-item">Transcription</div>
+                  <div class="settings-nav-item">AI & Processing</div>
+                  <div class="settings-nav-item">Storage</div>
+                </div>
+
+                <div class="settings-content">
+                  <div class="settings-section">
+                    <h3>Language</h3>
+                    <p class="desc">Default language for transcription and coaching.</p>
+                    <select class="setting-select" style="width:200px">
+                      <option>English</option>
+                      <option>French</option>
+                      <option>Spanish</option>
+                    </select>
+                  </div>
+
+                  <div class="settings-section">
+                    <h3>Journal</h3>
+                    <p class="desc">All recordings, transcripts, and reports are stored locally.</p>
+                    <div class="setting-row">
+                      <div>
+                        <div class="label">~/PraxisJournal</div>
+                        <div class="hint">12 sessions · 340 MB</div>
+                      </div>
+                      <button class="btn btn-secondary btn-sm">Change folder</button>
+                    </div>
+                  </div>
+
+                  <div class="settings-section">
+                    <h3>Display</h3>
+                    <div class="setting-row">
+                      <div>
+                        <div class="label">Compact sidebar</div>
+                        <div class="hint">Collapse navigation to icons only</div>
+                      </div>
+                      <div class="setting-toggle"></div>
+                    </div>
+                    <div class="setting-row">
+                      <div>
+                        <div class="label">Show processing in sidebar</div>
+                        <div class="hint">Display live pipeline status</div>
+                      </div>
+                      <div class="setting-toggle on"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

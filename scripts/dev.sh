@@ -1,97 +1,121 @@
-#!/usr/bin/env sh
-set -e
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PYTHON_BIN="$ROOT/.venv/bin/python"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHON_BIN="${ROOT}/.venv/bin/python"
+MODE="desktop"
 BACKEND_PID=""
 FRONTEND_PID=""
+ELECTRON_PID=""
 
-if [ ! -x "$PYTHON_BIN" ]; then
-  PYTHON_BIN="python3"
-fi
+readonly BLUE='\033[38;5;75m'
+readonly GREEN='\033[38;5;78m'
+readonly AMBER='\033[38;5;221m'
+readonly DIM='\033[2m'
+readonly RESET='\033[0m'
 
-cleanup() {
-  if [ -n "$BACKEND_PID" ] && kill -0 "$BACKEND_PID" 2>/dev/null; then
-    kill "$BACKEND_PID" 2>/dev/null || true
-  fi
-
-  if [ -n "$FRONTEND_PID" ] && kill -0 "$FRONTEND_PID" 2>/dev/null; then
-    kill "$FRONTEND_PID" 2>/dev/null || true
-  fi
+banner() {
+  printf '\n%b\n' "${BLUE}╭──────────────────────────────────────────╮${RESET}"
+  printf '%b\n' "${BLUE}│${RESET}  ${GREEN}✦${RESET}  ${BLUE}Praxis development workspace${RESET}             ${BLUE}│${RESET}"
+  printf '%b\n\n' "${BLUE}╰──────────────────────────────────────────╯${RESET}"
 }
 
-wait_for_url() {
-  url="$1"
-  attempts=0
+step() { printf '%b  %s%b\n' "${GREEN}✓${RESET}" "$1" "${RESET}"; }
+info() { printf '%b  %s%b\n' "${DIM}" "$1" "${RESET}"; }
+fail() { printf '%b  %s%b\n' "${AMBER}×${RESET}" "$1" "${RESET}" >&2; exit 1; }
 
-  while [ "$attempts" -lt 100 ]; do
-    if curl -fsS "$url" >/dev/null 2>&1; then
-      return 0
-    fi
+usage() {
+  cat <<EOF
+Praxis development launcher
 
-    attempts=$((attempts + 1))
-    sleep 0.2
+Usage:
+  ./scripts/dev.sh          Start backend, frontend, and Electron
+  ./scripts/dev.sh --web    Start backend and frontend only
+  ./scripts/dev.sh --help   Show this help
+
+Press Ctrl+C once to stop everything cleanly.
+EOF
+}
+
+cleanup() {
+  trap - EXIT INT TERM
+  printf '\n%b\n' "${DIM}Stopping Praxis development services…${RESET}"
+  for pid in "$ELECTRON_PID" "$FRONTEND_PID" "$BACKEND_PID"; do
+    [[ -z "$pid" ]] || kill "$pid" 2>/dev/null || true
   done
-
-  return 1
+  wait "$ELECTRON_PID" "$FRONTEND_PID" "$BACKEND_PID" 2>/dev/null || true
 }
 
 find_free_port() {
   "$PYTHON_BIN" - <<'PY'
 import socket
-
-sock = socket.socket()
-sock.bind(("127.0.0.1", 0))
-print(sock.getsockname()[1])
-sock.close()
+with socket.socket() as sock:
+    sock.bind(("127.0.0.1", 0))
+    print(sock.getsockname()[1])
 PY
 }
 
-if [ "${1:-}" = "run" ]; then
-  trap cleanup EXIT INT TERM
+wait_for_url() {
+  local url="$1" label="$2" attempts=0
+  while (( attempts < 100 )); do
+    if curl --fail --silent --show-error "$url" >/dev/null 2>&1; then
+      step "$label is ready"
+      return 0
+    fi
+    ((attempts += 1))
+    sleep 0.2
+  done
+  fail "$label did not become ready. Check the logs above."
+}
 
-  BACKEND_PORT="${PRAXIES_BACKEND_PORT:-$(find_free_port)}"
-  FRONTEND_PORT="${PRAXIES_FRONTEND_PORT:-$(find_free_port)}"
-  BACKEND_URL="http://127.0.0.1:${BACKEND_PORT}"
-  FRONTEND_URL="http://127.0.0.1:${FRONTEND_PORT}"
+case "${1:-}" in
+  ""|run) ;;
+  --web) MODE="web" ;;
+  -h|--help) usage; exit 0 ;;
+  *) fail "Unknown option: $1. Run ./scripts/dev.sh --help" ;;
+esac
 
-  export PRAXIES_BACKEND_PORT="$BACKEND_PORT"
-  export PRAXIES_FRONTEND_URL="$FRONTEND_URL"
-  export PRAXIES_SKIP_BACKEND_LAUNCH="1"
-  export VITE_API_BASE_URL="$BACKEND_URL"
+[[ -x "$PYTHON_BIN" ]] || fail "Python environment missing. Run ./scripts/install.sh first."
+command -v node >/dev/null || fail "Node.js is required. Run ./scripts/install.sh first."
+command -v npm >/dev/null || fail "npm is required. Run ./scripts/install.sh first."
+command -v curl >/dev/null || fail "curl is required to check service readiness."
 
-  (
-    cd "$ROOT/backend"
-    exec "$PYTHON_BIN" -m uvicorn app.main:app --host 127.0.0.1 --port "$BACKEND_PORT"
-  ) &
-  BACKEND_PID=$!
-
-  (
-    cd "$ROOT/frontend"
-    exec npm run dev -- --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort
-  ) &
-  FRONTEND_PID=$!
-
-  echo "waiting for backend on ${BACKEND_URL}/health"
-  wait_for_url "${BACKEND_URL}/health"
-
-  echo "waiting for frontend on ${FRONTEND_URL}"
-  wait_for_url "${FRONTEND_URL}"
-
-  echo "launching electron against ${FRONTEND_URL} and ${BACKEND_URL}"
-  cd "$ROOT/frontend"
-  unset ELECTRON_RUN_AS_NODE
-  exec npm run electron:dev
+if [[ ! -d "$ROOT/frontend/node_modules" ]]; then
+  info "Installing frontend dependencies…"
+  (cd "$ROOT/frontend" && npm install)
 fi
 
-echo "start backend in one terminal:"
-echo "  cd \"$ROOT/backend\" && \"$PYTHON_BIN\" -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
-echo
-echo "start frontend in another terminal:"
-echo "  cd \"$ROOT/frontend\" && VITE_API_BASE_URL=http://127.0.0.1:8000 npm install && npm run dev -- --host 127.0.0.1 --port 5173 --strictPort"
-echo
-echo "then launch electron from a third terminal:"
-echo "  cd \"$ROOT/frontend\" && PRAXIES_FRONTEND_URL=http://127.0.0.1:5173 npm run electron:dev"
-echo
-echo "or run everything in one terminal:"
-echo "  \"$ROOT/scripts/dev.sh\" run"
+BACKEND_PORT="${PRAXIS_BACKEND_PORT:-$(find_free_port)}"
+FRONTEND_PORT="${PRAXIS_FRONTEND_PORT:-$(find_free_port)}"
+BACKEND_URL="http://127.0.0.1:${BACKEND_PORT}"
+FRONTEND_URL="http://127.0.0.1:${FRONTEND_PORT}"
+
+export PRAXIES_BACKEND_PORT="$BACKEND_PORT"
+export PRAXIES_FRONTEND_URL="$FRONTEND_URL"
+export PRAXIES_SKIP_BACKEND_LAUNCH="1"
+export VITE_API_BASE_URL="$BACKEND_URL"
+
+trap cleanup EXIT INT TERM
+banner
+info "Backend:  ${BACKEND_URL}"
+info "Frontend: ${FRONTEND_URL}"
+printf '\n'
+
+(cd "$ROOT/backend" && exec "$PYTHON_BIN" -m uvicorn app.main:app --host 127.0.0.1 --port "$BACKEND_PORT") &
+BACKEND_PID=$!
+wait_for_url "${BACKEND_URL}/health" "Local backend"
+
+(cd "$ROOT/frontend" && exec npm run dev -- --host 127.0.0.1 --port "$FRONTEND_PORT" --strictPort) &
+FRONTEND_PID=$!
+wait_for_url "$FRONTEND_URL" "Frontend"
+
+if [[ "$MODE" == "web" ]]; then
+  printf '\n%b\n' "${GREEN}Praxis web workspace is running.${RESET} Open ${FRONTEND_URL}"
+  wait "$BACKEND_PID" "$FRONTEND_PID"
+  exit 0
+fi
+
+printf '\n%b\n\n' "${GREEN}Launching Praxis desktop app…${RESET}"
+(cd "$ROOT/frontend" && unset ELECTRON_RUN_AS_NODE && exec npm run electron:dev) &
+ELECTRON_PID=$!
+wait "$ELECTRON_PID"

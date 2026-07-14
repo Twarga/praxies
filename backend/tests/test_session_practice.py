@@ -69,6 +69,18 @@ def test_patch_session_practice_tracks_completion_and_previous_goal_result(confi
     assert updated.practice.previous_goal_note == "I named it, but only near the end."
 
 
+def test_patch_session_title_updates_local_metadata(config, monkeypatch):
+    monkeypatch.setattr(main_module, "load_config", lambda: config)
+    meta = create_session(config, language="en", title="before rename")
+
+    with TestClient(main_module.app) as client:
+        response = client.patch(f"/api/sessions/{meta.id}/title", json={"title": "After rename"})
+
+    assert response.status_code == 200
+    assert response.json()["meta"]["title"] == "After rename"
+    assert load_session_meta(config, meta.id).title == "After rename"
+
+
 def _write_analysis_with_goal(config, session_id: str, goal: str) -> None:
     update_session_meta(config, session_id, updates={"status": "ready", "duration_seconds": 180})
     write_session_analysis(

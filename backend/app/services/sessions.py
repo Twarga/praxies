@@ -15,7 +15,7 @@ from app.models import ConfigModel, MetaModel, MetaProcessingTerminalLineModel
 from app.services.analysis_service import validate_analysis_payload
 from app.services.config import ensure_journal_dir, resolve_journal_dir
 from app.services.json_io import read_json_file, write_json_file
-from app.services.media_tools import resolve_media_binary
+from app.services.media_tools import media_subprocess_env, resolve_media_binary
 
 
 TRUNCATED_VIDEO_SIZE_RATIO = 1.15
@@ -144,7 +144,11 @@ def load_session_meta(config: ConfigModel, session_id: str) -> MetaModel:
     if not meta_path.exists():
         raise FileNotFoundError(session_id)
 
-    return MetaModel.model_validate(read_json_file(meta_path))
+    payload = read_json_file(meta_path)
+    if not isinstance(payload, dict):
+        raise ValueError(f"Corrupted session metadata for {session_id}: expected dict, got {type(payload).__name__}")
+
+    return MetaModel.model_validate(payload)
 
 
 def save_session_meta(config: ConfigModel, meta: MetaModel) -> MetaModel:
@@ -366,7 +370,11 @@ def repair_session_duration_from_transcript(config: ConfigModel, session_id: str
 
 
 def write_session_analysis(config: ConfigModel, session_id: str, payload: dict[str, Any]) -> Path:
-    analysis = validate_analysis_payload(payload)
+    if int(payload.get("schema_version", 0) or 0) == 3:
+        from app.models.schemas import AnalysisModelV3
+        analysis = AnalysisModelV3.model_validate(payload)
+    else:
+        analysis = validate_analysis_payload(payload)
     analysis_path = get_session_analysis_path(config, session_id)
     write_json_file(analysis_path, analysis.model_dump(mode="json"))
     return analysis_path
@@ -528,7 +536,7 @@ async def assemble_session_video(config: ConfigModel, session_id: str) -> Path:
             str(output_path),
         ]
         result = await asyncio.to_thread(
-            subprocess.run, command, capture_output=True, text=True, check=False
+            subprocess.run, command, capture_output=True, text=True, check=False, env=media_subprocess_env()
         )
         # Clean up the raw joined file regardless of outcome.
         raw_path.unlink(missing_ok=True)
@@ -536,6 +544,21 @@ async def assemble_session_video(config: ConfigModel, session_id: str) -> Path:
             raise RuntimeError(result.stderr.strip() or "ffmpeg remux failed.")
 
     return output_path
+
+
+async def prepare_session_preview(config: ConfigModel, session_id: str) -> MetaModel:
+    """Assemble a stopped recording for local review without starting processing."""
+    meta = load_session_meta(config, session_id)
+    video_path = await assemble_session_video(config, session_id)
+    duration_seconds = await probe_session_video(video_path)
+    updated_meta = meta.model_copy(
+        update={
+            "duration_seconds": duration_seconds,
+            "file_size_bytes": video_path.stat().st_size,
+            "video_filename": video_path.name,
+        }
+    )
+    return save_session_meta(config, updated_meta)
 
 
 def should_repair_session_video(
@@ -610,7 +633,7 @@ async def extract_session_audio(config: ConfigModel, session_id: str) -> Path:
         "-y",
         str(audio_path),
     ]
-    result = await asyncio.to_thread(subprocess.run, command, capture_output=True, text=True, check=False)
+    result = await asyncio.to_thread(subprocess.run, command, capture_output=True, text=True, check=False, env=media_subprocess_env())
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "ffmpeg audio extraction failed.")
 
@@ -638,7 +661,7 @@ async def extract_session_thumbnail(config: ConfigModel, session_id: str) -> Pat
         "-y",
         str(thumbnail_path),
     ]
-    result = await asyncio.to_thread(subprocess.run, command, capture_output=True, text=True, check=False)
+    result = await asyncio.to_thread(subprocess.run, command, capture_output=True, text=True, check=False, env=media_subprocess_env())
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "ffmpeg thumbnail extraction failed.")
 
@@ -656,7 +679,7 @@ async def probe_session_video(video_path: Path) -> float:
         "default=noprint_wrappers=1:nokey=1",
         str(video_path),
     ]
-    result = await asyncio.to_thread(subprocess.run, command, capture_output=True, text=True, check=False)
+    result = await asyncio.to_thread(subprocess.run, command, capture_output=True, text=True, check=False, env=media_subprocess_env())
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "ffprobe validation failed.")
 
@@ -696,7 +719,16 @@ async def finalize_session(
     duration_seconds_hint: float | None = None,
 ) -> MetaModel:
     meta = load_session_meta(config, session_id)
-    video_path = await assemble_session_video(config, session_id)
+    video_path = get_session_video_path(config, session_id)
+    manifest_path = get_session_chunk_manifest_path(config, session_id)
+    preview_is_current = (
+        video_path is not None
+        and video_path.exists()
+        and manifest_path.exists()
+        and video_path.stat().st_mtime_ns >= manifest_path.stat().st_mtime_ns
+    )
+    if not preview_is_current:
+        video_path = await assemble_session_video(config, session_id)
     duration_seconds = await probe_session_video(video_path)
     if duration_seconds <= 0 and duration_seconds_hint and duration_seconds_hint > 0:
         duration_seconds = float(duration_seconds_hint)

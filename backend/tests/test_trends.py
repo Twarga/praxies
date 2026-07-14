@@ -472,7 +472,37 @@ def test_build_trends_payload_sparse_data_degrades_without_fake_scorecard(config
 
     assert payload["analysis_summary"]["sessions"] == 0
     assert payload["scorecard_dimensions"] == []
+
+
+def test_build_trends_payload_reports_goal_and_assignment_completion(config):
+    from app.services.coaching_repository import create_assignment, create_goal, complete_assignment
+    first = create_goal(config, text="Speak with one example", source_session_id="one")
+    create_goal(config, text="End with an action", source_session_id="two")
+    assignment = create_assignment(config, source_session_id="two", source_goal_id=first.goal_id, title="One example")
+    complete_assignment(config, assignment.assignment_id)
+
+    payload = build_trends_payload(config, trend_range="all")
+    assert payload["goal_summary"] == {
+        "goals_total": 2,
+        "goals_completed": 1,
+        "goal_completion_rate": 50.0,
+        "assignments_total": 1,
+        "assignments_completed": 1,
+        "assignment_completion_rate": 100.0,
+    }
     assert payload["scorecard_by_language"] == {"en": [], "fr": [], "es": []}
+
+
+def test_goal_tracks_can_run_in_parallel(config):
+    from app.services.coaching_repository import create_goal, get_active_goals
+
+    create_goal(config, text="Use one French connector.", source_session_id="language", category="language")
+    create_goal(config, text="State the project decision first.", source_session_id="journal", category="journal")
+
+    assert {(goal.category, goal.text) for goal in get_active_goals(config)} == {
+        ("language", "Use one French connector."),
+        ("journal", "State the project decision first."),
+    }
 
 
 def _write_analysis_with_score(

@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronDown, Pause, Square } from "lucide-react";
+import { ArrowLeft, ChevronDown, Pause, SlidersHorizontal, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { deleteSession, finalizeSession } from "../api/sessions.js";
 import { useConfig } from "../hooks/useConfig.js";
@@ -12,6 +12,8 @@ import {
 } from "../lib/media.js";
 import { createBeforeUnloadHandler } from "../lib/recording.js";
 import { getRecordShortcutAction } from "../lib/recordShortcuts.js";
+import { getPracticeCurrent } from "../api/practice.js";
+import { getDiagnosticsChecks } from "../api/diagnostics.js";
 
 const ACTIVE_RECORDER_STATES = new Set(["recording", "paused", "stopping"]);
 const DISCARD_CONFIRM_TIMEOUT_MS = 5000;
@@ -61,7 +63,7 @@ function getCaptureHint({ isReview, isPaused, isActive, recorderState, permissio
 
 export function Record({ onNavigate }) {
   const { config } = useConfig();
-  const { refreshIndex } = useIndex();
+  const { index, refreshIndex } = useIndex();
   const { pushToast } = useToast();
 
   const [permissionState, setPermissionState] = useState("idle");
@@ -72,9 +74,17 @@ export function Record({ onNavigate }) {
   const [actionError, setActionError] = useState(null);
   const [reviewTitle, setReviewTitle] = useState("");
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [practice, setPractice] = useState(null);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [devices, setDevices] = useState([]);
+  const [videoDeviceId, setVideoDeviceId] = useState("");
+  const [audioDeviceId, setAudioDeviceId] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [goalVisible, setGoalVisible] = useState(true);
 
   const videoRef = useRef(null);
   const reviewVideoRef = useRef(null);
+  const autoFinalizeSessionRef = useRef(null);
 
   const recorder = useRecorder({
     language,
@@ -86,6 +96,31 @@ export function Record({ onNavigate }) {
   const isReview = recorder.state === "stopped" && Boolean(recorder.recordedBlobUrl);
   const isIdle = recorder.state === "idle";
   const isPaused = recorder.state === "paused";
+
+  useEffect(() => {
+    let active = true;
+    void getPracticeCurrent()
+      .then((payload) => { if (active) setPractice(payload); })
+      .catch(() => { if (active) setPractice(null); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const mediaDevices = globalThis.navigator?.mediaDevices;
+    if (!mediaDevices?.enumerateDevices) return undefined;
+    function refreshDevices() {
+      return mediaDevices.enumerateDevices().then(setDevices).catch(() => setDevices([]));
+    }
+    void refreshDevices();
+    mediaDevices.addEventListener?.("devicechange", refreshDevices);
+    return () => mediaDevices.removeEventListener?.("devicechange", refreshDevices);
+  }, []);
+
+  useEffect(() => {
+    if (!isActive || !practice?.active_goal?.text) { setGoalVisible(true); return undefined; }
+    const timeout = window.setTimeout(() => setGoalVisible(false), 8000);
+    return () => window.clearTimeout(timeout);
+  }, [isActive, practice?.active_goal?.text]);
 
   useEffect(() => {
     if (config?.language_default && language !== config.language_default && isIdle) {
@@ -119,6 +154,13 @@ export function Record({ onNavigate }) {
   }, [recorder.state, recorder.sessionId]);
 
   useEffect(() => {
+    if (recorder.state !== "stopped" || !recorder.sessionId) return;
+    if (autoFinalizeSessionRef.current === recorder.sessionId) return;
+    autoFinalizeSessionRef.current = recorder.sessionId;
+    void beginProcessing();
+  }, [recorder.state, recorder.sessionId]);
+
+  useEffect(() => {
     if (!showDiscardConfirm) return undefined;
 
     const timeoutId = window.setTimeout(() => {
@@ -129,6 +171,28 @@ export function Record({ onNavigate }) {
   }, [showDiscardConfirm]);
 
   useEffect(() => () => stopMediaStream(stream), [stream]);
+
+  useEffect(() => {
+    if (!stream || isReview || !globalThis.AudioContext) { setAudioLevel(0); return undefined; }
+    const context = new globalThis.AudioContext();
+    const source = context.createMediaStreamSource(stream);
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.72; source.connect(analyser);
+    const samples = new Uint8Array(analyser.frequencyBinCount); let frame = 0; let lastMeterUpdate = 0;
+    function measure(now = 0) {
+      // A 15 fps meter reads as continuous without rerendering the recording
+      // workspace at the display refresh rate.
+      if (now - lastMeterUpdate >= 66) {
+        analyser.getByteFrequencyData(samples);
+        const average = samples.reduce((sum, value) => sum + value, 0) / Math.max(samples.length, 1);
+        setAudioLevel(Math.min(1, average / 110));
+        lastMeterUpdate = now;
+      }
+      frame = requestAnimationFrame(measure);
+    }
+    measure();
+    return () => { cancelAnimationFrame(frame); source.disconnect(); void context.close(); setAudioLevel(0); };
+  }, [stream, isActive]);
 
   useEffect(() => {
     if (!isActive) return undefined;
@@ -182,11 +246,23 @@ export function Record({ onNavigate }) {
     setActionError(null);
 
     try {
+      try {
+        const diagnostics = await getDiagnosticsChecks();
+        const disk = diagnostics?.checks?.find((check) => check.name === "free disk space");
+        if (disk && !disk.ok) {
+          setActionError(`${disk.summary || "Not enough free disk space to record."} ${disk.action || "Free space before recording."}`);
+          return;
+        }
+      } catch {
+        // Capture remains available if the optional readiness check is temporarily unavailable.
+      }
       if (!nextStream) {
         createdStream = true;
         setPermissionState("requesting");
         nextStream = await requestRecordingStream(undefined, {
           videoQuality: config?.video_quality ?? "720p",
+          videoDeviceId,
+          audioDeviceId,
         });
         setStream(nextStream);
       }
@@ -204,6 +280,45 @@ export function Record({ onNavigate }) {
       }
       setPermissionState("idle");
       setActionError(getStartErrorMessage(error));
+    }
+  }
+
+  async function startPreview(nextVideoDeviceId = videoDeviceId, nextAudioDeviceId = audioDeviceId) {
+    if (!isIdle) return;
+    setActionError(null);
+    setPermissionState("requesting");
+    try {
+      const nextStream = await requestRecordingStream(undefined, {
+        videoQuality: config?.video_quality ?? "720p",
+        videoDeviceId: nextVideoDeviceId,
+        audioDeviceId: nextAudioDeviceId,
+      });
+      if (stream) stopMediaStream(stream);
+      setStream(nextStream);
+      setPermissionState("granted");
+    } catch (error) {
+      setPermissionState(isPermissionDeniedError(error) ? "denied" : "idle");
+      setActionError(isPermissionDeniedError(error) ? "Camera or microphone access was denied by the system." : getStartErrorMessage(error));
+    }
+  }
+
+  async function beginProcessing() {
+    if (!recorder.sessionId) return;
+    setActionState("processing");
+    setActionError(null);
+    setShowDiscardConfirm(false);
+    try {
+      await finalizeSession(recorder.sessionId, {
+        title: null,
+        save_mode: "full",
+        duration_seconds: recorder.elapsedSeconds,
+      });
+      await refreshIndex({ silent: true });
+      pushToast({ kind: "success", message: "Saved · local processing started." });
+    } catch (error) {
+      autoFinalizeSessionRef.current = null;
+      setActionState("idle");
+      setActionError(error instanceof Error ? error.message : "Failed to start processing.");
     }
   }
 
@@ -258,7 +373,7 @@ export function Record({ onNavigate }) {
       return;
     }
 
-    setActionState("saving");
+    setActionState("deleting");
     setActionError(null);
     setShowDiscardConfirm(false);
     try {
@@ -292,47 +407,84 @@ export function Record({ onNavigate }) {
     recorderState: recorder.state,
     permissionState,
   });
+  const cameras = devices.filter((device) => device.kind === "videoinput");
+  const microphones = devices.filter((device) => device.kind === "audioinput");
+  const deviceWarning = devices.length && (!cameras.length || !microphones.length)
+    ? !cameras.length && !microphones.length
+      ? "No camera or microphone detected. Check system permissions and connections."
+      : !cameras.length
+        ? "No camera detected. Check system permissions and connections."
+        : "No microphone detected. Check system permissions and connections."
+    : null;
+  const processingSession = index?.sessions?.find((session) => session.id === recorder.sessionId);
+  const processingStatus = processingSession?.status || (actionState === "processing" ? "queued" : "saved");
+  const processingOrder = ["saved", "transcribing", "analyzing", "ready"];
+  const processingIndex = processingStatus === "queued" ? 0
+    : processingStatus === "transcribing" ? 1
+      : processingStatus === "analyzing" ? 2
+        : ["ready", "done"].includes(processingStatus) ? 3 : 0;
+
+  function revealGoal() {
+    if (!practice?.active_goal?.text) return;
+    setGoalVisible(true);
+  }
 
   return (
-    <div className="flex flex-col h-full bg-[#0F1012] overflow-hidden">
-      <header className="h-16 border-b border-[#2A2C31] flex items-center px-8 bg-[#151619] shrink-0 justify-between">
-        <div className="flex items-center gap-3 relative">
-          <button
-            type="button"
-            onClick={() => onNavigate("today")}
-            className="px-3 py-1.5 bg-[#1C1D21] border border-[#2A2C31] rounded flex items-center gap-2 text-xs font-mono uppercase text-[#E0E0E0] hover:bg-[#2A2C31] transition-colors"
-            aria-label="Back to today"
-          >
-            <ArrowLeft size={14} />
-            Back
+    <div
+      className="flex h-full flex-col overflow-hidden bg-[var(--praxis-bg-app)]"
+      data-record-mode="stage"
+      onPointerMove={revealGoal}
+    >
+      {/* Compact stage chrome — rail is hidden by App when on this route */}
+      <header className="praxis-glass-chrome flex h-12 shrink-0 items-center justify-between border-b border-[var(--praxis-line-subtle)] px-4">
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => onNavigate("today")} className="inline-flex h-7 items-center gap-1.5 rounded-[var(--praxis-radius-sm)] px-2 text-xs text-[var(--praxis-text-secondary)] transition-colors hover:bg-[var(--praxis-bg-hover)] hover:text-[var(--praxis-text-primary)]" aria-label="Exit recording">
+            <ArrowLeft size={14} /> Exit
           </button>
-          <div className="px-2 py-0.5 rounded bg-[#2A2C31] text-[#E0E0E0] text-[10px] font-mono uppercase tracking-widest">
+          <span className="h-4 w-px bg-[var(--praxis-line-subtle)]" aria-hidden="true" />
+          <div
+            className={
+              "inline-flex items-center gap-2 rounded-[var(--praxis-radius-sm)] border px-2.5 py-1 text-[12px] font-medium " +
+              (isActive
+                ? "border-[var(--praxis-record)]/40 bg-[var(--praxis-danger-soft)] text-[var(--praxis-record)]"
+                : "border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)] text-[var(--praxis-text-secondary)]")
+            }
+          >
+            {isActive ? (
+              <span className="praxis-record-indicator h-1.5 w-1.5 rounded-full bg-[var(--praxis-record)]" />
+            ) : null}
             {captureLabel}
           </div>
+          {(isActive || recorder.state === "stopping") ? (
+            <span className="font-mono text-sm text-[var(--praxis-text-primary)] tnum">
+              {formatTimer(recorder.elapsedSeconds)}
+            </span>
+          ) : null}
         </div>
 
-        <div className="flex items-center gap-3 relative">
+        <div className="relative flex items-center gap-2">
           <button
             type="button"
             onClick={() => setShowLangMenu((value) => !value)}
             disabled={isActive || isReview}
-            className="px-3 py-1.5 bg-[#1C1D21] border border-[#2A2C31] rounded flex items-center gap-2 text-xs font-mono uppercase text-[#E0E0E0] hover:bg-[#2A2C31] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 rounded-[var(--praxis-radius-sm)] border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)] px-3 py-1.5 text-xs text-[var(--praxis-text-secondary)] transition-colors hover:text-[var(--praxis-text-primary)] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {activeLanguage.label}
             <ChevronDown size={14} />
           </button>
           {showLangMenu && !isActive && !isReview ? (
-            <div className="absolute top-12 right-0 z-10 min-w-[140px] bg-[#1C1D21] border border-[#2A2C31] rounded shadow-xl py-1">
+            <div className="praxis-glass-overlay absolute right-0 top-10 z-10 min-w-[140px] rounded-[var(--praxis-radius-md)] border border-[var(--praxis-line-strong)] py-1">
               {LANGUAGE_OPTIONS.map((option) => (
                 <button
                   key={option.code}
                   type="button"
                   onClick={() => handleSelectLanguage(option.code)}
-                  className={`w-full text-left px-3 py-1.5 text-xs font-mono uppercase tracking-widest transition-colors ${
-                    option.code === language
-                      ? "text-white bg-[#2A2C31]"
-                      : "text-[#E0E0E0] opacity-70 hover:opacity-100 hover:bg-[#2A2C31]/50"
-                  }`}
+                  className={
+                    "w-full px-3 py-1.5 text-left text-xs transition-colors " +
+                    (option.code === language
+                      ? "bg-[var(--praxis-selected)] text-[var(--praxis-text-primary)]"
+                      : "text-[var(--praxis-text-secondary)] hover:bg-[var(--praxis-bg-hover)]")
+                  }
                 >
                   {option.label}
                 </button>
@@ -342,197 +494,215 @@ export function Record({ onNavigate }) {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-8 py-8">
-        <div className="max-w-6xl mx-auto flex flex-col gap-6">
-          <div className="bg-[#151619] border border-[#2A2C31] rounded-lg p-5">
-            <div className="flex items-start justify-between gap-6 mb-5">
-              <div>
-                <h2 className="text-lg font-semibold tracking-tight text-white">
-                  {isReview ? "Review Recording" : "Capture Session"}
-                </h2>
-                <p className="mt-1 text-xs text-[#D1D1D1] opacity-70 max-w-[520px]">
-                  {captureHint}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {practice?.active_goal?.text && !isReview && goalVisible ? (
+          <section className="praxis-glass-overlay absolute left-1/2 top-3 z-10 w-[min(640px,calc(100%-2rem))] -translate-x-1/2 rounded-[var(--praxis-radius-md)] border border-[var(--praxis-line-subtle)] px-4 py-3">
+            <div className="text-[11px] font-medium text-[var(--praxis-accent)]">Practice this goal</div>
+            <p className="mt-1 text-sm font-medium leading-5 text-[var(--praxis-text-primary)]">
+              {practice.active_goal.text}
+            </p>
+            {practice.active_goal.success_criteria?.length ? (
+              <p className="mt-1 text-xs text-[var(--praxis-text-secondary)]">
+                Success: {practice.active_goal.success_criteria.join(" · ")}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+        {/* Centered 16:9 stage */}
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-[var(--praxis-bg-app)] px-4 py-3">
+          <div className="relative w-full max-w-5xl overflow-hidden rounded-[var(--praxis-radius-md)] border border-[var(--praxis-line-subtle)] bg-[var(--praxis-video-surface)] shadow-[var(--praxis-shadow-inset)] aspect-video max-h-[min(70vh,720px)]">
+            {isReview ? (
+              <video
+                ref={reviewVideoRef}
+                src={recorder.recordedBlobUrl}
+                controls
+                autoPlay
+                playsInline
+                className="h-full w-full object-contain bg-[var(--praxis-video-surface)]"
+              />
+            ) : permissionState === "granted" && stream ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                className="h-full w-full object-cover bg-[var(--praxis-video-surface)]"
+              />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[var(--praxis-video-line)] bg-[var(--praxis-video-soft)]">
+                  <div className="h-3 w-3 rounded-full bg-[var(--praxis-record)]" />
+                </div>
+                <span className="text-[12px] font-medium text-[var(--praxis-video-muted)]">
+                  {permissionState === "denied" ? "Permission denied" : "Ready"}
+                </span>
+                <p className="mt-2 max-w-[320px] text-xs text-[var(--praxis-video-faint)]">
+                  {getPermissionMessage(permissionState)}
                 </p>
               </div>
-            </div>
+            )}
 
-            <div className="rounded-lg border border-[#2A2C31] overflow-hidden bg-black">
-              <div className="relative aspect-video min-h-[420px] lg:min-h-[560px] flex items-center justify-center">
-                {isReview ? (
-                  <video
-                    ref={reviewVideoRef}
-                    src={recorder.recordedBlobUrl}
-                    controls
-                    autoPlay
-                    playsInline
-                    className="w-full h-full object-contain bg-black"
+            {isActive ? (
+              <div className="praxis-video-controls absolute bottom-3 left-3 right-3 flex items-center gap-3 rounded-[var(--praxis-radius-sm)] border border-[var(--praxis-video-line)] px-3 py-2 shadow-[var(--praxis-shadow-overlay)]">
+                <span className="text-[11px] text-[var(--praxis-video-muted)]">Mic</span>
+                <div
+                  className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--praxis-video-line)]"
+                  role="meter"
+                  aria-label="Microphone input level"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Math.round(audioLevel * 100)}
+                >
+                  <div
+                    className="h-full origin-left rounded-full bg-[var(--praxis-success)] transition-transform duration-75"
+                    style={{ transform: `scaleX(${audioLevel})` }}
                   />
-                ) : permissionState === "granted" && stream ? (
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover bg-black"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center text-center px-6">
-                    <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-                      <div className="w-3 h-3 rounded-full bg-[#F27D26]" />
-                    </div>
-                    <span className="text-[11px] uppercase tracking-[0.2em] opacity-60 text-white">
-                      {permissionState === "denied" ? "permission denied" : "ready"}
-                    </span>
-                    <p className="mt-2 text-xs text-[#D1D1D1] opacity-70 max-w-[320px]">
-                      {getPermissionMessage(permissionState)}
-                    </p>
-                  </div>
-                )}
-
-                <div className="absolute left-4 top-4 flex items-center gap-2">
-                  <div className="px-3 py-1.5 bg-[#151619]/90 border border-[#2A2C31] rounded text-[10px] font-mono uppercase tracking-widest text-[#E0E0E0]">
-                    {captureLabel}
-                  </div>
-                  {(isActive || recorder.state === "stopping") && (
-                    <div className="px-3 py-1.5 bg-[#151619]/90 border border-[#2A2C31] rounded">
-                      <span className="font-mono text-sm text-white tracking-wider tnum">
-                        {formatTimer(recorder.elapsedSeconds)}
-                      </span>
-                    </div>
-                  )}
                 </div>
+                <span className="font-mono text-[10px] text-[var(--praxis-video-muted)]">
+                  {recorder.savedChunkCount
+                    ? `${recorder.savedChunkCount} chunks · local save`
+                    : "Saving locally…"}
+                </span>
               </div>
-            </div>
+            ) : null}
           </div>
+        </div>
 
-          {actionError ? (
-            <div className="text-xs text-red-400 font-mono uppercase tracking-widest" role="alert">
-              {actionError}
-            </div>
-          ) : null}
-          {recorder.error ? (
-            <div className="text-xs text-red-400 font-mono uppercase tracking-widest" role="alert">
-              {recorder.error.message}
-            </div>
-          ) : null}
+        <p className="shrink-0 px-4 pb-1 text-center text-[12px] text-[var(--praxis-text-muted)]">
+          {captureHint}
+        </p>
 
+        {actionError ? (
+          <div className="px-4 text-center text-xs text-[var(--praxis-danger)]" role="alert">
+            {actionError}
+          </div>
+        ) : null}
+        {deviceWarning && isIdle ? (
+          <div className="px-4 text-center text-xs text-[var(--praxis-warning)]" role="status">
+            {deviceWarning}
+          </div>
+        ) : null}
+        {recorder.error ? (
+          <div className="flex items-center justify-center gap-3 px-4 text-center text-xs text-[var(--praxis-danger)]" role="alert">
+            <span>Recording failed: {recorder.error.message}</span>
+            <button type="button" onClick={() => void handleStartRecording()} className="rounded border border-[var(--praxis-danger)]/40 px-2 py-1 text-[var(--praxis-danger)]">Retry</button>
+          </div>
+        ) : null}
+
+        {/* Transport dock */}
+        <div className="praxis-glass-chrome shrink-0 border-t border-[var(--praxis-line-subtle)] px-4 py-4">
           {isReview ? (
-            <div className="bg-[#151619] border border-[#2A2C31] rounded-lg p-5 flex flex-col gap-4">
-              <input
-                type="text"
-                value={reviewTitle}
-                onChange={(event) => setReviewTitle(event.target.value)}
-                placeholder="Title this take"
-                className="w-full bg-[#1C1D21] border border-[#2A2C31] rounded px-3 py-2 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:border-[#4ADE80]"
-                aria-label="Recording title"
-              />
+            <div className="mx-auto flex max-w-4xl flex-col gap-3">
+              <div aria-label="Processing status" className="flex items-center gap-2">
+                {processingOrder.map((step, stepIndex) => {
+                  const active = stepIndex === processingIndex;
+                  const complete = stepIndex < processingIndex || processingIndex === processingOrder.length - 1;
+                  const label = step === "saved" ? "Saved" : step === "transcribing" ? "Transcribing" : step === "analyzing" ? "Analyzing" : "Ready";
+                  return <div key={step} className="flex min-w-0 flex-1 items-center gap-2"><span className={"h-2 w-2 shrink-0 rounded-full " + (complete ? "bg-[var(--praxis-success)]" : active ? "bg-[var(--praxis-accent)]" : "bg-[var(--praxis-disabled)]")} /><span className={"truncate font-mono text-[11px] " + (active || complete ? "text-[var(--praxis-text-primary)]" : "text-[var(--praxis-text-muted)]")}>{label}</span>{stepIndex < processingOrder.length - 1 ? <span className="h-px min-w-3 flex-1 bg-[var(--praxis-line-subtle)]" /> : null}</div>;
+                })}
+              </div>
+              <div className="h-1 overflow-hidden rounded-full bg-[var(--praxis-bg-elevated)]" aria-hidden="true"><div className="h-full origin-left bg-[var(--praxis-accent)] transition-transform duration-500 ease-[var(--praxis-ease-out)]" style={{ transform: `scaleX(${(processingIndex + 1) / processingOrder.length})` }} /></div>
               {showDiscardConfirm ? (
-                <div className="text-[10px] font-mono uppercase tracking-widest text-red-300/80">
+                <div className="text-[12px] text-[var(--praxis-danger)]">
                   Click confirm discard to delete this take. Cancels automatically in 5s.
                 </div>
               ) : null}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => void handleDiscard()}
-                  disabled={actionState !== "idle"}
-                  className={`h-11 px-4 rounded text-xs font-semibold uppercase tracking-widest transition-colors disabled:opacity-50 ${
-                    showDiscardConfirm
-                      ? "bg-red-500/10 border border-red-500/40 text-red-300 hover:bg-red-500/20"
-                      : "bg-transparent border border-[#2A2C31] hover:bg-[#1C1D21] text-white"
-                  }`}
+                  disabled={actionState === "deleting"}
+                  className={
+                    "h-10 rounded-[var(--praxis-radius-sm)] px-3 text-[13px] font-medium transition-colors disabled:opacity-50 " +
+                    (showDiscardConfirm
+                      ? "border border-[var(--praxis-danger)]/40 bg-[var(--praxis-danger-soft)] text-[var(--praxis-danger)]"
+                      : "border border-[var(--praxis-line-subtle)] text-[var(--praxis-text-primary)] hover:bg-[var(--praxis-bg-hover)]")
+                  }
                 >
                   {showDiscardConfirm ? "Confirm Discard" : "Discard"}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => void handleFinalize("video_only")}
-                  disabled={actionState !== "idle"}
-                  className="h-11 px-4 bg-[#1C1D21] border border-[#2A2C31] hover:bg-[#2A2C31] text-white rounded text-xs font-semibold uppercase tracking-widest transition-colors disabled:opacity-50"
-                >
-                  Save Raw
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleFinalize("transcribe_only")}
-                  disabled={actionState !== "idle"}
-                  className="h-11 px-4 bg-[#1C1D21] border border-[#2A2C31] hover:bg-[#2A2C31] text-white rounded text-xs font-semibold uppercase tracking-widest transition-colors disabled:opacity-50"
-                >
-                  Transcript Only
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleFinalize("full")}
-                  disabled={actionState !== "idle"}
-                  className="h-11 px-4 bg-[#4ADE80] hover:bg-[#4ADE80]/90 text-black rounded text-xs font-semibold uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(74,222,128,0.2)] disabled:opacity-60"
-                >
-                  {actionState === "saving" ? "Processing..." : "Process & Analyze"}
-                </button>
+                {processingStatus === "failed" || processingStatus === "needs_attention" ? <button type="button" onClick={() => { autoFinalizeSessionRef.current = null; void beginProcessing(); }} className="h-10 rounded-[var(--praxis-radius-sm)] border border-[var(--praxis-line-subtle)] px-3 text-[13px] text-[var(--praxis-text-primary)]">Retry</button> : null}
+                {["ready", "done"].includes(processingStatus) ? <button type="button" onClick={() => onNavigate("session", { sessionId: recorder.sessionId })} className="h-10 rounded-[var(--praxis-radius-sm)] bg-[var(--praxis-accent)] px-4 text-[13px] font-medium text-[var(--praxis-on-accent)]">Open report</button> : <span className="px-2 font-mono text-[11px] text-[var(--praxis-text-muted)]">Processing locally…</span>}
               </div>
             </div>
           ) : (
-            <div className="bg-[#151619] border border-[#2A2C31] rounded-lg p-5">
-              <div className="flex items-center justify-center gap-6 min-h-[72px]">
-                {isIdle ? (
+            <div className="mx-auto flex min-h-[56px] max-w-4xl flex-wrap items-center justify-center gap-4">
+              {isIdle ? (
+                <>
+                  <button type="button" onClick={() => void startPreview()} disabled={permissionState === "requesting"} className="inline-flex h-9 items-center gap-2 rounded-[var(--praxis-radius-sm)] border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-elevated)] px-3 text-xs text-[var(--praxis-text-primary)] disabled:opacity-50">
+                    {stream ? "Preview active" : "Turn on preview"}
+                  </button>
+                  <button type="button" onClick={() => setShowAdvanced((value) => !value)} className="inline-flex h-9 items-center gap-2 rounded-[var(--praxis-radius-sm)] px-3 text-xs text-[var(--praxis-text-secondary)] hover:bg-[var(--praxis-bg-hover)] hover:text-[var(--praxis-text-primary)]" aria-expanded={showAdvanced}>
+                    <SlidersHorizontal size={14} /> Advanced
+                  </button>
                   <button
                     type="button"
                     onClick={() => void handleStartRecording()}
                     disabled={permissionState === "requesting"}
-                    className="w-12 h-12 rounded-full bg-[#F27D26] hover:bg-[#F27D26]/90 flex items-center justify-center transition-transform hover:scale-105 shadow-[0_0_15px_rgba(242,125,38,0.3)] disabled:opacity-60"
-                    aria-label="Start recording"
+                    className="flex h-12 items-center gap-2 rounded-[var(--praxis-radius-sm)] bg-[var(--praxis-record)] px-5 text-[13px] font-medium text-[var(--praxis-on-record)] transition-colors hover:brightness-110 disabled:opacity-60"
+                    aria-label={permissionState === "denied" ? "Check permissions" : "Start recording"}
                   >
-                    <div className="w-4 h-4 bg-white rounded-full" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[var(--praxis-text-primary)]" />
+                    {permissionState === "denied" ? "Check permissions" : "Start recording"}
                   </button>
-                ) : null}
+                  {showAdvanced ? <div className="basis-full mx-auto flex max-w-3xl flex-wrap items-end justify-center gap-3 border-t border-[var(--praxis-line-subtle)] pt-3">
+                    <label className="text-[11px] text-[var(--praxis-text-muted)]">Camera<select value={videoDeviceId} onChange={(event) => { const next = event.target.value; setVideoDeviceId(next); void startPreview(next, audioDeviceId); }} className="mt-1 block h-8 min-w-48 rounded-[var(--praxis-radius-sm)] border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-elevated)] px-2 text-xs text-[var(--praxis-text-primary)]"><option value="">System default</option>{cameras.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Camera ${index + 1}`}</option>)}</select></label>
+                    <label className="text-[11px] text-[var(--praxis-text-muted)]">Microphone<select value={audioDeviceId} onChange={(event) => { const next = event.target.value; setAudioDeviceId(next); void startPreview(videoDeviceId, next); }} className="mt-1 block h-8 min-w-48 rounded-[var(--praxis-radius-sm)] border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-elevated)] px-2 text-xs text-[var(--praxis-text-primary)]"><option value="">System default</option>{microphones.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Microphone ${index + 1}`}</option>)}</select></label>
+                    <div className="w-28"><div className="text-[11px] text-[var(--praxis-text-muted)]">Input level</div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--praxis-bg-elevated)]"><div className="h-full origin-left bg-[var(--praxis-success)]" style={{ transform: `scaleX(${Math.max(0.03, audioLevel)})` }} /></div></div>
+                    <p className="basis-full text-center text-[11px] text-[var(--praxis-text-muted)]">{config?.video_quality ?? "720p"} · speech processing, echo cancellation, and local chunk saving are enabled.</p>
+                  </div> : null}
+                </>
+              ) : null}
 
-                {recorder.state === "recording" ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => recorder.pauseRecording()}
-                      className="w-10 h-10 rounded-full bg-[#1C1D21] border border-[#2A2C31] hover:bg-[#2A2C31] flex items-center justify-center text-white transition-colors"
-                      aria-label="Pause"
-                    >
-                      <Pause size={18} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void recorder.stopRecording()}
-                      className="w-12 h-12 rounded-full bg-[#2A2C31] border border-[#32353B] hover:bg-[#32353B] flex items-center justify-center transition-colors"
-                      aria-label="Stop"
-                    >
-                      <Square fill="currentColor" size={16} className="text-white" />
-                    </button>
-                  </>
-                ) : null}
+              {recorder.state === "recording" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => recorder.pauseRecording()}
+                    className="flex h-10 w-10 items-center justify-center rounded-[var(--praxis-radius-sm)] border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-elevated)] text-[var(--praxis-text-primary)] hover:bg-[var(--praxis-bg-hover)]"
+                    aria-label="Pause"
+                  >
+                    <Pause size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void recorder.stopRecording()}
+                    className="flex h-11 items-center gap-2 rounded-[var(--praxis-radius-sm)] bg-[var(--praxis-record)] px-5 text-[13px] font-medium text-[var(--praxis-on-record)] hover:brightness-110"
+                    aria-label="Stop"
+                  >
+                    <Square fill="currentColor" size={14} />
+                    Stop
+                  </button>
+                </>
+              ) : null}
 
-                {isPaused ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => recorder.resumeRecording()}
-                      className="w-10 h-10 rounded-full bg-[#1C1D21] border border-[#2A2C31] hover:bg-[#2A2C31] flex items-center justify-center text-[#F27D26] transition-colors"
-                      aria-label="Resume"
-                    >
-                      <div className="w-3 h-3 rounded-full bg-[#F27D26]" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void recorder.stopRecording()}
-                      className="w-12 h-12 rounded-full bg-[#2A2C31] border border-[#32353B] hover:bg-[#32353B] flex items-center justify-center transition-colors"
-                      aria-label="Stop"
-                    >
-                      <Square fill="currentColor" size={16} className="text-white" />
-                    </button>
-                  </>
-                ) : null}
+              {isPaused ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => recorder.resumeRecording()}
+                    className="flex h-10 items-center gap-2 rounded-[var(--praxis-radius-sm)] border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-elevated)] px-4 text-[13px] font-medium text-[var(--praxis-record)] hover:bg-[var(--praxis-bg-hover)]"
+                    aria-label="Resume"
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full bg-[var(--praxis-record)]" />
+                    Resume
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void recorder.stopRecording()}
+                    className="flex h-11 items-center gap-2 rounded-[var(--praxis-radius-sm)] bg-[var(--praxis-record)] px-5 text-[13px] font-medium text-[var(--praxis-on-record)] hover:brightness-110"
+                    aria-label="Stop"
+                  >
+                    <Square fill="currentColor" size={14} />
+                    Stop
+                  </button>
+                </>
+              ) : null}
 
-                {recorder.state === "stopping" ? (
-                  <span className="text-xs font-mono uppercase tracking-widest opacity-60 text-white">
-                    Saving take...
-                  </span>
-                ) : null}
-              </div>
+              {recorder.state === "stopping" ? (
+                <span className="text-[13px] text-[var(--praxis-text-muted)]">Saved · preparing review…</span>
+              ) : null}
             </div>
           )}
         </div>

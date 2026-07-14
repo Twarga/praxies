@@ -33,8 +33,11 @@ class WhisperSmokeTestResult:
 
 
 def build_whisper_runtime_config(config: ConfigModel) -> WhisperRuntimeConfig:
+    configured_model = config.whisper.model
+    managed_model_dir = PATHS.whisper_cache_dir / f"models--{configured_model}"
+    model_name = str(managed_model_dir) if (managed_model_dir / "model.bin").is_file() else configured_model
     return WhisperRuntimeConfig(
-        model_name=config.whisper.model,
+        model_name=model_name,
         compute_type=config.whisper.compute_type,
         device=config.whisper.device,
         download_root=str(PATHS.whisper_cache_dir),

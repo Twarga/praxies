@@ -225,8 +225,9 @@ async def test_process_session_writes_transcript_analysis_waveform_and_progress(
     assert "Hello there." in transcript_text
     assert len(transcript_json) == 2
     assert analysis["language"] == "en"
-    assert analysis["coaching_report"]["practice_assignment"]["next_session_goal"] == "Land the final sentence."
-    assert analysis["actionable_improvements"] == ["Add one stronger closing sentence next time."]
+    assert analysis["schema_version"] == 3
+    assert analysis["report"]["next_goal"]["text"] == "Land the final sentence."
+    assert analysis["report"]["priority_improvement"]["replacement_behavior"] == "Write the closing sentence before recording."
     assert len(waveform) == 72
     assert max(waveform) > 0
     assert updated_meta.processing.progress_percent == 100

@@ -7,7 +7,7 @@ export function loadConfig() {
 export function patchConfig(patch) {
   return apiFetchJson("/api/config", {
     method: "PATCH",
-    body: JSON.stringify(patch),
+    body: patch,
   });
 }
 

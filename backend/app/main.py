@@ -5,12 +5,18 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
+from time import monotonic
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
+from app.api.diagnostics import router as diagnostics_router
+from app.api.practice import router as practice_router
+from app.api.providers import router as providers_router
+from app.api.transcription import router as transcription_router
+from app.api.dogfood import router as dogfood_router
 from app.core.settings import APP_VERSION, PATHS
 from app.models import ConfigModel, PatternCalibrationRequestModel
 from app.services.analysis_service import (
@@ -19,6 +25,7 @@ from app.services.analysis_service import (
     AnalysisValidationError,
     parse_and_validate_analysis_response,
     run_analysis_with_retries,
+    run_report_v3_with_retries,
 )
 from app.services.config import dump_config_for_api, load_config, update_config
 from app.services.digest import select_today_digest_session
@@ -38,6 +45,8 @@ from app.services.prompt_builder import (
     build_analysis_system_prompt,
     build_transcript_user_message,
 )
+from app.services.prompt_builder_v3 import build_analysis_prompt_v3, build_transcript_user_message_v3
+from app.services.coaching_repository import create_assignment, create_goal
 from app.services.recurring_patterns import calibrate_recurring_patterns, load_recurring_patterns
 from app.services.retention import RETENTION_INTERVAL_SECONDS, run_retention_pass
 from app.services.sessions import (
@@ -53,6 +62,7 @@ from app.services.sessions import (
     load_session_meta,
     load_session_bundle,
     mark_session_read,
+    prepare_session_preview,
     probe_session_video,
     repair_session_duration_from_transcript,
     store_session_chunk,
@@ -80,12 +90,25 @@ from app.services.trends import build_trends_payload
 from app.services.waveform_service import build_waveform_bins
 from app.services.weekly_rollups import load_weekly_rollup
 from app.services.whisper_service import WhisperService
+from app.services.dogfood import log_session_processed
 
 
 whisper_service = WhisperService()
 llm_client = LiteLLMClient()
 sse_broadcaster = SSEBroadcaster()
 retention_task: asyncio.Task | None = None
+
+
+class UpdateSessionTitlePayload(BaseModel):
+    title: str = Field(min_length=1, max_length=180)
+
+    @field_validator("title")
+    @classmethod
+    def normalize_title(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Title cannot be empty.")
+        return normalized
 
 
 async def run_retention_check_once() -> dict[str, object]:
@@ -106,6 +129,7 @@ async def _retention_loop(interval_seconds: int = RETENTION_INTERVAL_SECONDS) ->
 
 
 async def process_session(session_id: str) -> None:
+    processing_started = monotonic()
     config = load_config()
     session_meta = load_session_meta(config, session_id)
     try:
@@ -140,7 +164,9 @@ async def process_session(session_id: str) -> None:
         await emit_session_status_from_id(config, session_id)
         await rebuild_index_and_emit(config, "session.status")
 
-        whisper_service.get_model(config)
+        # Model construction may download and initialize hundreds of megabytes;
+        # never block the API event loop while the desktop is opening or polling.
+        await asyncio.to_thread(whisper_service.get_model, config)
         append_session_processing_event(
             config,
             session_id,
@@ -215,6 +241,12 @@ async def process_session(session_id: str) -> None:
             )
             await emit_session_status_from_id(config, session_id)
             await rebuild_index_and_emit(config, "session.ready")
+            log_session_processed(
+                config, session_id=session_id, language=session_meta.language,
+                duration_seconds=float(session_meta.duration_seconds or 0),
+                transcription_engine="faster_whisper", transcription_model=config.whisper.model,
+                processing_seconds=round(monotonic() - processing_started, 2), status="ready",
+            )
             return
 
         analyze_started_at = datetime_now_iso()
@@ -243,17 +275,38 @@ async def process_session(session_id: str) -> None:
 
         recurring_patterns = load_recurring_patterns(config, session_meta.language)
         analysis, last_raw = await asyncio.to_thread(
-            run_analysis_with_retries,
+            run_report_v3_with_retries,
             client=llm_client,
             config=config,
-            system_prompt=build_analysis_system_prompt(
+            system_prompt=build_analysis_prompt_v3(
                 config,
+                session_id=session_id,
                 language=session_meta.language,
+                transcript_segments=transcript_payload["transcript"],
                 recurring_patterns=recurring_patterns,
             ),
-            user_message=build_transcript_user_message(transcript_payload["transcript"]),
+            user_message=build_transcript_user_message_v3(transcript_payload["transcript"]),
         )
         write_session_analysis(config, session_id, analysis.model_dump(mode="json"))
+        next_goal = analysis.report.next_goal
+        created_goal = None
+        if next_goal.text.strip():
+            created_goal = create_goal(
+                config,
+                text=next_goal.text.strip(),
+                source_session_id=session_id,
+                success_criteria=next_goal.success_criteria,
+            )
+        practice = analysis.report.practice
+        if practice.instructions.strip() or practice.title.strip():
+            create_assignment(
+                config,
+                source_session_id=session_id,
+                source_goal_id=created_goal.goal_id if created_goal else None,
+                title=practice.title,
+                instructions=practice.instructions,
+                success_criteria=practice.success_criteria,
+            )
         if last_raw:
             write_session_analysis_raw(config, session_id, last_raw)
 
@@ -278,6 +331,14 @@ async def process_session(session_id: str) -> None:
         )
         await emit_session_status_from_id(config, session_id)
         await rebuild_index_and_emit(config, "session.ready")
+        ready_meta = load_session_meta(config, session_id)
+        log_session_processed(
+            config, session_id=session_id, language=ready_meta.language,
+            duration_seconds=float(ready_meta.duration_seconds or 0),
+            transcription_engine="faster_whisper", transcription_model=config.whisper.model,
+            provider_id=config.llm.provider, model_id=get_active_llm_label(config),
+            processing_seconds=round(monotonic() - processing_started, 2), status="ready",
+        )
     except (AnalysisNeedsAttentionError, LlmClientError) as error:
         finished_at = datetime_now_iso()
         update_session_meta(
@@ -534,15 +595,17 @@ async def reanalyze_session_with_latest_prompt(
 
         recurring_patterns = load_recurring_patterns(config, session_meta.language)
         analysis, last_raw = await asyncio.to_thread(
-            run_analysis_with_retries,
+            run_report_v3_with_retries,
             client=llm_client,
             config=config,
-            system_prompt=build_analysis_system_prompt(
+            system_prompt=build_analysis_prompt_v3(
                 config,
+                session_id=session_id,
                 language=session_meta.language,
+                transcript_segments=transcript_segments,
                 recurring_patterns=recurring_patterns,
             ),
-            user_message=build_transcript_user_message(transcript_segments),
+            user_message=build_transcript_user_message_v3(transcript_segments),
         )
         write_session_analysis(config, session_id, analysis.model_dump(mode="json"))
         if last_raw:
@@ -775,6 +838,11 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Praxis Backend", version=APP_VERSION, lifespan=lifespan)
+app.include_router(diagnostics_router)
+app.include_router(practice_router)
+app.include_router(providers_router)
+app.include_router(transcription_router)
+app.include_router(dogfood_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["null"],
@@ -826,7 +894,7 @@ class UpdatePracticePayload(BaseModel):
 
 
 class ReanalyzeLlmOverridePayload(BaseModel):
-    provider: Literal["openrouter", "opencode_go", "openai_compatible", "litellm_proxy"] | None = None
+    provider: str | None = None
     model: str | None = None
     base_url: str | None = None
 
@@ -852,11 +920,22 @@ SUPPORTED_SUBTITLE_LANGUAGES = {"en", "fr", "es", "ar"}
 
 class ExportSubtitledVideoPayload(BaseModel):
     target_language: str
+    secondary_language: str | None = None
 
     @field_validator("target_language", mode="before")
     @classmethod
     def normalize_target_language(cls, value: object) -> str:
         language = str(value or "").strip().lower()
+        if language not in SUPPORTED_SUBTITLE_LANGUAGES:
+            raise ValueError("Unsupported subtitle language.")
+        return language
+
+    @field_validator("secondary_language", mode="before")
+    @classmethod
+    def normalize_secondary_language(cls, value: object) -> str | None:
+        language = str(value or "").strip().lower()
+        if not language:
+            return None
         if language not in SUPPORTED_SUBTITLE_LANGUAGES:
             raise ValueError("Unsupported subtitle language.")
         return language
@@ -1220,6 +1299,21 @@ async def post_session_chunk(
     }
 
 
+@app.post("/api/sessions/{session_id}/preview")
+async def post_session_preview(session_id: str) -> dict[str, object]:
+    try:
+        meta = await prepare_session_preview(load_config(), session_id)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found.") from None
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from None
+    return {
+        "session_id": meta.id,
+        "duration_seconds": meta.duration_seconds,
+        "file_size_bytes": meta.file_size_bytes,
+    }
+
+
 @app.post("/api/sessions/{session_id}/finalize")
 async def post_session_finalize(session_id: str, payload: FinalizeSessionPayload) -> dict[str, object]:
     config = load_config()
@@ -1356,6 +1450,20 @@ async def get_session(session_id: str) -> dict[str, object]:
     return session
 
 
+@app.patch("/api/sessions/{session_id}/title")
+async def patch_session_title(session_id: str, payload: UpdateSessionTitlePayload) -> dict[str, object]:
+    config = load_config()
+    try:
+        meta = update_session_meta(
+            config,
+            session_id,
+            updates={"title": payload.title, "title_source": "user"},
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Session not found.") from None
+    return {"ok": True, "meta": meta.model_dump(mode="json")}
+
+
 @app.get("/api/sessions/{session_id}/export-prompt")
 async def get_session_export_prompt(session_id: str) -> PlainTextResponse:
     config = load_config()
@@ -1457,10 +1565,31 @@ async def post_session_export_subtitled_video(
                 segments=target_segments,
             )
 
+        if payload.secondary_language and payload.secondary_language != payload.target_language:
+            secondary_segments = load_subtitle_segments(config, session_id, payload.secondary_language)
+            if secondary_segments is None:
+                secondary_segments = translate_subtitle_segments(
+                    client=llm_client,
+                    config=config,
+                    source_language=meta.language,
+                    target_language=payload.secondary_language,
+                    segments=transcript_segments,
+                )
+                write_subtitle_files(
+                    config,
+                    session_id,
+                    language=payload.secondary_language,
+                    segments=secondary_segments,
+                )
+
         output_path = await export_burned_subtitle_video(
             config,
             session_id,
             language=payload.target_language,
+            secondary_language=(
+                payload.secondary_language
+                if payload.secondary_language != payload.target_language else None
+            ),
         )
     except LlmClientError as error:
         raise HTTPException(status_code=400, detail=str(error)) from None
@@ -1475,6 +1604,7 @@ async def post_session_export_subtitled_video(
         "ok": True,
         "session_id": session_id,
         "language": payload.target_language,
+        "secondary_language": payload.secondary_language,
         "filename": output_path.name,
         "path": str(output_path),
         "url": f"/api/sessions/{session_id}/exports/{output_path.name}",
@@ -1502,6 +1632,8 @@ async def get_session_exported_video(session_id: str, filename: str) -> FileResp
         raise HTTPException(status_code=400, detail="Unsupported export file.") from None
 
     language = filename.removeprefix("video_subtitled_").removesuffix(".mp4")
+    if not all(part in SUPPORTED_SUBTITLE_LANGUAGES or part == "dual" for part in language.split("_")):
+        raise HTTPException(status_code=400, detail="Unsupported export file.") from None
     video_path = get_session_subtitled_video_path(config, session_id, language)
     if video_path.name != filename or not video_path.exists():
         raise HTTPException(status_code=404, detail="Exported video not found.") from None

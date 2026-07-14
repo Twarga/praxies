@@ -4,11 +4,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const QUALIFYING_SESSION_SECONDS = 120;
 
 const INTENSITY_CLASSES = [
-  "bg-[#1C1D21] border-[#2A2C31]",
-  "bg-[#3A2A1F] border-[#5A3A25]",
-  "bg-[#7A431F] border-[#9A5425]",
-  "bg-[#F27D26] border-[#F4B26D] shadow-[0_0_10px_rgba(242,125,38,0.22)]",
-  "bg-[#4ADE80] border-[#7AF0A2] shadow-[0_0_12px_rgba(74,222,128,0.24)]",
+  "bg-[var(--praxis-bg-panel-raised)] border-[var(--praxis-line-subtle)]",
+  "bg-[var(--praxis-warning-soft)] border-[var(--praxis-warning)]/35",
+  "bg-[var(--praxis-warning)]/45 border-[var(--praxis-warning)]/65",
+  "bg-[var(--praxis-warning)] border-[var(--praxis-warning)] shadow-[var(--praxis-shadow-warning-glow)]",
+  "bg-[var(--praxis-success)] border-[var(--praxis-success)] shadow-[var(--praxis-shadow-success-glow)]",
 ];
 
 function toLocalDateKey(value) {
@@ -98,10 +98,10 @@ export function StreakGrid({ sessions, endDate = new Date() }) {
   return (
     <div>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="min-h-4 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/50">
+        <div className="min-h-4 text-[10px] font-mono uppercase tracking-widest text-[var(--praxis-text-muted)]">
           {formatSummary(activeDay)}
         </div>
-        <div className="shrink-0 text-[9px] font-mono uppercase tracking-widest text-[#4ADE80]/80">
+        <div className="shrink-0 text-[9px] font-mono uppercase tracking-widest text-[var(--praxis-success)]/80">
           {activeCount} active days
         </div>
       </div>
@@ -117,8 +117,8 @@ export function StreakGrid({ sessions, endDate = new Date() }) {
               onMouseEnter={() => setActiveDay(day)}
               onFocus={() => setActiveDay(day)}
               onBlur={() => setActiveDay(null)}
-              className={`streak-cell h-2.5 w-2.5 rounded-[2px] border outline-none transition-transform hover:scale-125 focus:scale-125 focus:ring-1 focus:ring-[#D1D1D1]/40 ${
-                day.isToday ? "ring-1 ring-[#D1D1D1]/50" : ""
+              className={`streak-cell h-2.5 w-2.5 rounded-[2px] border outline-none transition-transform hover:scale-125 focus:scale-125 focus:ring-1 focus:ring-[var(--praxis-text-secondary)]/40 ${
+                day.isToday ? "ring-1 ring-[var(--praxis-text-secondary)]/50" : ""
               } ${day.intensity > 0 ? "streak-cell-active" : ""} ${INTENSITY_CLASSES[day.intensity]}`}
               style={{ animationDelay: `${Math.min(index, 60) * 8}ms` }}
               title={`${day.key}: ${day.count} qualifying session${day.count === 1 ? "" : "s"}`}
@@ -126,7 +126,7 @@ export function StreakGrid({ sessions, endDate = new Date() }) {
             />
           ))}
         </div>
-        <div className="mt-3 flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/40">
+        <div className="mt-3 flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-[var(--praxis-text-muted)]">
           <span>less</span>
           <div className="flex gap-[3px]">
             {INTENSITY_CLASSES.map((className, index) => (

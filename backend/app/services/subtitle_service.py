@@ -9,7 +9,7 @@ from typing import Any
 
 from app.models import ConfigModel
 from app.services.llm_client import LiteLLMOpenRouterClient
-from app.services.media_tools import resolve_media_binary
+from app.services.media_tools import media_subprocess_env, resolve_media_binary
 from app.services.prompt_builder import (
     build_subtitle_translation_system_prompt,
     build_subtitle_translation_user_message,
@@ -155,7 +155,13 @@ def translate_subtitle_segments(
     return translated_segments
 
 
-async def export_burned_subtitle_video(config: ConfigModel, session_id: str, *, language: str) -> Path:
+async def export_burned_subtitle_video(
+    config: ConfigModel,
+    session_id: str,
+    *,
+    language: str,
+    secondary_language: str | None = None,
+) -> Path:
     video_path = get_session_video_path(config, session_id)
     if video_path is None:
         raise FileNotFoundError(session_id)
@@ -164,8 +170,20 @@ async def export_burned_subtitle_video(config: ConfigModel, session_id: str, *, 
     if not subtitle_path.exists():
         raise FileNotFoundError(subtitle_path.name)
 
-    output_path = get_session_subtitled_video_path(config, session_id, language)
-    filter_arg = f"subtitles={subtitle_path.name}"
+    secondary_path = None
+    export_key = language
+    if secondary_language:
+        secondary_path = get_session_subtitle_path(config, session_id, secondary_language, "srt")
+        if not secondary_path.exists():
+            raise FileNotFoundError(secondary_path.name)
+        export_key = f"{language}_dual_{secondary_language}"
+
+    output_path = get_session_subtitled_video_path(config, session_id, export_key)
+    # Keep two tracks visually separate: the primary language sits at the
+    # bottom, the translation above it. Both tracks stay hard-coded in the MP4.
+    filter_arg = f"subtitles={subtitle_path.name}:force_style='Alignment=2,MarginV=34'"
+    if secondary_path:
+        filter_arg += f",subtitles={secondary_path.name}:force_style='Alignment=8,MarginV=58'"
     command = [
         resolve_media_binary("ffmpeg"),
         "-i",
@@ -195,7 +213,24 @@ async def export_burned_subtitle_video(config: ConfigModel, session_id: str, *, 
         capture_output=True,
         text=True,
         check=False,
+        env=media_subprocess_env(),
     )
+    if result.returncode != 0 and "Unknown encoder 'libx264'" in result.stderr:
+        fallback_command = list(command)
+        encoder_index = fallback_command.index("libx264")
+        fallback_command[encoder_index] = "mpeg4"
+        for option in ("-preset", "veryfast", "-crf", "23"):
+            if option in fallback_command:
+                fallback_command.remove(option)
+        result = await asyncio.to_thread(
+            subprocess.run,
+            fallback_command,
+            cwd=str(get_session_dir(config, session_id)),
+            capture_output=True,
+            text=True,
+            check=False,
+            env=media_subprocess_env(),
+        )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "ffmpeg subtitle export failed.")
 

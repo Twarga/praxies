@@ -37,7 +37,11 @@ def load_recurring_patterns(config: ConfigModel, language: str) -> RecurringPatt
     if not path.exists():
         return save_recurring_patterns(config, build_empty_recurring_patterns(language))
 
-    patterns = RecurringPatternsModel.model_validate(read_json_file(path))
+    payload = read_json_file(path)
+    if not isinstance(payload, dict):
+        return save_recurring_patterns(config, build_empty_recurring_patterns(language))
+
+    patterns = RecurringPatternsModel.model_validate(payload)
     if patterns.language != language:
         raise ValueError("Recurring pattern language does not match requested language.")
     return patterns

@@ -4,6 +4,7 @@ import { Today } from "./Today.jsx";
 import { IndexContext } from "../contexts/IndexContext.jsx";
 
 vi.mock("../api/sessions.js", () => ({
+  getSessionThumbnailUrl: vi.fn((id) => `/thumb/${id}`),
   loadTodayDigest: vi.fn(async () => ({
     digest: {
       digest_date: "2026-05-08",
@@ -27,6 +28,13 @@ vi.mock("../api/sessions.js", () => ({
     },
   })),
   loadSession: vi.fn(async () => ({ meta: {}, analysis: null })),
+}));
+
+vi.mock("../api/practice.js", () => ({
+  getPracticeCurrent: vi.fn(async () => ({
+    active_goal: { text: "Close with one visible next action.", status: "active" },
+    current_assignment: { instructions: "End with a concrete commitment." },
+  })),
 }));
 
 describe("Today", () => {
@@ -68,6 +76,7 @@ describe("Today", () => {
 
     expect(screen.getByText("What did I avoid saying directly?")).toBeInTheDocument();
     expect(screen.getByText("Give one concrete example in under 20 seconds.")).toBeInTheDocument();
-    expect(screen.getByText("Close with one visible next action.")).toBeInTheDocument();
+    expect(screen.getAllByText("Close with one visible next action.").length).toBeGreaterThan(0);
+    expect(screen.getByText("Current goal")).toBeInTheDocument();
   });
 });

@@ -14,9 +14,12 @@ from app.services.sessions import (
     delete_session_dir,
     get_session_dir,
     get_session_video_path,
+    load_session_meta,
     probe_session_video,
+    prepare_session_preview,
     should_repair_session_video,
     store_session_chunk,
+    update_session_meta,
 )
 from app.services.subtitle_service import export_burned_subtitle_video, write_subtitle_files
 
@@ -74,7 +77,13 @@ async def test_session_lifecycle(config, tmp_path):
     assert chunk_b_path.exists()
     assert len(manifest_b["chunks"]) == 2
 
-    video_path = await assemble_session_video(config, meta.id)
+    preview_meta = await prepare_session_preview(config, meta.id)
+    assert preview_meta.status == "recording"
+    assert preview_meta.duration_seconds > 0
+    assert preview_meta.file_size_bytes > 0
+
+    video_path = get_session_video_path(config, meta.id)
+    assert video_path is not None
     assert video_path.exists()
     assert video_path.stat().st_size > 0
 
@@ -100,6 +109,20 @@ async def test_probe_rejects_invalid_video(tmp_path):
 
 def test_delete_returns_false_for_unknown(config):
     assert delete_session_dir(config, "does-not-exist") is False
+
+
+def test_session_title_update_persists_in_local_metadata(config):
+    meta = create_session(config, language="en", title="original title")
+
+    updated = update_session_meta(
+        config,
+        meta.id,
+        updates={"title": "A clearer title", "title_source": "user"},
+    )
+
+    assert updated.title == "A clearer title"
+    assert updated.title_source == "user"
+    assert load_session_meta(config, meta.id).title == "A clearer title"
 
 
 def test_should_repair_session_video_when_output_only_matches_first_chunk(config, tmp_path):

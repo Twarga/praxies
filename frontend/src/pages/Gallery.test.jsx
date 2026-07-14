@@ -57,4 +57,15 @@ describe("Gallery", () => {
 
     expect(screen.getByText("No sessions match these filters.")).toBeInTheDocument();
   });
+
+  it("restores persisted archive filters", () => {
+    window.localStorage.setItem("praxis.sessions.language", "fr");
+    window.localStorage.setItem("praxis.sessions.status", "ready");
+    window.localStorage.setItem("praxis.sessions.range", "30d");
+    window.localStorage.setItem("praxis.sessions.sort", "oldest");
+    renderGallery({ sessions: [] });
+    expect(screen.getByRole("combobox", { name: "Filter by language" })).toHaveValue("fr");
+    expect(screen.getByRole("combobox", { name: "Sort sessions" })).toHaveValue("oldest");
+    expect(screen.getByRole("button", { name: "Ready" })).toHaveAttribute("aria-pressed", "true");
+  });
 });

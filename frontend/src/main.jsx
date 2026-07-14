@@ -13,7 +13,15 @@ import { EventSourceProvider } from "./contexts/EventSourceContext.jsx";
 import { IndexProvider } from "./contexts/IndexContext.jsx";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import { ToastProvider } from "./contexts/ToastContext.jsx";
+import "./styles/tokens.css";
 import "./styles/globals.css";
+import "./styles/motion.css";
+import "./styles/themes/0-control-room.css";
+import "./styles/themes/1-warm-editorial.css";
+import "./styles/themes/2-bauhaus.css";
+import "./styles/themes/3-zen.css";
+import "./styles/themes/4-brutalist.css";
+import "./styles/themes/5-observatory.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

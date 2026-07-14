@@ -1,23 +1,30 @@
 import {
   AlertCircle,
   CheckCircle2,
-  Flame,
   LayoutDashboard,
   Loader2,
+  Dumbbell,
   Mic,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings as SettingsIcon,
   TrendingUp,
   Video,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useEventSource } from "../hooks/useEventSource.js";
 import { useIndex } from "../hooks/useIndex.js";
+import { PRIMARY_NAV } from "../lib/nav.js";
+import { getShellStatusLabel, getStatusLabel } from "../lib/statusLabels.js";
+import { cn } from "../lib/cn.js";
 
-const NAV_ITEMS = [
-  { id: "today", icon: LayoutDashboard, label: "Today" },
-  { id: "record", icon: Mic, label: "Record" },
-  { id: "gallery", icon: Video, label: "Gallery" },
-  { id: "trends", icon: TrendingUp, label: "Stats" },
-];
+const NAV_ICONS = {
+  today: LayoutDashboard,
+  record: Mic,
+  practice: Dumbbell,
+  gallery: Video,
+  trends: TrendingUp,
+};
 
 const ACTIVE_STATUSES = new Set(["queued", "transcribing", "analyzing"]);
 const READY_STATUSES = new Set(["ready", "done"]);
@@ -27,7 +34,7 @@ function getSessionTitle(session) {
   return session?.title?.trim() || session?.id || "Untitled";
 }
 
-function getLiveBadgeState(index, lastEvent) {
+export function getLiveBadgeState(index, lastEvent) {
   const sessions = index?.sessions ?? [];
   const activeSessions = sessions.filter((session) => ACTIVE_STATUSES.has(session.status));
   const attentionSessions = sessions.filter((session) => ATTENTION_STATUSES.has(session.status));
@@ -38,7 +45,7 @@ function getLiveBadgeState(index, lastEvent) {
       kind: "attention",
       session: attentionSession,
       count: attentionSessions.length,
-      label: attentionSession.status === "needs_attention" ? "Needs attention" : "Failed",
+      label: getShellStatusLabel("attention"),
       detail: getSessionTitle(attentionSession),
     };
   }
@@ -49,7 +56,7 @@ function getLiveBadgeState(index, lastEvent) {
       kind: "active",
       session: activeSession,
       count: activeSessions.length,
-      label: activeSession.status === "queued" ? "Queued" : activeSession.status,
+      label: getStatusLabel(activeSession.status) || getShellStatusLabel("active"),
       detail: getSessionTitle(activeSession),
     };
   }
@@ -69,7 +76,7 @@ function getLiveBadgeState(index, lastEvent) {
       kind: "ready",
       session: readySession,
       count: unreadReadySessions.length,
-      label: "Ready",
+      label: getShellStatusLabel("ready"),
       detail: getSessionTitle(readySession),
     };
   }
@@ -78,63 +85,62 @@ function getLiveBadgeState(index, lastEvent) {
     kind: "idle",
     session: null,
     count: 0,
-    label: "Live idle",
+    label: getShellStatusLabel("idle"),
     detail: "No active tasks",
   };
 }
 
-function ProcessingBadge({ state, eventStatus, onNavigate }) {
+function ProcessingBadge({ state, eventStatus, onNavigate, collapsed }) {
   const isActionable = Boolean(state.session);
   const Icon =
     state.kind === "attention" ? AlertCircle : state.kind === "ready" ? CheckCircle2 : Loader2;
   const iconClass =
     state.kind === "attention"
-      ? "text-red-400"
+      ? "text-[var(--praxis-danger)]"
       : state.kind === "ready"
-        ? "text-[#4ADE80]"
+        ? "text-[var(--praxis-success)]"
         : state.kind === "active"
-          ? "text-[#F27D26] animate-spin"
-          : "text-[#D1D1D1] opacity-45";
+          ? "text-[var(--praxis-accent)] animate-spin"
+          : "text-[var(--praxis-text-muted)]";
   const borderClass =
     state.kind === "attention"
-      ? "border-red-400/35 bg-red-400/10"
+      ? "border-[var(--praxis-danger)]/35 bg-[var(--praxis-danger-soft)]"
       : state.kind === "ready"
-        ? "border-[#4ADE80]/35 bg-[#4ADE80]/10"
+        ? "border-[var(--praxis-success)]/35 bg-[var(--praxis-success-soft)]"
         : state.kind === "active"
-          ? "border-[#F27D26]/35 bg-[#F27D26]/10"
-          : "border-[#2A2C31] bg-[#1C1D21]";
-  const connectionLabel = eventStatus === "connected" ? "live" : eventStatus;
+          ? "border-[var(--praxis-accent)]/35 bg-[var(--praxis-accent-muted)]"
+          : "border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)]";
+  const connectionLabel = eventStatus === "connected" ? "Live" : getStatusLabel(eventStatus || "offline");
 
   const content = (
     <>
-      <Icon size={15} className={`shrink-0 ${iconClass}`} />
-      <div className="hidden sm:block min-w-0 flex-1">
+      <Icon size={15} className={cn("shrink-0", iconClass)} aria-hidden="true" />
+      <div className={collapsed ? "hidden" : "hidden min-w-0 flex-1 sm:block"}>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1] opacity-50">
-            {connectionLabel}
-          </span>
+          <span className="text-[10px] text-[var(--praxis-text-muted)]">{connectionLabel}</span>
           {state.count > 1 ? (
-            <span className="text-[9px] font-mono text-white opacity-55">
+            <span className="font-mono text-[10px] text-[var(--praxis-text-secondary)] tnum">
               {state.count}
             </span>
           ) : null}
         </div>
-        <div className="mt-0.5 text-[11px] font-mono uppercase tracking-wider text-white truncate">
+        <div className="mt-0.5 truncate text-[12px] font-medium text-[var(--praxis-text-primary)]">
           {state.label}
         </div>
-        <div className="mt-0.5 text-[10px] text-[#D1D1D1] opacity-55 truncate">
-          {state.detail}
-        </div>
+        <div className="mt-0.5 truncate text-[11px] text-[var(--praxis-text-muted)]">{state.detail}</div>
       </div>
     </>
   );
 
+  const shellClass = cn(
+    "flex min-h-10 w-10 items-center justify-center gap-2 rounded-[var(--praxis-radius-sm)] border p-2 transition-colors",
+    borderClass,
+    collapsed ? "sm:w-10" : "sm:w-full sm:min-h-[56px] sm:justify-start sm:px-3",
+  );
+
   if (!isActionable) {
     return (
-      <div
-        className={`w-10 sm:w-full min-h-10 sm:min-h-[68px] rounded-lg border ${borderClass} flex items-center justify-center sm:justify-start gap-3 p-2 sm:px-3 transition-colors`}
-        title={state.detail}
-      >
+      <div className={shellClass} title={`${state.label}: ${state.detail}`}>
         {content}
       </div>
     );
@@ -144,8 +150,8 @@ function ProcessingBadge({ state, eventStatus, onNavigate }) {
     <button
       type="button"
       onClick={() => onNavigate("session", { sessionId: state.session.id })}
-      className={`w-10 sm:w-full min-h-10 sm:min-h-[68px] rounded-lg border ${borderClass} flex items-center justify-center sm:justify-start gap-3 p-2 sm:px-3 text-left transition-colors hover:border-white/25`}
-      title={state.detail}
+      className={cn(shellClass, "text-left hover:border-[var(--praxis-text-primary)]/20")}
+      title={`${state.label}: ${state.detail}`}
     >
       {content}
     </button>
@@ -155,89 +161,108 @@ function ProcessingBadge({ state, eventStatus, onNavigate }) {
 export function Sidebar({ currentPage, onNavigate }) {
   const { index } = useIndex();
   const { lastEvent, status: eventStatus } = useEventSource();
-  const totalSessions = index?.totals?.sessions ?? 0;
-  const currentStreak = index?.streak?.current ?? 0;
+  const [collapsed, setCollapsed] = useState(
+    () => window.localStorage.getItem("praxis.sidebar.collapsed") === "true",
+  );
+  const [narrowDesktop, setNarrowDesktop] = useState(() => window.innerWidth < 1024);
+  const isCollapsed = narrowDesktop || collapsed;
   const liveBadgeState = getLiveBadgeState(index, lastEvent);
 
+  useEffect(() => {
+    window.localStorage.setItem("praxis.sidebar.collapsed", String(collapsed));
+  }, [collapsed]);
+
+  useEffect(() => {
+    function updateViewport() {
+      setNarrowDesktop(window.innerWidth < 1024);
+    }
+
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
+  }, []);
+
   return (
-    <nav className="w-[72px] sm:w-[240px] h-full bg-[#151619] border-r border-[#2A2C31] flex flex-col py-6 items-center sm:items-stretch sm:px-4 shrink-0">
-      <div className="flex items-center justify-center sm:justify-start sm:px-2 mb-8">
-        <img
-          src="/app-icon.png"
-          alt=""
-          aria-hidden="true"
-          className="w-8 h-8 rounded sm:mr-3"
-          draggable="false"
-        />
-        <h1 className="hidden sm:block text-white tracking-widest uppercase text-xs font-semibold">
-          Praxis
-        </h1>
+    <nav
+      aria-label="Primary navigation"
+      className={cn(
+        "praxis-glass-chrome flex h-full w-14 shrink-0 flex-col items-center border-r border-[var(--praxis-line-subtle)] py-3 sm:items-stretch",
+        isCollapsed ? "sm:w-14 sm:px-2" : "sm:w-[220px] sm:px-3",
+      )}
+    >
+      <div className={cn("mb-2 flex w-full items-center", isCollapsed ? "justify-center" : "justify-end px-1")}>
+        <button
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-hidden={narrowDesktop ? "true" : undefined}
+          tabIndex={narrowDesktop ? -1 : 0}
+          className={cn("grid h-8 w-8 place-items-center rounded-[var(--praxis-radius-sm)] text-[var(--praxis-text-muted)] transition-[background-color,color,transform] duration-[var(--praxis-duration-quick)] ease-[var(--praxis-ease-out)] hover:bg-[var(--praxis-bg-hover)] hover:text-[var(--praxis-text-primary)] active:scale-[0.97]", narrowDesktop && "invisible")}
+        >
+          {isCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+        </button>
       </div>
 
-      <div className="flex-1 flex flex-col gap-2 sm:gap-1 w-full items-center sm:items-stretch">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentPage === item.id || (item.id === "gallery" && currentPage === "session");
+      <div
+        className={cn(
+          "flex w-full flex-1 flex-col items-center gap-1",
+          isCollapsed ? "sm:items-center" : "sm:items-stretch",
+        )}
+      >
+        {PRIMARY_NAV.map((item) => {
+          const Icon = NAV_ICONS[item.id];
+          const isActive =
+            currentPage === item.id || (item.id === "gallery" && currentPage === "session");
           return (
             <button
               key={item.id}
               type="button"
               onClick={() => onNavigate(item.id)}
               aria-current={isActive ? "page" : undefined}
-              className={`flex items-center justify-center sm:justify-start gap-3 p-2 sm:px-3 sm:py-2 rounded-lg text-sm transition-colors w-10 sm:w-full ${
+              className={cn(
+                "flex w-10 items-center justify-center gap-3 rounded-[var(--praxis-radius-sm)] p-2 text-sm transition-colors",
+                isCollapsed ? "sm:w-10" : "sm:w-full sm:justify-start sm:px-3 sm:py-2",
                 isActive
-                  ? "bg-[#2A2C31] text-white font-medium"
-                  : "text-[#E0E0E0] opacity-40 hover:opacity-100 hover:bg-[#2A2C31]/50"
-              }`}
-              title={item.label}
+                  ? "bg-[var(--praxis-selected)] font-medium text-[var(--praxis-text-primary)]"
+                  : "text-[var(--praxis-text-muted)] hover:bg-[var(--praxis-hover)] hover:text-[var(--praxis-text-primary)]",
+              )}
+              title={`${item.label} · Ctrl+${item.shortcut}`}
             >
-              <Icon size={20} strokeWidth={isActive ? 2 : 1.5} />
-              <span className="hidden sm:block text-xs uppercase tracking-widest font-semibold">
-                {item.label}
-              </span>
+              <Icon size={18} strokeWidth={isActive ? 2 : 1.5} />
+              <span className={cn("hidden text-[13px] transition-[opacity,transform] duration-[var(--praxis-duration-pane)] ease-[var(--praxis-spring-settle)] sm:block", isCollapsed ? "sm:w-0 sm:-translate-x-2 sm:overflow-hidden sm:opacity-0" : "sm:translate-x-0 sm:opacity-100")}>{item.label}</span>
             </button>
           );
         })}
       </div>
 
-      <div className="mt-auto flex flex-col items-center sm:items-stretch w-full gap-2">
+      <div
+        className={cn(
+          "mt-auto flex w-full flex-col items-center gap-2",
+          isCollapsed ? "sm:items-center" : "sm:items-stretch",
+        )}
+      >
         <ProcessingBadge
           state={liveBadgeState}
           eventStatus={eventStatus}
           onNavigate={onNavigate}
+          collapsed={isCollapsed}
         />
 
         <button
           type="button"
           onClick={() => onNavigate("settings")}
           aria-current={currentPage === "settings" ? "page" : undefined}
-          className={`flex items-center justify-center sm:justify-start gap-3 p-2 sm:px-3 sm:py-2 rounded-lg text-sm transition-colors w-10 sm:w-full ${
+          className={cn(
+            "flex w-10 items-center justify-center gap-3 rounded-[var(--praxis-radius-sm)] p-2 text-sm transition-colors",
+            isCollapsed ? "sm:w-10" : "sm:w-full sm:justify-start sm:px-3 sm:py-2",
             currentPage === "settings"
-              ? "bg-[#2A2C31] text-white font-medium"
-              : "text-[#E0E0E0] opacity-40 hover:opacity-100 hover:bg-[#2A2C31]/50"
-          }`}
-          title="Settings"
+              ? "bg-[var(--praxis-selected)] font-medium text-[var(--praxis-text-primary)]"
+              : "text-[var(--praxis-text-muted)] hover:bg-[var(--praxis-hover)] hover:text-[var(--praxis-text-primary)]",
+          )}
+          title="Settings · Ctrl+,"
         >
-          <SettingsIcon size={20} strokeWidth={currentPage === "settings" ? 2 : 1.5} />
-          <span className="hidden sm:block text-xs uppercase tracking-widest font-semibold">
-            Settings
-          </span>
+          <SettingsIcon size={18} strokeWidth={currentPage === "settings" ? 2 : 1.5} />
+          <span className={cn("hidden text-[13px] transition-[opacity,transform] duration-[var(--praxis-duration-pane)] ease-[var(--praxis-spring-settle)] sm:block", isCollapsed ? "sm:w-0 sm:-translate-x-2 sm:overflow-hidden sm:opacity-0" : "sm:translate-x-0 sm:opacity-100")}>Settings</span>
         </button>
-        <div className="hidden sm:grid mt-3 grid-cols-2 gap-2 sm:px-1 font-mono">
-          <div className="rounded border border-[#4ADE80]/30 bg-[#4ADE80]/10 px-2 py-2">
-            <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-widest text-[#4ADE80] opacity-80">
-              <Flame size={10} className={currentStreak > 0 ? "streak-flame" : ""} />
-              Streak
-            </div>
-            <div className="mt-1 text-sm text-white tnum">{currentStreak}d</div>
-          </div>
-          <div className="rounded border border-[#2A2C31] bg-[#1C1D21] px-2 py-2">
-            <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1] opacity-35">
-              Total
-            </div>
-            <div className="text-sm text-white tnum">{totalSessions}</div>
-          </div>
-        </div>
       </div>
     </nav>
   );

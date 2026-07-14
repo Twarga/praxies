@@ -1,0 +1,158 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Praxis — Motion tokens (Control Room Studio).
+   ────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  --praxis-duration-instant: 80ms;
+  --praxis-duration-quick: 120ms;
+  --praxis-duration-control: 160ms;
+  --praxis-duration-pane: 200ms;
+  --praxis-duration-dialog: 220ms;
+
+  --praxis-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --praxis-ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+  --praxis-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --praxis-spring-settle: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Compatibility aliases for existing feature styles. */
+  --praxis-ease-out-quart: var(--praxis-ease-out);
+  --praxis-ease-out-quint: var(--praxis-ease-out);
+  --praxis-ease-in-out-quart: var(--praxis-ease-in-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.praxis-transition-instant {
+  transition-property: var(--praxis-transition-props);
+  transition-duration: var(--praxis-duration-instant);
+  transition-timing-function: var(--praxis-ease-out);
+}
+
+.praxis-transition-quick {
+  transition-property: var(--praxis-transition-props);
+  transition-duration: var(--praxis-duration-quick);
+  transition-timing-function: var(--praxis-ease-out);
+}
+
+.praxis-transition-control {
+  transition-property: var(--praxis-transition-props);
+  transition-duration: var(--praxis-duration-control);
+  transition-timing-function: var(--praxis-ease-out);
+}
+
+.praxis-transition-pane {
+  transition-property: var(--praxis-transition-props);
+  transition-duration: var(--praxis-duration-pane);
+  transition-timing-function: var(--praxis-ease-out);
+}
+
+.praxis-transition-dialog {
+  transition-property: var(--praxis-transition-props);
+  transition-duration: var(--praxis-duration-dialog);
+  transition-timing-function: var(--praxis-ease-out);
+}
+
+@keyframes praxis-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.praxis-fade-in {
+  animation: praxis-fade-in var(--praxis-duration-control) var(--praxis-ease-out) both;
+}
+
+.praxis-crossfade {
+  animation: praxis-overlay-in var(--praxis-duration-control) var(--praxis-ease-out) both;
+}
+
+@keyframes praxis-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes praxis-overlay-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes praxis-scale-in { from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes praxis-scale-out { from { opacity: 1; transform: translate(-50%, -50%) scale(1); } to { opacity: 0; transform: translate(-50%, -50%) scale(0.96); } }
+@keyframes praxis-pop-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+@keyframes praxis-pop-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.95); } }
+
+.praxis-overlay-motion[data-state="open"] { animation: praxis-overlay-in var(--praxis-duration-dialog) var(--praxis-ease-out) both; }
+.praxis-overlay-motion[data-state="closed"] { animation: praxis-overlay-out var(--praxis-duration-control) var(--praxis-ease-in) both; }
+.praxis-dialog-motion[data-state="open"] { animation: praxis-scale-in var(--praxis-duration-dialog) var(--praxis-ease-out) both; }
+.praxis-dialog-motion[data-state="closed"] { animation: praxis-scale-out var(--praxis-duration-control) var(--praxis-ease-in) both; }
+.praxis-pop-motion[data-state="open"] { animation: praxis-pop-in var(--praxis-duration-control) var(--praxis-ease-out) both; }
+.praxis-pop-motion[data-state="closed"] { animation: praxis-pop-out var(--praxis-duration-instant) var(--praxis-ease-in) both; }
+.praxis-motion-none { animation: none !important; transition: none !important; }
+
+@keyframes praxis-record-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.55);
+  }
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 6px rgba(255, 77, 77, 0);
+  }
+}
+
+.praxis-record-indicator {
+  animation: praxis-record-pulse 1.6s var(--praxis-ease-in-out) infinite;
+}
+
+@keyframes praxis-progress-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.praxis-progress-bar {
+  background-image: linear-gradient(
+    90deg,
+    var(--praxis-bg-canvas) 0%,
+    rgba(78, 161, 255, 0.12) 40%,
+    rgba(78, 161, 255, 0.25) 50%,
+    rgba(78, 161, 255, 0.12) 60%,
+    var(--praxis-bg-canvas) 100%
+  );
+  background-size: 200% 100%;
+  animation: praxis-progress-shimmer 2s var(--praxis-ease-in-out) infinite;
+}
+
+@keyframes praxis-pane-enter {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes praxis-pane-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+
+.praxis-pane-enter {
+  animation: praxis-pane-enter var(--praxis-duration-pane) var(--praxis-ease-out) both;
+}
+
+.praxis-pane-exit {
+  animation: praxis-pane-exit var(--praxis-duration-pane) var(--praxis-ease-in) both;
+}

@@ -2,33 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ──────────────────────────────────────────────────────────────────────────
-   Praxis — High-density desktop dark theme.
-   Inspired by reference design in praxis-new-frontend.
-   ────────────────────────────────────────────────────────────────────────── */
+/* Praxis Control Room Studio foundation. */
 
 :root {
-  --font-sans: "Inter", "Manrope", "SF Pro Text", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  --font-sans: var(--praxis-font-sans);
+  --font-mono: var(--praxis-font-mono);
 
-  --bg-app: #0F1012;
-  --bg-stage: #0A0B0D;
-  --bg-panel: #151619;
-  --bg-card: #1C1D21;
-  --bg-elevated: #2A2C31;
-  --bg-elevated-strong: #32353B;
-
-  --text-primary: #FFFFFF;
-  --text-body: #E0E0E0;
-  --text-soft: #D1D1D1;
-  --text-muted: #A0A0A0;
-
-  --line: #2A2C31;
-  --line-strong: #32353B;
-
-  --accent: #4ADE80;
-  --accent-soft: #1C3E2F;
-  --record: #F27D26;
+  --bg-app: var(--praxis-bg-app);
+  --bg-stage: var(--praxis-bg-canvas);
+  --bg-panel: var(--praxis-bg-panel);
+  --bg-card: var(--praxis-bg-panel-raised);
+  --bg-elevated: var(--praxis-bg-elevated);
+  --bg-elevated-strong: var(--praxis-line-strong);
+  --text-primary: var(--praxis-text-primary);
+  --text-body: var(--praxis-text-secondary);
+  --text-soft: var(--praxis-text-secondary);
+  --text-muted: var(--praxis-text-muted);
+  --line: var(--praxis-line-subtle);
+  --line-strong: var(--praxis-line-strong);
+  --accent: var(--praxis-accent);
+  --accent-soft: var(--praxis-accent-soft);
+  --record: var(--praxis-record);
 }
 
 html,
@@ -48,8 +42,37 @@ body {
   color: var(--text-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-size: 13px;
+  font-size: var(--praxis-text-base);
+  line-height: var(--praxis-leading-normal);
   user-select: none;
+}
+
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--praxis-focus);
+  outline-offset: 2px;
+}
+
+:where(button, [role="button"], summary):not(:disabled):active {
+  scale: 0.97;
+}
+
+.praxis-skip-link {
+  position: fixed;
+  left: 12px;
+  top: 10px;
+  z-index: 100;
+  transform: translateY(-160%);
+  border-radius: var(--praxis-radius-sm);
+  background: var(--praxis-accent);
+  color: var(--praxis-bg-app);
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: transform var(--praxis-duration-quick, 120ms) var(--praxis-ease-out-quart, ease-out);
+}
+
+.praxis-skip-link:focus {
+  transform: translateY(0);
 }
 
 input,
@@ -59,10 +82,124 @@ textarea,
 }
 
 ::selection {
-  background: var(--bg-elevated);
+  background: var(--praxis-selected);
+  color: var(--praxis-text-primary);
 }
 
-/* Scrollbars — slim, desktop-native feel. */
+/* ── Material utilities ────────────────────────────────────────────────── */
+
+.praxis-glass-chrome {
+  background: var(--praxis-glass-chrome);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+}
+
+.praxis-glass-overlay {
+  background: var(--praxis-glass-overlay);
+  backdrop-filter: blur(22px) saturate(120%);
+  -webkit-backdrop-filter: blur(22px) saturate(120%);
+  box-shadow: var(--praxis-shadow-overlay);
+}
+
+/* Opaque reading surface for reports, transcripts, settings forms */
+.praxis-reading-surface {
+  background: var(--praxis-bg-panel);
+}
+
+.praxis-panel {
+  background: var(--praxis-bg-panel);
+  border: 1px solid var(--praxis-line-subtle);
+  border-radius: var(--praxis-radius-md);
+}
+
+.praxis-toolbar {
+  min-height: var(--praxis-toolbar-height);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--praxis-line-subtle);
+  background: var(--praxis-bg-panel-raised);
+}
+
+.praxis-chrome {
+  background: var(--praxis-glass-chrome);
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+}
+
+.praxis-titlebar {
+  min-height: var(--praxis-toolbar-height);
+  border-bottom: 1px solid var(--praxis-line-subtle);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.praxis-titlebar :where(button, a, input, [role="button"]),
+.praxis-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.praxis-video-controls {
+  background: var(--praxis-video-controls);
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition: opacity var(--praxis-duration-control) var(--praxis-ease-out), transform var(--praxis-duration-control) var(--praxis-ease-out);
+}
+
+.praxis-video-stage:focus-within .praxis-video-controls {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .praxis-video-stage:hover .praxis-video-controls {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+}
+
+/* Dense list row */
+.praxis-row {
+  min-height: var(--praxis-row-height);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--praxis-line-subtle);
+}
+
+.praxis-row:hover {
+  background: var(--praxis-hover);
+}
+
+.praxis-row[data-selected="true"],
+.praxis-row.is-selected {
+  background: var(--praxis-selected);
+}
+
+/* Timeline strip signature object */
+.praxis-timeline-strip {
+  position: relative;
+  height: 36px;
+  border-radius: var(--praxis-radius-sm);
+  background: var(--praxis-bg-canvas);
+  border: 1px solid var(--praxis-line-subtle);
+  overflow: hidden;
+}
+
+.praxis-timeline-strip--tiny {
+  height: 20px;
+}
+
+.praxis-timeline-strip--medium {
+  height: 28px;
+}
+
+/* Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -78,21 +215,24 @@ textarea,
   background: var(--line-strong);
 }
 
-/* Numeric tabular figures for timers, counters, etc. */
 .tnum {
   font-variant-numeric: tabular-nums;
+  font-family: var(--praxis-font-mono);
 }
 
-/* Toasts. */
+/* Toasts */
 .toast-container {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   gap: 8px;
   z-index: 60;
   pointer-events: none;
+  width: min(520px, calc(100vw - 32px));
+  align-items: center;
 }
 .toast-item {
   pointer-events: auto;
@@ -101,20 +241,22 @@ textarea,
   gap: 12px;
   padding: 10px 14px;
   border: 1px solid var(--line);
-  background: var(--bg-card);
-  border-radius: 8px;
+  background: var(--praxis-glass-overlay);
+  border-radius: var(--praxis-radius-md);
   font-size: 12px;
   color: var(--text-body);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  min-width: 240px;
+  box-shadow: var(--praxis-shadow-overlay);
+  min-width: min(320px, 100%);
+  max-width: 100%;
+  animation: praxis-toast-in 180ms var(--praxis-ease-out, ease-out);
 }
 .toast-item.is-error {
-  border-color: rgba(239, 68, 68, 0.5);
-  color: #fca5a5;
+  border-color: rgba(255, 77, 77, 0.45);
+  color: var(--praxis-danger);
 }
 .toast-item.is-success {
-  border-color: rgba(74, 222, 128, 0.4);
-  color: #4ADE80;
+  border-color: rgba(47, 191, 134, 0.4);
+  color: var(--praxis-success);
 }
 .toast-dismiss {
   background: transparent;
@@ -125,23 +267,17 @@ textarea,
   cursor: pointer;
   opacity: 0.6;
 }
-.toast-dismiss:hover {
-  opacity: 1;
+
+@keyframes praxis-toast-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Subtle fade/slide on tab content. */
-@keyframes praxis-fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .toast-item { animation: none; }
 }
-.praxis-fade-in {
-  animation: praxis-fade-in 220ms ease-out;
+.toast-dismiss:hover {
+  opacity: 1;
 }
 
 @keyframes praxis-shimmer {
@@ -156,10 +292,9 @@ textarea,
 .praxis-shimmer {
   background-image: linear-gradient(
     90deg,
-    rgba(42, 44, 49, 0.55) 0%,
-    rgba(74, 222, 128, 0.08) 42%,
-    rgba(242, 125, 38, 0.10) 55%,
-    rgba(42, 44, 49, 0.55) 100%
+    rgba(26, 34, 45, 0.55) 0%,
+    rgba(78, 161, 255, 0.14) 50%,
+    rgba(26, 34, 45, 0.55) 100%
   );
   background-size: 220% 100%;
   animation: praxis-shimmer 1.6s ease-in-out infinite;
@@ -168,7 +303,7 @@ textarea,
 @keyframes streak-cell-arrive {
   from {
     opacity: 0.35;
-    transform: scale(0.82);
+    transform: scale(0.9);
   }
   to {
     opacity: 1;
@@ -179,12 +314,12 @@ textarea,
 @keyframes streak-flame-pulse {
   0%,
   100% {
-    filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.35));
+    filter: drop-shadow(0 0 4px rgba(47, 191, 134, 0.35));
     transform: translateY(0) scale(1);
   }
   50% {
-    filter: drop-shadow(0 0 12px rgba(242, 125, 38, 0.5));
-    transform: translateY(-1px) scale(1.08);
+    filter: drop-shadow(0 0 10px rgba(224, 168, 74, 0.45));
+    transform: translateY(-1px) scale(1.06);
   }
 }
 

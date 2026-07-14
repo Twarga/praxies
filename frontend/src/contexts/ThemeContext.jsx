@@ -3,30 +3,40 @@ import { createContext, useEffect, useState } from "react";
 export const ThemeContext = createContext(null);
 
 const STORAGE_KEY = "praxis.theme";
-const VALID_THEMES = new Set(["dark", "light"]);
+
+const THEMES = [
+  { id: "0", name: "Control Room", description: "Dark graphite, blue accent — the default studio" },
+  { id: "1", name: "Warm Editorial", description: "Cream paper, slab serif, ink shadows" },
+  { id: "2", name: "Bauhaus", description: "Bold geometry, primary colors, flat planes" },
+  { id: "3", name: "Zen Garden", description: "Washi paper, indigo, negative space" },
+  { id: "4", name: "Brutalist Terminal", description: "Monospace, terminal green, raw data" },
+  { id: "5", name: "Glass Observatory", description: "Deep space, aurora glow, frosted glass" },
+];
+
+const VALID_THEME_IDS = new Set(THEMES.map((t) => t.id));
 
 function readInitialTheme() {
   if (typeof window === "undefined") {
-    return "dark";
+    return "0";
   }
 
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored && VALID_THEMES.has(stored)) {
+  if (stored && VALID_THEME_IDS.has(stored)) {
     return stored;
   }
 
-  return "dark";
+  return "0";
 }
 
-function applyTheme(theme) {
+function applyTheme(themeId) {
   if (typeof document === "undefined") {
     return;
   }
-  document.documentElement.setAttribute("data-theme", theme);
+  document.documentElement.setAttribute("data-theme", themeId);
 }
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(readInitialTheme);
+  const [theme, setThemeState] = useState(readInitialTheme);
 
   useEffect(() => {
     applyTheme(theme);
@@ -35,12 +45,22 @@ export function ThemeProvider({ children }) {
     }
   }, [theme]);
 
-  function toggleTheme() {
-    setTheme((current) => (current === "dark" ? "light" : "dark"));
+  function setTheme(id) {
+    if (VALID_THEME_IDS.has(id)) {
+      setThemeState(id);
+    }
+  }
+
+  function cycleTheme() {
+    setThemeState((current) => {
+      const idx = THEMES.findIndex((t) => t.id === current);
+      const next = (idx + 1) % THEMES.length;
+      return THEMES[next].id;
+    });
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, cycleTheme, themes: THEMES }}>
       {children}
     </ThemeContext.Provider>
   );

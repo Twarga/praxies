@@ -1,7 +1,9 @@
-import { AlertCircle, Flame, Loader2, Mic, PlayCircle, Trophy, X } from "lucide-react";
+import { AlertCircle, Flame, Loader2, Mic, PlayCircle, Target, Trophy, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { loadSession, loadTodayDigest } from "../api/sessions.js";
+import { getPracticeCurrent } from "../api/practice.js";
 import { StreakGrid } from "../components/StreakGrid.jsx";
+import { TodayWorkspace } from "../components/praxis/TodayWorkspace.jsx";
 import { useIndex } from "../hooks/useIndex.js";
 import {
   formatDurationMinutes,
@@ -115,26 +117,26 @@ function StreakStatusCard({ streak, sessions, onRecord }) {
   const weekDays = getLastSevenPracticeDays(sessions);
 
   return (
-    <div className="relative overflow-hidden bg-[#151619] rounded-lg border border-[#2A2C31] p-5 praxis-fade-in">
-      <div className="absolute inset-0 pointer-events-none opacity-60 bg-[radial-gradient(circle_at_18%_0%,rgba(74,222,128,0.10),transparent_34%)]" />
+    <div className="relative overflow-hidden bg-[var(--praxis-bg-panel)] rounded-lg border border-[var(--praxis-line-subtle)] p-5 praxis-fade-in">
+      <div className="absolute inset-0 pointer-events-none opacity-60 bg-[var(--praxis-success-radial)]" />
       <div className="relative flex items-start justify-between gap-5">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[var(--praxis-success)]">
             <Flame size={14} className={hasCheckedInToday ? "streak-flame" : ""} />
             Daily Streak
           </div>
           <div className="mt-3 flex items-end gap-3">
-            <div className="text-5xl leading-none font-light text-white tnum tracking-[-0.05em]">
+            <div className="text-5xl leading-none font-light text-[var(--praxis-text-primary)] tnum tracking-[-0.05em]">
               {current}
             </div>
             <div className="pb-2">
-              <div className="text-sm uppercase tracking-widest text-white">{dayLabel}</div>
-              <div className="mt-1 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
+              <div className="text-sm uppercase tracking-widest text-[var(--praxis-text-primary)]">{dayLabel}</div>
+              <div className="mt-1 text-[10px] font-mono uppercase tracking-widest text-[var(--praxis-text-muted)]">
                 Longest {longest}
               </div>
             </div>
           </div>
-          <p className="mt-4 max-w-[420px] text-sm leading-relaxed text-[#D1D1D1]/75">
+          <p className="mt-4 max-w-[420px] text-sm leading-relaxed text-[var(--praxis-text-muted)]">
             {hasCheckedInToday
               ? `Today is locked with ${todayMinutes} qualifying minutes.`
               : "Record at least 2 minutes today to protect the chain."}
@@ -146,17 +148,17 @@ function StreakStatusCard({ streak, sessions, onRecord }) {
           onClick={onRecord}
           className={`shrink-0 rounded-lg border px-4 py-3 text-left transition-colors ${
             hasCheckedInToday
-              ? "border-[#4ADE80]/35 bg-[#4ADE80]/10 hover:bg-[#4ADE80]/15"
-              : "border-[#F27D26]/35 bg-[#F27D26]/10 hover:bg-[#F27D26]/15"
+              ? "border-[var(--praxis-success)]/35 bg-[var(--praxis-success)]/10 hover:bg-[var(--praxis-success)]/15"
+              : "border-[var(--praxis-warning)]/35 bg-[var(--praxis-warning)]/10 hover:bg-[var(--praxis-warning)]/15"
           }`}
         >
-          <div className="text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/55">
+          <div className="text-[9px] font-mono uppercase tracking-widest text-[var(--praxis-text-muted)]">
             Today
           </div>
-          <div className="mt-1 text-xs font-semibold uppercase tracking-widest text-white">
+          <div className="mt-1 text-xs font-semibold uppercase tracking-widest text-[var(--praxis-text-primary)]">
             {hasCheckedInToday ? "Checked" : "Start"}
           </div>
-          <div className="mt-1 text-[10px] text-[#D1D1D1]/55">
+          <div className="mt-1 text-[10px] text-[var(--praxis-text-muted)]">
             {hasCheckedInToday ? `${todayMinutes} min` : "2 min goal"}
           </div>
         </button>
@@ -165,16 +167,16 @@ function StreakStatusCard({ streak, sessions, onRecord }) {
       <div className="relative mt-5 grid grid-cols-7 gap-1.5">
         {weekDays.map((day) => (
           <div key={day.key} className="text-center">
-            <div className="mb-1 text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/35">
+            <div className="mb-1 text-[9px] font-mono uppercase tracking-widest text-[var(--praxis-text-muted)]">
               {day.label}
             </div>
             <div
               className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-mono tnum ${
                 day.complete
-                  ? "border-[#4ADE80]/45 bg-[#4ADE80]/15 text-[#4ADE80]"
+                  ? "border-[var(--praxis-success)]/45 bg-[var(--praxis-success)]/15 text-[var(--praxis-success)]"
                   : day.isToday
-                    ? "border-[#F27D26]/45 bg-[#F27D26]/10 text-[#F27D26]"
-                    : "border-[#2A2C31] bg-[#1C1D21] text-[#D1D1D1]/35"
+                    ? "border-[var(--praxis-warning)]/45 bg-[var(--praxis-warning)]/10 text-[var(--praxis-warning)]"
+                    : "border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)] text-[var(--praxis-text-muted)]"
               }`}
               title={`${day.key} · ${day.minutes} min`}
             >
@@ -185,43 +187,43 @@ function StreakStatusCard({ streak, sessions, onRecord }) {
       </div>
 
       <div className="relative mt-5 grid grid-cols-3 gap-2 font-mono">
-        <div className="rounded border border-[#2A2C31] bg-[#1C1D21]/80 px-3 py-2">
-          <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1]/35">
+        <div className="rounded border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)]/80 px-3 py-2">
+          <div className="text-[9px] uppercase tracking-widest text-[var(--praxis-text-muted)]">
             Next
           </div>
-          <div className="mt-1 text-sm text-white tnum">{nextMilestone}d</div>
+          <div className="mt-1 text-sm text-[var(--praxis-text-primary)] tnum">{nextMilestone}d</div>
         </div>
-        <div className="rounded border border-[#2A2C31] bg-[#1C1D21]/80 px-3 py-2">
-          <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1]/35">
+        <div className="rounded border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)]/80 px-3 py-2">
+          <div className="text-[9px] uppercase tracking-widest text-[var(--praxis-text-muted)]">
             Left
           </div>
-          <div className="mt-1 text-sm text-white tnum">{Math.max(nextMilestone - current, 0)}d</div>
+          <div className="mt-1 text-sm text-[var(--praxis-text-primary)] tnum">{Math.max(nextMilestone - current, 0)}d</div>
         </div>
-        <div className="rounded border border-[#2A2C31] bg-[#1C1D21]/80 px-3 py-2">
-          <div className="text-[9px] uppercase tracking-widest text-[#D1D1D1]/35">
+        <div className="rounded border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)]/80 px-3 py-2">
+          <div className="text-[9px] uppercase tracking-widest text-[var(--praxis-text-muted)]">
             Status
           </div>
-          <div className={`mt-1 text-sm tnum ${hasCheckedInToday ? "text-[#4ADE80]" : "text-[#F27D26]"}`}>
+          <div className={`mt-1 text-sm tnum ${hasCheckedInToday ? "text-[var(--praxis-success)]" : "text-[var(--praxis-warning)]"}`}>
             {hasCheckedInToday ? "safe" : "open"}
           </div>
         </div>
       </div>
 
       <div className="relative mt-4">
-        <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-[#D1D1D1]/40">
+        <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-widest text-[var(--praxis-text-muted)]">
           <span>Milestone progress</span>
           <span>{progress}%</span>
         </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#0F1012] border border-[#2A2C31]">
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--praxis-bg-app)] border border-[var(--praxis-line-subtle)]">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[#F27D26] to-[#4ADE80] streak-progress"
-            style={{ width: `${progress}%` }}
+            className="h-full origin-left rounded-full bg-gradient-to-r from-[var(--praxis-warning)] to-[var(--praxis-success)] streak-progress"
+            style={{ transform: `scaleX(${progress / 100})` }}
           />
         </div>
       </div>
 
-      <div className="relative mt-4 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45">
-        <Trophy size={13} className="text-[#F4B26D]" />
+      <div className="relative mt-4 flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[var(--praxis-text-muted)]">
+        <Trophy size={13} className="text-[var(--praxis-warning)]" />
         Streak counts only sessions of 2+ minutes.
       </div>
     </div>
@@ -356,6 +358,7 @@ export function Today({ onNavigate, scrollRef }) {
   const [digestLoading, setDigestLoading] = useState(true);
   const [fallbackBundle, setFallbackBundle] = useState(null);
   const [recoveryBanner, setRecoveryBanner] = useState(null);
+  const [practiceCurrent, setPracticeCurrent] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -374,6 +377,10 @@ export function Today({ onNavigate, scrollRef }) {
     return () => {
       cancelled = true;
     };
+  }, [index?.generated_at]);
+
+  useEffect(() => {
+    void getPracticeCurrent().then(setPracticeCurrent).catch(() => setPracticeCurrent(null));
   }, [index?.generated_at]);
 
   useEffect(() => {
@@ -449,51 +456,51 @@ export function Today({ onNavigate, scrollRef }) {
       : null;
   const digestSession = todayDigest?.session ?? null;
   const digestAnalysis = todayDigest?.analysis ?? null;
-  const digestPractice = digestAnalysis?.coaching_report?.practice_assignment ?? {};
+  const digestPractice = Number(digestAnalysis?.schema_version) === 3
+    ? digestAnalysis?.report?.practice ?? {}
+    : digestAnalysis?.coaching_report?.practice_assignment ?? {};
   const digestActions = [
     digestPractice.reflection_question,
     digestPractice.speaking_drill,
     digestPractice.next_session_goal,
+    digestPractice.instructions,
+    digestAnalysis?.report?.next_goal?.text,
   ].filter(Boolean).slice(0, 3);
   const fallbackDigestActions = (digestAnalysis?.actionable_improvements ?? []).slice(0, 3);
   const visibleDigestActions = digestActions.length ? digestActions : fallbackDigestActions;
   const digestHeadline =
-    digestAnalysis?.coaching_report?.headline || digestAnalysis?.prose_verdict || "";
+    digestAnalysis?.report?.verdict || digestAnalysis?.coaching_report?.headline || digestAnalysis?.prose_verdict || "";
 
   if (isFirstLaunch) {
     return (
-      <div ref={scrollRef} className="flex h-full flex-col overflow-y-auto">
-        <header className="h-16 shrink-0 border-b border-[#2A2C31] bg-[#151619] px-8 flex items-center justify-between">
-          <h2 className="text-lg font-semibold tracking-tight text-white">Today</h2>
-          <div className="rounded bg-[#2A2C31] px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#E0E0E0]">
-            First Launch
+      <div ref={scrollRef} className="flex h-full flex-col overflow-y-auto bg-[var(--praxis-bg-canvas)]">
+        <header className="praxis-reading-surface flex h-12 shrink-0 items-center justify-between border-b border-[var(--praxis-line-subtle)] px-6">
+          <div>
+            <h1 className="text-sm font-semibold text-[var(--praxis-text-primary)]">Today</h1>
+            <p className="mt-0.5 text-[11px] text-[var(--praxis-text-muted)]">Your daily speaking practice starts here.</p>
           </div>
+          <span className="rounded-md bg-[var(--praxis-bg-elevated)] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--praxis-text-secondary)]">First launch</span>
         </header>
 
-        <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-8 py-10">
-          <div className="rounded-lg border border-[#2A2C31] bg-[#151619] p-8">
-            <div className="mb-5 flex h-12 w-12 items-center justify-center rounded bg-[#1C1D21] border border-[#2A2C31]">
-              <Mic size={20} className="text-white" />
+        <main className="mx-auto flex w-full max-w-4xl flex-1 items-center px-6 py-10">
+          <section className="w-full rounded-lg border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel)] p-6 sm:p-8">
+            <div className="grid h-12 w-12 place-items-center rounded-lg border border-[var(--praxis-line-subtle)] bg-[var(--praxis-bg-panel-raised)] text-[var(--praxis-record)]">
+              <Mic size={20} />
             </div>
-            <h3 className="text-2xl font-semibold tracking-tight text-white">
-              Start your first journal session.
-            </h3>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#D1D1D1]/75">
-              Record at least two minutes. Praxis will save the video, transcribe your speech,
-              analyze the session, and turn it into one lesson plus a practice goal for next time.
+            <h2 className="mt-5 max-w-[24ch] text-2xl font-semibold tracking-[-0.02em] text-[var(--praxis-text-primary)]">Start your first journal session.</h2>
+            <p className="mt-3 max-w-[65ch] text-sm leading-7 text-[var(--praxis-text-secondary)]">
+              Record at least two minutes. Praxis keeps the video on this device, turns it into a readable report, and gives you one focused goal for the next session.
             </p>
 
-            <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="mt-7 divide-y divide-[var(--praxis-line-subtle)] border-y border-[var(--praxis-line-subtle)]">
               {[
-                ["Record", "Speak naturally for 2-3 minutes."],
-                ["Transcribe", "Review exactly what you said."],
-                ["Learn", "Read the coach focus and next drill."],
+                ["Record", "Speak naturally for two to three minutes."],
+                ["Review", "See the exact moment behind each piece of feedback."],
+                ["Practice", "Use one clear next goal before you record again."],
               ].map(([title, body]) => (
-                <div key={title} className="rounded border border-[#2A2C31] bg-[#1C1D21] p-4">
-                  <div className="text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
-                    {title}
-                  </div>
-                  <p className="mt-2 text-xs leading-relaxed text-[#D1D1D1]/70">{body}</p>
+                <div key={title} className="grid gap-1 py-3 sm:grid-cols-[112px_1fr] sm:gap-6">
+                  <div className="text-[11px] font-medium text-[var(--praxis-accent)]">{title}</div>
+                  <p className="text-sm leading-6 text-[var(--praxis-text-secondary)]">{body}</p>
                 </div>
               ))}
             </div>
@@ -501,331 +508,29 @@ export function Today({ onNavigate, scrollRef }) {
             <button
               type="button"
               onClick={() => onNavigate("record")}
-              className="mt-7 inline-flex items-center gap-2 rounded bg-[#F27D26] px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition-colors hover:bg-[#f08a3d]"
+              className="mt-7 inline-flex h-9 items-center gap-2 rounded-md bg-[var(--praxis-record)] px-3.5 text-xs font-semibold text-[var(--praxis-on-record)] transition-colors hover:brightness-110"
             >
               <Mic size={14} />
-              Record First Session
+              Record first session
             </button>
-          </div>
-        </div>
+          </section>
+        </main>
       </div>
     );
   }
 
   return (
-    <div ref={scrollRef} className="flex flex-col h-full overflow-y-auto">
-      <header className="h-16 border-b border-[#2A2C31] flex items-center px-8 bg-[#151619] shrink-0 justify-between">
-        <h2 className="text-lg font-semibold tracking-tight text-white">Today's Overview</h2>
-        <div className="px-2 py-0.5 rounded bg-[#2A2C31] text-[#E0E0E0] text-[10px] font-mono uppercase tracking-widest">
-          {processing.length} Processing
-        </div>
-      </header>
-
-      <div className="px-8 max-w-5xl w-full mx-auto grid grid-cols-12 gap-6 py-8">
-        {/* Main column */}
-        <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
-          {recoveryBanner ? (
-            <div
-              className={`bg-[#151619] border rounded-lg p-5 transition-colors ${
-                recoveryBanner.banner.tone === "danger"
-                  ? "border-red-500/40"
-                  : "border-[#F27D26]/50"
-              }`}
-            >
-              <div className="flex items-start gap-4">
-                <div
-                  className={`w-9 h-9 rounded flex items-center justify-center shrink-0 ${
-                    recoveryBanner.banner.tone === "danger"
-                      ? "bg-red-500/10 text-red-300"
-                      : "bg-[#F27D26]/10 text-[#F27D26]"
-                  }`}
-                >
-                  <AlertCircle size={16} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-mono uppercase tracking-widest opacity-50 mb-1">
-                    {recoveryBanner.banner.eyebrow}
-                  </div>
-                  <h3 className="text-sm font-semibold text-white mb-1">
-                    {recoveryBanner.banner.title}
-                  </h3>
-                  <p className="text-xs text-[#D1D1D1] opacity-75 leading-relaxed">
-                    {recoveryBanner.banner.body}
-                  </p>
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dismissRecoveryId(recoveryBanner.session.id);
-                        onNavigate("session", { sessionId: recoveryBanner.session.id });
-                      }}
-                      className="text-[10px] font-mono uppercase tracking-widest text-[#4ADE80] hover:text-white transition-colors"
-                    >
-                      {recoveryBanner.banner.action} · {getSessionTitle(recoveryBanner.session)}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        dismissRecoveryId(recoveryBanner.session.id);
-                        setRecoveryBanner(null);
-                      }}
-                      className="inline-flex items-center gap-1 text-[10px] font-mono uppercase tracking-widest text-[#D1D1D1]/45 hover:text-white transition-colors"
-                      aria-label="Dismiss recovery banner"
-                    >
-                      <X size={11} />
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {visibleFallbackSession && fallbackBanner ? (
-            <button
-              type="button"
-              onClick={() => onNavigate("session", { sessionId: visibleFallbackSession.id })}
-              className={`bg-[#151619] border rounded-lg p-5 text-left transition-colors ${
-                fallbackBanner.tone === "danger"
-                  ? "border-red-500/40 hover:border-red-400/70"
-                  : fallbackBanner.tone === "warning"
-                    ? "border-[#F27D26]/50 hover:border-[#F27D26]/80"
-                    : "border-[#2A2C31] hover:border-[#4ADE80]/50"
-              }`}
-            >
-              <div className="flex items-start gap-4">
-                <div
-                  className={`w-9 h-9 rounded flex items-center justify-center shrink-0 ${
-                    fallbackBanner.tone === "danger"
-                      ? "bg-red-500/10 text-red-300"
-                      : fallbackBanner.tone === "warning"
-                        ? "bg-[#F27D26]/10 text-[#F27D26]"
-                        : "bg-[#2A2C31] text-[#D1D1D1]"
-                  }`}
-                >
-                  <AlertCircle size={16} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] font-mono uppercase tracking-widest opacity-50 mb-1">
-                    {fallbackBanner.eyebrow}
-                  </div>
-                  <h3 className="text-sm font-semibold text-white mb-1">
-                    {fallbackBanner.title}
-                  </h3>
-                  <p className="text-xs text-[#D1D1D1] opacity-75 leading-relaxed">
-                    {fallbackBanner.body}
-                  </p>
-                  <div className="mt-4 text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
-                    {fallbackBanner.action} · {getSessionTitle(visibleFallbackSession)}
-                  </div>
-                </div>
-              </div>
-            </button>
-          ) : null}
-
-          {/* Primary action */}
-          <button
-            type="button"
-            onClick={() => onNavigate("record")}
-            className="bg-[#1C1D21] border border-[#2A2C31] rounded-lg p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-[#2A2C31] transition-colors group"
-          >
-            <div className="w-12 h-12 rounded bg-white/5 border border-white/10 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-              <Mic className="text-white" size={20} />
-            </div>
-            <h3 className="text-sm font-semibold tracking-wide text-white mb-1">
-              Start New Recording
-            </h3>
-            <p className="text-xs text-[#D1D1D1] opacity-70">
-              Capture your thoughts, practice a presentation, or journal.
-            </p>
-          </button>
-
-          {/* Digest */}
-          {digestLoading ? (
-            <div className="bg-[#1C1D21] border border-[#2A2C31] rounded-lg p-5 flex items-center gap-3">
-              <Loader2 size={14} className="text-[#F27D26] animate-spin shrink-0" />
-              <p className="text-[11px] font-mono uppercase tracking-widest opacity-50">
-                Loading digest
-              </p>
-            </div>
-          ) : digestSession && digestAnalysis ? (
-            <div className="flex flex-col gap-3">
-              <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-                Daily Digest
-              </h3>
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => onNavigate("session", { sessionId: digestSession.id })}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onNavigate("session", { sessionId: digestSession.id });
-                  }
-                }}
-                className="bg-[#1C1D21] border border-[#2A2C31] rounded-lg p-5 flex flex-col gap-4 cursor-pointer hover:border-[#4ADE80] transition-colors"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="text-base font-semibold text-white mb-1 tracking-tight">
-                      {getSessionTitle(digestSession)}
-                    </h4>
-                    <p className="text-[11px] font-mono opacity-50 uppercase tracking-tighter">
-                      {formatShortDate(digestSession.created_at)} · {formatDurationMinutes(digestSession.duration_seconds)}
-                      {todayDigest.digest_date ? ` · digest ${todayDigest.digest_date}` : ""}
-                    </p>
-                  </div>
-                  <div className="w-8 h-8 rounded bg-[#2A2C31] flex items-center justify-center">
-                    <PlayCircle size={16} className="text-white" />
-                  </div>
-                </div>
-
-                {digestHeadline ? (
-                  <div className="mt-1 text-sm text-[#D1D1D1] opacity-85 border-l-2 border-[#F27D26] pl-3 py-1 leading-relaxed">
-                    "{digestHeadline}"
-                  </div>
-                ) : null}
-
-                {visibleDigestActions.length ? (
-                  <div className="border border-[#2A2C31] bg-[#151619] rounded p-4">
-                    <div className="text-[10px] font-mono uppercase tracking-widest opacity-40 mb-3">
-                      Practice loop
-                    </div>
-                    <div className="space-y-2">
-                      {visibleDigestActions.map((action, index) => (
-                        <div key={`${action}-${index}`} className="flex gap-3 text-xs text-[#D1D1D1]">
-                          <span className="font-mono text-[#4ADE80] opacity-80">
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
-                          <span className="leading-relaxed">{action}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            <div className="bg-[#1C1D21] border border-[#2A2C31] rounded-lg p-5">
-              <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-3">
-                Daily Digest
-              </h3>
-              <p className="text-sm text-[#D1D1D1] opacity-75 leading-relaxed">
-                No analyzed session is ready for a digest yet. Record and process a session to unlock this card.
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Side column */}
-        <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
-          <StreakStatusCard
-            streak={streak}
-            sessions={sessions}
-            onRecord={() => onNavigate("record")}
-          />
-
-          {/* Queue */}
-          <div className="bg-[#151619] border border-[#2A2C31] rounded-lg p-5">
-            <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-4">
-              Queue
-            </h3>
-            {processing.length === 0 && needsAttention.length === 0 ? (
-              <p className="text-[11px] font-mono opacity-50 uppercase tracking-tighter">
-                No active tasks.
-              </p>
-            ) : null}
-
-            <div className="space-y-3">
-              {processing.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => onNavigate("session", { sessionId: s.id })}
-                  className="w-full flex items-center gap-3 hover:bg-[#1C1D21] rounded p-1 -m-1 transition-colors text-left"
-                >
-                  <Loader2 size={14} className="text-[#F27D26] animate-spin shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-white truncate">
-                      {getSessionTitle(s)}
-                    </p>
-                    <p className="text-[10px] font-mono opacity-50 uppercase tracking-tighter">
-                      {getProcessingLabel(s.status)}
-                    </p>
-                  </div>
-                </button>
-              ))}
-              {needsAttention.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => onNavigate("session", { sessionId: s.id })}
-                  className="w-full flex items-center gap-3 p-2 bg-[#2A2C31]/50 hover:bg-[#2A2C31] rounded transition-colors text-left"
-                >
-                  <AlertCircle size={14} className="text-red-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-white truncate">
-                      {getSessionTitle(s)}
-                    </p>
-                    <p className="text-[10px] font-mono text-red-400 uppercase tracking-tighter">
-                      {s.status === "needs_attention"
-                        ? "Needs attention"
-                        : "Failed processing"}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* This week */}
-          <div className="bg-[#151619] rounded-lg border border-[#2A2C31] p-5">
-            <h3 className="text-xs font-bold uppercase tracking-widest opacity-60 mb-4">
-              This Week
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="border border-[#2A2C31] bg-[#1C1D21] p-3 rounded">
-                <div className="text-[10px] opacity-40 uppercase mb-1 font-mono">
-                  Sessions
-                </div>
-                <div className="text-xl font-light text-white tnum">{weeklyCount}</div>
-              </div>
-              <div className="border border-[#2A2C31] bg-[#1C1D21] p-3 rounded">
-                <div className="text-[10px] opacity-40 uppercase mb-1 font-mono">
-                  Min Spoke
-                </div>
-                <div className="text-xl font-light text-white tnum">{weeklyMinutes}</div>
-              </div>
-              <div className="border border-[#2A2C31] bg-[#1C1D21] p-3 rounded">
-                <div className="text-[10px] opacity-40 uppercase mb-1 font-mono">
-                  Streak
-                </div>
-                <div className="text-xl font-light text-white tnum">{streak.current ?? 0}</div>
-              </div>
-              <div className="border border-[#2A2C31] bg-[#1C1D21] p-3 rounded">
-                <div className="text-[10px] opacity-40 uppercase mb-1 font-mono">
-                  Pri Lang
-                </div>
-                <div className="text-xl font-light text-white truncate">
-                  {primaryLanguage}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-[#151619] rounded-lg border border-[#2A2C31] p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-bold uppercase tracking-widest opacity-60">
-                Streak Grid
-              </h3>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-[#4ADE80]">
-                {streak.current ?? 0} day
-              </div>
-            </div>
-            <StreakGrid sessions={sessions} />
-          </div>
-        </div>
-      </div>
-    </div>
+    <TodayWorkspace
+      practice={practiceCurrent}
+      sessions={sessions}
+      processing={processing}
+      needsAttention={needsAttention}
+      streak={streak}
+      weeklyCount={weeklyCount}
+      weeklyMinutes={weeklyMinutes}
+      digestHeadline={digestHeadline}
+      digestActions={visibleDigestActions}
+      onNavigate={onNavigate}
+    />
   );
 }

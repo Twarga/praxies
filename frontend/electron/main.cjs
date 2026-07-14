@@ -1,10 +1,16 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
-const { appendFileSync, mkdirSync } = require("node:fs");
+const { appendFileSync, mkdirSync, writeFileSync } = require("node:fs");
 const { homedir } = require("node:os");
 const { join } = require("node:path");
 const { launchBackend } = require("./backend-launcher.cjs");
 
-app.disableHardwareAcceleration();
+if (process.env.PRAXIS_DISABLE_HARDWARE_ACCELERATION === "1") {
+  app.disableHardwareAcceleration();
+}
+if (process.env.PRAXIS_FAKE_MEDIA === "1") {
+  app.commandLine.appendSwitch("use-fake-device-for-media-stream");
+  app.commandLine.appendSwitch("use-fake-ui-for-media-stream");
+}
 
 const isDev = !app.isPackaged;
 const electronLogFile = join(homedir(), ".cache", "praxis", "electron.log");
@@ -86,13 +92,14 @@ async function createWindow() {
   }
 
   const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: Number(process.env.PRAXIS_WINDOW_WIDTH || 1200),
+    height: Number(process.env.PRAXIS_WINDOW_HEIGHT || 800),
     minWidth: 900,
     minHeight: 600,
     backgroundColor: "#0a0a0a",
     icon: appIconPath,
     title: "Praxis",
+    titleBarStyle: "hidden",
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -100,12 +107,84 @@ async function createWindow() {
     },
   });
 
+  win.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+    logElectron(`renderer console level=${level} ${message} (${sourceId}:${line})`);
+  });
+  win.webContents.on("did-fail-load", (_event, code, description, url) => {
+    logElectron(`renderer load failed code=${code} url=${url} description=${description}`);
+  });
+
   if (isDev) {
     await win.loadURL(devFrontendUrl);
   } else {
-    await win.loadFile(join(__dirname, "..", "dist", "index.html"));
+    const query = process.env.PRAXIS_CAPTURE_SESSION_ID ? { session: process.env.PRAXIS_CAPTURE_SESSION_ID } : undefined;
+    await win.loadFile(join(__dirname, "..", "dist", "index.html"), query ? { query } : undefined);
   }
+  await win.webContents.executeJavaScript(`new Promise((resolve, reject) => {
+    const deadline = Date.now() + 10000;
+    const check = () => {
+      const text = document.body?.innerText?.trim() || "";
+      if (text.length >= 20) return resolve(text.slice(0, 200));
+      if (Date.now() > deadline) return reject(new Error("Renderer did not display visible application content"));
+      setTimeout(check, 100);
+    };
+    check();
+  })`);
+  logElectron("renderer content verified");
   logElectron("main window loaded");
+  if (process.env.PRAXIS_CAPTURE_SCREENSHOT) {
+    if (process.env.PRAXIS_CAPTURE_SHORTCUT) {
+      const key = JSON.stringify(process.env.PRAXIS_CAPTURE_SHORTCUT);
+      await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent("keydown", { key: ${key}, ctrlKey: true, bubbles: true }))`);
+    }
+    if (process.env.PRAXIS_CAPTURE_SCENARIO === "record-discard") {
+      const recordingMs = Math.max(1000, Number(process.env.PRAXIS_PROFILE_RECORDING_MS || 6000));
+      const scenarioState = await win.webContents.executeJavaScript(`(async () => {
+        const waitFor = async (find, timeout = 20000) => {
+          const deadline = Date.now() + timeout;
+          while (Date.now() < deadline) {
+            const result = find();
+            if (result) return result;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          throw new Error("Timed out waiting for recording scenario UI");
+        };
+        window.dispatchEvent(new KeyboardEvent("keydown", { key: "2", ctrlKey: true, bubbles: true }));
+        const start = await waitFor(() => document.querySelector('button[aria-label="Start recording"]'));
+        start.click();
+        await waitFor(() => document.querySelector('button[aria-label="Stop"]'));
+        await new Promise((resolve) => setTimeout(resolve, ${recordingMs}));
+        document.querySelector('button[aria-label="Stop"]').click();
+        await waitFor(() => [...document.querySelectorAll("button")].find((item) => item.textContent.trim() === "Discard"), 30000);
+        [...document.querySelectorAll("button")].find((item) => item.textContent.trim() === "Discard").click();
+        const confirmation = await waitFor(() => [...document.querySelectorAll("button")].find((item) => item.textContent.trim() === "Confirm Discard"));
+        confirmation.scrollIntoView({ block: "center" });
+        return confirmation.textContent.trim();
+      })()`);
+      if (process.env.PRAXIS_PROFILE_OUTPUT) {
+        const processMetrics = app.getAppMetrics().map((metric) => ({
+          type: metric.type,
+          pid: metric.pid,
+          memory_kb: metric.memory,
+          cpu: metric.cpu,
+        }));
+        const rendererMetrics = await win.webContents.executeJavaScript(`({
+          js_heap_used_bytes: performance.memory?.usedJSHeapSize ?? null,
+          js_heap_total_bytes: performance.memory?.totalJSHeapSize ?? null,
+          recording_ms: ${recordingMs},
+          state: ${JSON.stringify("discard-confirmation")},
+          scenario_result: ${JSON.stringify(scenarioState)}
+        })`);
+        writeFileSync(process.env.PRAXIS_PROFILE_OUTPUT, `${JSON.stringify({ processes: processMetrics, renderer: rendererMetrics }, null, 2)}\n`);
+      }
+    }
+    const captureDelayMs = Math.max(0, Number(process.env.PRAXIS_CAPTURE_DELAY_MS || 800));
+    await new Promise((resolve) => setTimeout(resolve, captureDelayMs));
+    const image = await win.webContents.capturePage();
+    writeFileSync(process.env.PRAXIS_CAPTURE_SCREENSHOT, image.toPNG());
+    logElectron(`screenshot captured: ${process.env.PRAXIS_CAPTURE_SCREENSHOT}`);
+    app.quit();
+  }
 }
 
 app.whenReady().then(() => {
@@ -122,6 +201,24 @@ app.whenReady().then(() => {
       return false;
     }
     await shell.openPath(targetPath);
+    return true;
+  });
+
+  ipcMain.handle("window-minimize", (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize();
+    return true;
+  });
+
+  ipcMain.handle("window-toggle-maximize", (event) => {
+    const target = BrowserWindow.fromWebContents(event.sender);
+    if (!target) return false;
+    if (target.isMaximized()) target.unmaximize();
+    else target.maximize();
+    return true;
+  });
+
+  ipcMain.handle("window-close", (event) => {
+    BrowserWindow.fromWebContents(event.sender)?.close();
     return true;
   });
 

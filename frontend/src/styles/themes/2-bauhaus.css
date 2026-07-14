@@ -1,0 +1,47 @@
+/* Theme 2: Bauhaus Construct — primary colors, thick borders, bold geometry */
+[data-theme="2"],
+[data-theme="2"] :root {
+  --praxis-bg-app: #F4F0EC;
+  --praxis-bg-canvas: #F4F0EC;
+  --praxis-bg-panel: #F4F0EC;
+  --praxis-bg-panel-raised: #F4F0EC;
+  --praxis-bg-elevated: #0A0A0A;
+  --praxis-glass-chrome: rgba(244, 240, 236, 0.95);
+  --praxis-glass-overlay: rgba(244, 240, 236, 0.98);
+  --praxis-glass-reading: #F4F0EC;
+  --praxis-glass-highlight: rgba(224, 48, 48, 0.08);
+  --praxis-text-primary: #0A0A0A;
+  --praxis-text-secondary: #3A3A3A;
+  --praxis-text-muted: #6A6A6A;
+  --praxis-on-accent: #000000;
+  --praxis-on-record: #000000;
+  --praxis-on-warning: #0A0A0A;
+  --praxis-on-success: #FFFFFF;
+  --praxis-video-surface: #000000;
+  --praxis-line-subtle: rgba(10, 10, 10, 0.15);
+  --praxis-line-strong: rgba(10, 10, 10, 0.35);
+  --praxis-accent: #E03030;
+  --praxis-accent-soft: rgba(224, 48, 48, 0.08);
+  --praxis-accent-muted: rgba(224, 48, 48, 0.04);
+  --praxis-success: #1030A0;
+  --praxis-success-soft: rgba(16, 48, 160, 0.08);
+  --praxis-warning: #F0C000;
+  --praxis-warning-soft: rgba(240, 192, 0, 0.15);
+  --praxis-danger: #E03030;
+  --praxis-danger-soft: rgba(224, 48, 48, 0.1);
+  --praxis-record: #E03030;
+  --praxis-focus-ring: rgba(10, 10, 10, 0.6);
+  --praxis-focus: #0A0A0A;
+  --praxis-hover: rgba(10, 10, 10, 0.06);
+  --praxis-bg-hover: rgba(10, 10, 10, 0.06);
+  --praxis-active: rgba(10, 10, 10, 0.1);
+  --praxis-selected: rgba(240, 192, 0, 0.3);
+  --praxis-disabled: rgba(10, 10, 10, 0.2);
+  --praxis-shadow-overlay: 4px 4px 0 #0A0A0A;
+  --praxis-radius-sm: 0px;
+  --praxis-radius-md: 0px;
+  --praxis-radius-lg: 0px;
+  --praxis-radius-modal: 0px;
+  --praxis-font-sans: "Inter", "Helvetica Neue", sans-serif;
+  --praxis-font-mono: "JetBrains Mono", monospace;
+}

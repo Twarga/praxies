@@ -1,6 +1,48 @@
 # Praxis / Twarga Journal - Audited Task Backlog
 
 Last audited: 2026-05-01
+**Superseded by**: [`PRAXIS_30_DAY_PLAN.md`](../PRAXIS_30_DAY_PLAN.md) and [`PRAXIS_30_DAY_TASKS.md`](../PRAXIS_30_DAY_TASKS.md) as of 2026-07-12.
+
+This file is retained for historical traceability of task IDs (T001-T200, X001-X011, Q001-Q009, R001-R011). All active work is now tracked in the 30-day implementation plan. Open items below either map to a milestone in the 30-day tracker or are explicitly postponed.
+
+### Explicitly postponed (not in the 30-day milestone)
+
+The following old-task areas are deferred past the 30-day dogfood build per Section 21 of `PRAXIS_30_DAY_PLAN.md`:
+
+- Praxis accounts and billing
+- Managed AI gateway
+- Cloud storage or sync
+- Mobile application
+- Windows and macOS packages
+- Full quiz generation
+- Full flashcard scheduler
+- Multi-step learning paths
+- Multiple stable transcription engines
+- Plugin marketplace
+- Collaboration and sharing
+- Broad theme customization
+- Telegram integration (placeholder only; disabled in this build)
+- Full WCAG 2.1 AA audit (keyboard + reduced-motion + contrast only for dogfood)
+- GATE-9 (full acceptance checklist) → maps to M8-13
+- GATE-10 (prompt calibration on 10+ recordings) → maps to M6
+- GATE-11 (improvement dimensions) → maps to M6
+- GATE-12 (fresh-machine onboarding) → maps to M5, M8
+- T179 (remaining prompt calibration) → maps to M6-04, M6-15
+- T200 (manual release QA on fresh machine) → maps to M8-12
+- R001-R011 (release checklist) → maps to M8-13
+- Q009 (manual QA checklist) → maps to M8, M9
+
+### Mapping to 30-day milestones
+
+Each open old-task area maps to a 30-day milestone:
+
+| Old task area | 30-day milestone |
+|---|---|
+| Packaging blockers, AppImage | M8 |
+| Prompt calibration on real recordings | M6 |
+| Practice tracking, previous-goal carry | M6 |
+| Missing tests (scorecard, fixtures, sparse data) | M6, M1 |
+| Onboarding and fresh-machine QA | M5, M8 |
 
 This file tracks the current project state against the original `Twarga Journal` backlog. The earlier implementation-plan document was removed during repo cleanup, but the original task IDs are preserved here.
 The app has since been renamed in code/UI to `Praxis`, but the original task IDs are kept so progress stays traceable.

@@ -1,213 +1,168 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-repo_root="$(cd "${script_dir}/.." && pwd)"
-artifact_arg=""
-check_only=0
-install_bin=1
-install_desktop=1
+VERSION="0.1.0"
+APP_NAME="Praxis"
+INSTALL_ROOT="${PRAXIS_INSTALL_ROOT:-${HOME}/.local/share/praxis}"
+BIN_DIR="${PRAXIS_BIN_DIR:-${HOME}/.local/bin}"
+APPS_DIR="${PRAXIS_APPS_DIR:-${HOME}/.local/share/applications}"
+artifact=""
+checksum=""
+signature=""
+public_key="${PRAXIS_MINISIGN_PUBLIC_KEY:-}"
+no_launch=0
+mode=install
 
 usage() {
-  cat <<'EOF'
-Praxis AppImage installer
+  cat <<EOF
+Praxis ${VERSION} Linux installer
 
-Usage:
-  ./scripts/install.sh [--artifact PATH] [--check-only] [--no-bin] [--no-desktop]
-
-Options:
-  --artifact PATH   Install this AppImage instead of the latest frontend/release artifact.
-  --check-only      Print readiness checks without copying files.
-  --no-bin          Do not create ~/.local/bin/praxis.
-  --no-desktop      Do not create ~/.local/share/applications/praxis.desktop.
-  -h, --help        Show this help.
+Usage: install.sh [options]
+  --artifact PATH|URL    AppImage to install
+  --checksum PATH|URL    SHA-256 file (defaults to ARTIFACT.sha256)
+  --signature PATH|URL   minisign signature (requires --public-key)
+  --public-key KEY       minisign public key
+  --check                Check an existing installation without changing it
+  --uninstall            Remove app files, never journals or downloaded models
+  --no-launch            Install without launching onboarding
+  --version              Print installer version
+  -h, --help             Show this help
 EOF
 }
 
-while [[ $# -gt 0 ]]; do
+die() { echo "Praxis installer: $*" >&2; exit 1; }
+note() { printf '  %-22s %s\n' "$1" "$2"; }
+fetch() {
+  local source="$1" target="$2"
+  if [[ "$source" =~ ^https:// ]]; then
+    command -v curl >/dev/null || die "curl is required to download a release"
+    curl --fail --location --proto '=https' --tlsv1.2 "$source" --output "$target"
+  else
+    cp "${source#file://}" "$target"
+  fi
+}
+
+while (($#)); do
   case "$1" in
-    --artifact)
-      artifact_arg="${2:-}"
-      shift 2
-      ;;
-    --check-only)
-      check_only=1
-      shift
-      ;;
-    --no-bin)
-      install_bin=0
-      shift
-      ;;
-    --no-desktop)
-      install_desktop=0
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      echo "Unknown option: $1" >&2
-      usage >&2
-      exit 1
-      ;;
+    --artifact) artifact="${2:-}"; shift 2 ;;
+    --checksum) checksum="${2:-}"; shift 2 ;;
+    --signature) signature="${2:-}"; shift 2 ;;
+    --public-key) public_key="${2:-}"; shift 2 ;;
+    --check|--check-only) mode=check; shift ;;
+    --uninstall) mode=uninstall; shift ;;
+    --no-launch) no_launch=1; shift ;;
+    --version) echo "$VERSION"; exit 0 ;;
+    -h|--help) usage; exit 0 ;;
+    *) die "unknown option: $1" ;;
   esac
 done
 
-print_step() {
-  echo
-  echo "==> $*"
-}
+[[ "$(uname -s)" == Linux ]] || die "only Linux is supported"
+case "$(uname -m)" in x86_64|amd64) ;; *) die "only Linux x86_64 is supported" ;; esac
 
-print_check() {
-  printf '  %-28s %s\n' "$1" "$2"
-}
+launcher="${BIN_DIR}/praxis"
+desktop="${APPS_DIR}/praxis.desktop"
+manifest="${INSTALL_ROOT}/install.env"
 
-warn() {
-  echo "  warning: $*" >&2
-}
-
-find_latest_appimage() {
-  find "${repo_root}/frontend/release" -maxdepth 1 -type f -name 'Praxis-*.AppImage' -printf '%T@ %p\n' 2>/dev/null \
-    | sort -nr \
-    | awk 'NR == 1 { $1=""; sub(/^ /, ""); print }'
-}
-
-resolve_path() {
-  readlink -f "$1"
-}
-
-artifact="${artifact_arg:-$(find_latest_appimage)}"
-if [[ -z "${artifact}" ]]; then
-  echo "No AppImage artifact found." >&2
-  echo "Build one first: ./scripts/release-linux.sh" >&2
-  exit 1
-fi
-
-artifact="$(resolve_path "${artifact}")"
-if [[ ! -f "${artifact}" ]]; then
-  echo "AppImage artifact does not exist: ${artifact}" >&2
-  exit 1
-fi
-
-version="$(basename "${artifact}" | sed -E 's/^Praxis-//; s/\.AppImage$//')"
-install_dir="${HOME}/.local/share/praxis"
-bin_dir="${HOME}/.local/bin"
-apps_dir="${HOME}/.local/share/applications"
-installed_app="${install_dir}/Praxis-${version}.AppImage"
-launcher="${bin_dir}/praxis"
-desktop_file="${apps_dir}/praxis.desktop"
-icon_source="${repo_root}/logo.png"
-icon_target="${install_dir}/logo.png"
-config_file="${HOME}/.config/praxis/config.json"
-backend_log="${HOME}/.cache/praxis/backend.log"
-electron_log="${HOME}/.cache/praxis/electron.log"
-whisper_cache="${HOME}/.cache/whisper"
-
-echo "Praxis AppImage installer"
-echo "========================="
-
-print_step "Artifact"
-chmod +x "${artifact}"
-print_check "AppImage" "${artifact}"
-print_check "Version" "${version}"
-print_check "Size" "$(du -h "${artifact}" | awk '{print $1}')"
-
-checksum_file="${artifact}.sha256"
-if [[ -f "${checksum_file}" ]]; then
-  if (cd "$(dirname "${artifact}")" && sha256sum -c "$(basename "${checksum_file}")" >/dev/null 2>&1); then
-    print_check "Checksum" "ok"
-  else
-    warn "checksum verification failed for ${checksum_file}"
-  fi
-else
-  warn "checksum file not found: ${checksum_file}"
-fi
-
-print_step "Runtime Paths"
-print_check "Config" "${config_file}"
-print_check "Backend log" "${backend_log}"
-print_check "Electron log" "${electron_log}"
-print_check "Whisper cache" "${whisper_cache}"
-
-if [[ -f "${config_file}" ]]; then
-  print_check "Config status" "exists"
-else
-  print_check "Config status" "will be created on first launch"
-fi
-
-if [[ -d "${whisper_cache}" ]]; then
-  whisper_files="$(find "${whisper_cache}" -type f 2>/dev/null | wc -l | tr -d ' ')"
-  whisper_size="$(du -sh "${whisper_cache}" 2>/dev/null | awk '{print $1}')"
-  print_check "Whisper files" "${whisper_files}"
-  print_check "Whisper cache size" "${whisper_size:-unknown}"
-  if [[ "${whisper_files}" = "0" ]]; then
-    warn "Whisper cache exists but contains no files. First transcription may download a model."
-  fi
-else
-  warn "Whisper cache not found. First transcription may download the selected model."
-fi
-
-if [[ "${check_only}" = "1" ]]; then
-  print_step "Check complete"
-  echo "No files were installed because --check-only was used."
+if [[ "$mode" == uninstall ]]; then
+  rm -f "$launcher" "$desktop"
+  rm -rf "$INSTALL_ROOT"
+  command -v update-desktop-database >/dev/null && update-desktop-database "$APPS_DIR" >/dev/null 2>&1 || true
+  echo "Praxis application files removed. Journals, configuration, credentials, and model caches were preserved."
   exit 0
 fi
 
-print_step "Installing AppImage"
-mkdir -p "${install_dir}"
-cp "${artifact}" "${installed_app}"
-chmod +x "${installed_app}"
-print_check "Installed" "${installed_app}"
-
-if [[ -f "${icon_source}" ]]; then
-  cp "${icon_source}" "${icon_target}"
-  print_check "Icon" "${icon_target}"
-else
-  warn "logo.png not found; desktop entry will use a generic icon."
+if [[ "$mode" == check ]]; then
+  failures=0
+  [[ -r "$manifest" ]] || { note "Manifest" "missing"; failures=1; }
+  [[ -x "$launcher" ]] || { note "Launcher" "missing"; failures=1; }
+  [[ -r "$desktop" ]] || { note "Desktop entry" "missing"; failures=1; }
+  if [[ -r "$manifest" ]]; then
+    # shellcheck disable=SC1090
+    source "$manifest"
+    [[ -x "${PRAXIS_EXEC:-}" ]] || { note "Runtime" "missing"; failures=1; }
+    note "Installed version" "${PRAXIS_VERSION:-unknown}"
+    note "Runtime mode" "${PRAXIS_MODE:-unknown}"
+  fi
+  ((failures == 0)) || exit 1
+  echo "Praxis installation is healthy."
+  exit 0
 fi
 
-if [[ "${install_bin}" = "1" ]]; then
-  mkdir -p "${bin_dir}"
-  ln -sfn "${installed_app}" "${launcher}"
-  print_check "CLI launcher" "${launcher}"
-else
-  print_check "CLI launcher" "skipped"
+if [[ -z "$artifact" ]]; then
+  artifact="$(find "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/frontend/release" -maxdepth 1 -name 'Praxis-*.AppImage' -type f -printf '%T@ %p\n' 2>/dev/null | sort -nr | sed -n '1s/^[^ ]* //p')"
+fi
+[[ -n "$artifact" ]] || die "provide --artifact PATH|URL or build a release first"
+
+available_kb="$(df -Pk "$HOME" | awk 'NR==2 {print $4}')"
+required_kb=2097152
+((available_kb >= required_kb)) || die "at least 2 GiB free disk space is required"
+
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+appimage="$tmp/Praxis.AppImage"
+fetch "$artifact" "$appimage"
+chmod +x "$appimage"
+
+checksum="${checksum:-${artifact}.sha256}"
+checksum_file="$tmp/Praxis.AppImage.sha256"
+fetch "$checksum" "$checksum_file" || die "checksum is required and could not be loaded"
+expected="$(awk 'NR==1 {print $1}' "$checksum_file")"
+[[ "$expected" =~ ^[0-9a-fA-F]{64}$ ]] || die "invalid SHA-256 checksum file"
+actual="$(sha256sum "$appimage" | awk '{print $1}')"
+[[ "${actual,,}" == "${expected,,}" ]] || die "checksum verification failed"
+note "Checksum" "verified"
+
+if [[ -n "$signature" || -n "$public_key" ]]; then
+  [[ -n "$signature" && -n "$public_key" ]] || die "signature verification requires both --signature and --public-key"
+  command -v minisign >/dev/null || die "minisign is required for signature verification"
+  sig_file="$tmp/Praxis.AppImage.minisig"; fetch "$signature" "$sig_file"
+  minisign -Vm "$appimage" -x "$sig_file" -P "$public_key" >/dev/null
+  note "Signature" "verified"
 fi
 
-if [[ "${install_desktop}" = "1" ]]; then
-  mkdir -p "${apps_dir}"
-  cat > "${desktop_file}" <<EOF
+mkdir -p "$INSTALL_ROOT" "$BIN_DIR" "$APPS_DIR"
+installed_app="$INSTALL_ROOT/Praxis.AppImage"
+cp "$appimage" "$installed_app"; chmod 0755 "$installed_app"
+exec_path="$installed_app"; runtime_mode=appimage
+
+# AppImage type 2 needs FUSE on some systems. Preserve a no-FUSE extraction fallback.
+if ! "$installed_app" --appimage-version >/dev/null 2>&1; then
+  rm -rf "$INSTALL_ROOT/squashfs-root"
+  (cd "$INSTALL_ROOT" && "$installed_app" --appimage-extract >/dev/null) || die "AppImage cannot run and extraction fallback failed"
+  exec_path="$INSTALL_ROOT/squashfs-root/AppRun"; runtime_mode=extracted
+fi
+
+ln -sfn "$exec_path" "$launcher"
+icon="$INSTALL_ROOT/praxis.png"
+if [[ "$runtime_mode" == extracted ]]; then
+  found_icon="$(find "$INSTALL_ROOT/squashfs-root" -type f \( -name 'praxis.png' -o -name 'icon.png' \) | head -1 || true)"
+  [[ -z "$found_icon" ]] || cp "$found_icon" "$icon"
+fi
+cat >"$desktop" <<EOF
 [Desktop Entry]
 Name=Praxis
-Comment=AI-assisted video journaling
-Exec=${installed_app}
-Icon=${icon_target}
+Comment=Private local AI video journaling coach
+Exec=${launcher}
+Icon=${icon}
 Terminal=false
 Type=Application
 Categories=AudioVideo;Education;
 StartupNotify=true
 EOF
-  chmod 0644 "${desktop_file}"
-  print_check "Desktop entry" "${desktop_file}"
+chmod 0644 "$desktop"
+cat >"$manifest" <<EOF
+PRAXIS_VERSION='${VERSION}'
+PRAXIS_EXEC='${exec_path}'
+PRAXIS_MODE='${runtime_mode}'
+EOF
+command -v update-desktop-database >/dev/null && update-desktop-database "$APPS_DIR" >/dev/null 2>&1 || true
 
-  if command -v update-desktop-database >/dev/null 2>&1; then
-    update-desktop-database "${apps_dir}" >/dev/null 2>&1 || true
-  fi
-else
-  print_check "Desktop entry" "skipped"
+note "Installed" "$exec_path"
+note "Launcher" "$launcher"
+note "Desktop entry" "$desktop"
+if ((no_launch == 0)); then
+  unset ELECTRON_RUN_AS_NODE
+  nohup "$launcher" >"${HOME}/.cache/praxis/installer-launch.log" 2>&1 &
+  note "Onboarding" "launched"
 fi
-
-print_step "Launch"
-if [[ "${install_bin}" = "1" ]]; then
-  echo "Run from terminal:"
-  echo "  praxis"
-else
-  echo "Run from terminal:"
-  echo "  ${installed_app}"
-fi
-echo
-echo "If Electron was launched from a shell that has ELECTRON_RUN_AS_NODE set:"
-echo "  unset ELECTRON_RUN_AS_NODE"
-echo
-echo "Install complete."
+echo "Installation complete. Run '$0 --check' to verify or '$0 --uninstall' to remove app files."

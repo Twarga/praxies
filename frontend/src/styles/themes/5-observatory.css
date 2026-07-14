@@ -1,0 +1,47 @@
+/* Theme 5: Glass Observatory — deep space, aurora gradients, frosted glass */
+[data-theme="5"],
+[data-theme="5"] :root {
+  --praxis-bg-app: #06090D;
+  --praxis-bg-canvas: #0D1520;
+  --praxis-bg-panel: #111B28;
+  --praxis-bg-panel-raised: #162233;
+  --praxis-bg-elevated: #162233;
+  --praxis-glass-chrome: rgba(17, 27, 40, 0.7);
+  --praxis-glass-overlay: rgba(17, 27, 40, 0.88);
+  --praxis-glass-reading: #111B28;
+  --praxis-glass-highlight: rgba(110, 231, 183, 0.06);
+  --praxis-text-primary: #E0E8F4;
+  --praxis-text-secondary: #8B9BB5;
+  --praxis-text-muted: #7D8DA8;
+  --praxis-on-accent: #07111D;
+  --praxis-on-record: #07111D;
+  --praxis-on-warning: #07111D;
+  --praxis-on-success: #07111D;
+  --praxis-video-surface: #000000;
+  --praxis-line-subtle: rgba(255, 255, 255, 0.06);
+  --praxis-line-strong: rgba(255, 255, 255, 0.1);
+  --praxis-accent: #6EE7B7;
+  --praxis-accent-soft: rgba(110, 231, 183, 0.12);
+  --praxis-accent-muted: rgba(110, 231, 183, 0.06);
+  --praxis-success: #6EE7B7;
+  --praxis-success-soft: rgba(110, 231, 183, 0.12);
+  --praxis-warning: #F59E0B;
+  --praxis-warning-soft: rgba(245, 158, 11, 0.1);
+  --praxis-danger: #F43F5E;
+  --praxis-danger-soft: rgba(244, 63, 94, 0.1);
+  --praxis-record: #F43F5E;
+  --praxis-focus-ring: rgba(110, 231, 183, 0.5);
+  --praxis-focus: #6EE7B7;
+  --praxis-hover: rgba(255, 255, 255, 0.04);
+  --praxis-bg-hover: rgba(255, 255, 255, 0.04);
+  --praxis-active: rgba(255, 255, 255, 0.08);
+  --praxis-selected: rgba(110, 231, 183, 0.12);
+  --praxis-disabled: rgba(85, 98, 120, 0.3);
+  --praxis-shadow-overlay: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --praxis-radius-sm: 8px;
+  --praxis-radius-md: 12px;
+  --praxis-radius-lg: 12px;
+  --praxis-radius-modal: 14px;
+  --praxis-font-sans: "Inter", system-ui, sans-serif;
+  --praxis-font-mono: "JetBrains Mono", monospace;
+}

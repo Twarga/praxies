@@ -28,12 +28,20 @@ export function filterGallerySessions(sessions, languageFilter) {
 }
 
 export function formatGalleryMonthLabel(createdAt) {
+  const date = new Date(createdAt);
+  const now = new Date();
+  const startOfThisWeek = new Date(now);
+  startOfThisWeek.setHours(0, 0, 0, 0);
+  startOfThisWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const startOfLastWeek = new Date(startOfThisWeek);
+  startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
+  if (date >= startOfThisWeek) return "This week";
+  if (date >= startOfLastWeek) return "Last week";
   return new Intl.DateTimeFormat("en-US", {
     month: "long",
     year: "numeric",
   })
-    .format(new Date(createdAt))
-    .toLowerCase();
+    .format(date);
 }
 
 export function groupGallerySessionsByMonth(sessions) {

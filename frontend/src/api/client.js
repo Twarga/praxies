@@ -37,13 +37,17 @@ export async function apiFetchText(path, options = {}) {
 }
 
 export async function apiFetchJson(path, options = {}) {
+  const hasBody = options.body != null && !(options.body instanceof FormData);
+  const bodyIsPreSerialized = typeof options.body === "string";
+
   const response = await fetch(buildApiUrl(path), {
     headers: {
       Accept: "application/json",
-      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
       ...(options.headers ?? {}),
     },
     ...options,
+    ...(!bodyIsPreSerialized && hasBody ? { body: JSON.stringify(options.body) } : {}),
   });
 
   if (!response.ok) {
@@ -53,6 +57,11 @@ export async function apiFetchJson(path, options = {}) {
       const errorPayload = await response.json();
       if (typeof errorPayload?.detail === "string" && errorPayload.detail.trim()) {
         message = errorPayload.detail;
+      } else if (Array.isArray(errorPayload?.detail)) {
+        message = errorPayload.detail
+          .map((issue) => issue?.msg || issue?.message)
+          .filter(Boolean)
+          .join(" ") || message;
       }
     } catch {
       // Fall back to the HTTP status message when the response is not JSON.

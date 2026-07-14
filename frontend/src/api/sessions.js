@@ -27,6 +27,10 @@ export function finalizeSession(sessionId, payload) {
   });
 }
 
+export function prepareSessionPreview(sessionId) {
+  return apiFetchJson(`/api/sessions/${sessionId}/preview`, { method: "POST" });
+}
+
 export function deleteSession(sessionId) {
   return apiFetchJson(`/api/sessions/${sessionId}`, {
     method: "DELETE",
@@ -35,6 +39,13 @@ export function deleteSession(sessionId) {
 
 export function loadSession(sessionId) {
   return apiFetchJson(`/api/sessions/${sessionId}`);
+}
+
+export function renameSession(sessionId, title) {
+  return apiFetchJson(`/api/sessions/${sessionId}/title`, {
+    method: "PATCH",
+    body: JSON.stringify({ title }),
+  });
 }
 
 export function loadTodayDigest() {
@@ -91,12 +102,12 @@ export function exportSessionTranscript(sessionId) {
   return apiFetchText(`/api/sessions/${sessionId}/export-transcript`);
 }
 
-export function exportSessionSubtitledVideo(sessionId, targetLanguage) {
+export function exportSessionSubtitledVideo(sessionId, targetLanguage, secondaryLanguage = null) {
   const normalizedTargetLanguage = String(targetLanguage ?? "").trim().toLowerCase();
 
   return apiFetchJson(`/api/sessions/${sessionId}/export-subtitled-video`, {
     method: "POST",
-    body: JSON.stringify({ target_language: normalizedTargetLanguage }),
+    body: JSON.stringify({ target_language: normalizedTargetLanguage, secondary_language: secondaryLanguage || null }),
   });
 }
 

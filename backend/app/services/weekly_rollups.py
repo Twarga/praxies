@@ -99,7 +99,11 @@ def load_weekly_rollup(config: ConfigModel, week: str) -> WeeklyRollupModel | No
     if not path.exists():
         return None
 
-    return WeeklyRollupModel.model_validate(read_json_file(path))
+    payload = read_json_file(path)
+    if not isinstance(payload, dict):
+        return None
+
+    return WeeklyRollupModel.model_validate(payload)
 
 
 def build_weekly_rollup_system_prompt() -> str:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -10,7 +10,7 @@ from app.core.settings import APP_VERSION
 LanguageCode = Literal["en", "fr", "es"]
 VideoQuality = Literal["480p", "720p", "1080p"]
 Directness = Literal["gentle", "direct", "brutal"]
-LlmProvider = Literal["openrouter", "opencode_go", "openai_compatible", "litellm_proxy"]
+LlmProvider = str
 WhisperModelName = Literal["tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"]
 SessionStatus = Literal[
     "recording",
@@ -80,6 +80,50 @@ class ConfigModel(StrictModel):
     setup_completed: bool = False
     theme: str
     telegram: ConfigTelegramModel
+
+
+# ── v2 configuration models ────────────────────────────────────────────────
+
+class ProviderConnectionModel(StrictModel):
+    """Connection to an AI provider. Stores a secret reference, never a plaintext key."""
+    provider_id: str
+    display_name: str = ""
+    auth_profile_id: str = ""
+    selected_model_id: str = ""
+    base_url: str = ""
+    catalog_updated_at: str | None = None
+    enabled: bool = True
+
+
+class ConfigTranscriptionV2Model(StrictModel):
+    """Transcription engine and model configuration."""
+    engine_id: str = "faster_whisper"
+    model_id: str = "large-v3-turbo"
+    cache_folder: str
+    device: str = "cpu"
+    compute_type: str = "int8"
+
+
+class ConfigModelV2(StrictModel):
+    """Configuration schema v2 — no plaintext secrets in the config file."""
+    schema_version: int = 2
+    app_version: str = APP_VERSION
+    journal_folder: str
+    language_default: LanguageCode = "en"
+    video_quality: VideoQuality = "720p"
+    retention_days: int = Field(default=30, ge=0)
+    active_provider_connection_id: str | None = None
+    provider_connections: dict[str, ProviderConnectionModel] = Field(default_factory=dict)
+    transcription: ConfigTranscriptionV2Model
+    directness: Directness = "direct"
+    personal_context: str = ""
+    phone_upload_enabled: bool = False
+    ready_sound_enabled: bool = True
+    setup_completed: bool = False
+    theme: str = "graphite-studio"
+    telegram: ConfigTelegramModel = Field(default_factory=lambda: ConfigTelegramModel(
+        enabled=False, bot_token="", chat_id="", daily_digest_time="08:00", weekly_rollup_time="sunday 20:00",
+    ))
 
 
 class MetaProcessingTerminalLineModel(StrictModel):
@@ -292,6 +336,244 @@ class AnalysisModel(StrictModel):
     ideas_and_reasoning: AnalysisIdeasAndReasoningModel
     recurring_patterns_hit: list[str]
     actionable_improvements: list[str]
+
+
+# ── v3 analysis models ─────────────────────────────────────────────────────
+
+class PreviousGoalResultV3Model(StrictModel):
+    goal_id: str | None = None
+    result: Literal["not_applicable", "followed", "partially_followed", "missed", "uncertain"] = "not_applicable"
+    summary: str = ""
+    evidence: list[dict[str, object]] = Field(default_factory=list)
+
+
+class ReportStrengthV3Model(StrictModel):
+    title: str = ""
+    explanation: str = ""
+    evidence: dict[str, object] | None = None
+
+
+class ReportImprovementV3Model(StrictModel):
+    title: str = ""
+    explanation: str = ""
+    replacement_behavior: str = ""
+
+
+class ReportEvidenceMomentV3Model(StrictModel):
+    timestamp_seconds: float = Field(default=0, ge=0)
+    quote: str = ""
+    explanation: str = ""
+
+
+class ReportPracticeV3Model(StrictModel):
+    title: str = ""
+    instructions: str = ""
+    success_criteria: list[str] = Field(default_factory=list)
+
+
+class ReportNextGoalV3Model(StrictModel):
+    goal_id: str = ""
+    text: str = ""
+    success_criteria: list[str] = Field(default_factory=list)
+
+
+class AnalysisReportV3Model(StrictModel):
+    verdict: str = ""
+    previous_goal: PreviousGoalResultV3Model = Field(default_factory=PreviousGoalResultV3Model)
+    strength: ReportStrengthV3Model = Field(default_factory=ReportStrengthV3Model)
+    priority_improvement: ReportImprovementV3Model = Field(default_factory=ReportImprovementV3Model)
+    evidence_moments: list[ReportEvidenceMomentV3Model] = Field(default_factory=list)
+    practice: ReportPracticeV3Model = Field(default_factory=ReportPracticeV3Model)
+    next_goal: ReportNextGoalV3Model = Field(default_factory=ReportNextGoalV3Model)
+
+
+class AnalysisModelV3(StrictModel):
+    schema_version: int = 3
+    language: Literal["en", "fr", "es"]
+    report: AnalysisReportV3Model = Field(default_factory=AnalysisReportV3Model)
+    details: dict[str, object] = Field(default_factory=dict)
+
+
+# ── goals and practice repositories ─────────────────────────────────────────
+
+class GoalModel(StrictModel):
+    """A measurable goal that bridges one session to the next."""
+    goal_id: str
+    source_session_id: str
+    text: str
+    category: str = "journal"
+    success_criteria: list[str] = Field(default_factory=list)
+    status: Literal["active", "completed", "abandoned"] = "active"
+    created_at: str
+    completed_at: str | None = None
+    abandoned_at: str | None = None
+
+
+class PracticeAssignmentModel(StrictModel):
+    """One exercise generated from a coaching report."""
+    assignment_id: str
+    source_session_id: str
+    source_goal_id: str | None = None
+    title: str = ""
+    instructions: str = ""
+    success_criteria: list[str] = Field(default_factory=list)
+    completed: bool = False
+    completed_at: str | None = None
+    created_at: str
+
+
+class CoachProfileModel(StrictModel):
+    """Editable coaching profile stored in _coach/profile.json."""
+    objective: str = ""
+    language_focus: list[LanguageCode] = Field(default_factory=list)
+    updated_at: str
+
+
+class GoalRepositoryModel(StrictModel):
+    """_coach/goals.json — goal history."""
+    goals: list[GoalModel] = Field(default_factory=list)
+    active_goal_id: str | None = None
+    active_goal_ids: list[str] = Field(default_factory=list)
+
+
+class PracticeRepositoryModel(StrictModel):
+    """_practice/assignments.json — exercise history."""
+    assignments: list[PracticeAssignmentModel] = Field(default_factory=list)
+
+
+# ── provider and transcription contracts ───────────────────────────────────
+
+class ProviderModelInfo(StrictModel):
+    """Normalized model from a provider's live catalog."""
+    id: str
+    display_name: str = ""
+    provider_id: str
+    context_window: int | None = None
+    input_modalities: list[str] = Field(default_factory=lambda: ["text"])
+    output_modalities: list[str] = Field(default_factory=lambda: ["text"])
+    supports_structured_output: Literal["unknown", "verified", "failed"] = "unknown"
+    availability: Literal["available", "deprecated", "unavailable"] = "available"
+    pricing: dict[str, object] | None = None
+    source: Literal["provider_authenticated_catalog", "provider_public_catalog", "supplemental_metadata", "cached"] = "provider_authenticated_catalog"
+    fetched_at: str
+
+
+class ProviderAuthMethod(StrictModel):
+    type: Literal["api_key", "bearer_token", "oauth", "device_code", "subscription_token"]
+    label: str = ""
+    required: bool = True
+
+
+class ProviderCapabilities(StrictModel):
+    supports_streaming: bool = False
+    supports_structured_output: bool = False
+    supports_usage_endpoint: bool = False
+    supports_catalog_endpoint: bool = False
+
+
+class ProviderAdapterInfo(StrictModel):
+    """Registry metadata for a provider adapter."""
+    provider_id: str
+    display_name: str
+    auth_methods: list[ProviderAuthMethod] = Field(default_factory=list)
+    capabilities: ProviderCapabilities = Field(default_factory=ProviderCapabilities)
+    requires_base_url: bool = False
+    available: bool = True
+
+
+class ModelTestResult(StrictModel):
+    """Result of a Praxis compatibility test against a selected model."""
+    model_id: str
+    provider_id: str
+    tested_at: str
+    authentication_ok: bool = False
+    routing_ok: bool = False
+    json_valid: bool = False
+    required_fields_present: bool = False
+    latency_ms: int | None = None
+    error_code: str | None = None
+    error_detail: str | None = None
+
+
+class CreateProviderConnectionRequest(StrictModel):
+    """Request body for creating a provider connection."""
+    provider_id: str
+    api_key: str = ""
+    base_url: str = ""
+    display_name: str = ""
+
+
+class UpdateProviderConnectionRequest(StrictModel):
+    """Request body for updating a provider connection."""
+    selected_model_id: str | None = None
+    display_name: str | None = None
+    active: bool | None = None
+
+
+class TestProviderModelRequest(StrictModel):
+    """Request body for testing a provider model."""
+    model_id: str
+
+
+class TranscriptionModelInfo(StrictModel):
+    """Model available from a transcription engine."""
+    model_id: str
+    engine_id: str
+    display_name: str = ""
+    languages: list[str] = Field(default_factory=list)
+    estimated_disk_gb: float = 0
+    estimated_ram_gb: float = 0
+    supported_compute_types: list[str] = Field(default_factory=list)
+    source_revision: str = ""
+    license_label: str = ""
+    compatible: bool = True
+    incompatibility_reason: str = ""
+
+
+class TranscriptionEngineInfo(StrictModel):
+    """Registry metadata for a transcription engine."""
+    engine_id: str
+    display_name: str
+    available: bool = False
+    runtime_version: str = ""
+    supported: bool = False
+    recommended: bool = False
+
+
+class HardwareInfo(StrictModel):
+    cpu_architecture: str = ""
+    logical_cores: int = 0
+    total_ram_gb: float = 0
+    gpu_vendor: str = ""
+    gpu_name: str = ""
+    cuda_available: bool = False
+    vulkan_available: bool = False
+    free_disk_gb: float = 0
+
+
+class TranscriptionBenchmarkResult(StrictModel):
+    model_id: str
+    engine_id: str
+    audio_duration_seconds: float = 0
+    processing_seconds: float = 0
+    real_time_factor: float = 0
+    detected_language: str | None = None
+    device: str = "cpu"
+    compute_type: str = "int8"
+    transcript_text: str = ""
+    reference_text: str = ""
+    word_error_rate: float | None = None
+    timestamp: str
+
+
+class SecretRecord(StrictModel):
+    """Metadata about a stored secret. The value lives in Linux Secret Service."""
+    secret_id: str
+    provider_id: str
+    account_label: str = ""
+    auth_type: str = ""
+    import_source: str = ""
+    created_at: str
 
 
 class RecurringPatternEntry(StrictModel):

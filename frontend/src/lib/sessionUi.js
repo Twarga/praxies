@@ -3,6 +3,8 @@
 //   "recording" | "saved" | "queued" | "transcribing" | "analyzing"
 // | "ready" | "done" | "failed" | "needs_attention" | "video_only"
 
+import { getStatusLabel as getControlRoomStatusLabel } from "./statusLabels.js";
+
 const PROCESSING_STATUSES = new Set(["queued", "transcribing", "analyzing"]);
 const ATTENTION_STATUSES = new Set(["failed", "needs_attention"]);
 const READY_STATUSES = new Set(["ready", "done"]);
@@ -21,37 +23,36 @@ export function isAttentionStatus(status) {
 
 export function getStatusBadgeStyle(status) {
   if (READY_STATUSES.has(status)) {
-    return "bg-[#1C3E2F] text-[#4ADE80]";
+    return "bg-[var(--praxis-success-soft)] text-[var(--praxis-success)] border border-[var(--praxis-success)]/30";
   }
   if (status === "failed") {
-    return "bg-red-950/50 text-red-400 border border-red-900";
+    return "bg-[var(--praxis-danger-soft)] text-[var(--praxis-danger)] border border-[var(--praxis-danger)]/30";
   }
   if (status === "needs_attention") {
-    return "bg-yellow-950/40 text-yellow-300 border border-yellow-900";
+    return "bg-[var(--praxis-warning-soft)] text-[var(--praxis-warning)] border border-[var(--praxis-warning)]/30";
   }
   if (PROCESSING_STATUSES.has(status)) {
-    return "bg-[#2A2C31] text-[#D1D1D1]";
+    return "bg-[var(--praxis-accent-muted)] text-[var(--praxis-accent)] border border-[var(--praxis-accent)]/30";
   }
   if (status === "saved" || status === "video_only" || status === "recording") {
-    return "bg-[#2A2C31] text-[#D1D1D1]";
+    return "bg-[var(--praxis-bg-panel-raised)] text-[var(--praxis-text-secondary)] border border-[var(--praxis-line-subtle)]";
   }
-  return "bg-[#2A2C31] text-[#D1D1D1]";
+  return "bg-[var(--praxis-bg-panel-raised)] text-[var(--praxis-text-secondary)] border border-[var(--praxis-line-subtle)]";
 }
 
 export function getStatusLabel(status) {
-  if (status === "ready" || status === "done") return "ready";
-  if (status === "needs_attention") return "needs attention";
-  if (status === "video_only") return "video only";
-  return status;
+  return getControlRoomStatusLabel(status);
+}
+
+export function getProcessingLabel(status) {
+  return getControlRoomStatusLabel(status);
 }
 
 export function formatDuration(durationSeconds) {
   const total = Math.max(0, Math.floor(Number(durationSeconds) || 0));
   const mins = Math.floor(total / 60);
   const secs = total % 60;
-  return `${mins.toString().padStart(2, "0")}:${secs
-    .toString()
-    .padStart(2, "0")}`;
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
 export function formatDurationMinutes(durationSeconds) {
@@ -90,12 +91,5 @@ export function formatLanguageBadge(lang) {
 }
 
 export function getSessionTitle(session) {
-  return session?.title?.trim() || "untitled session";
-}
-
-export function getProcessingLabel(status) {
-  if (status === "queued") return "queued";
-  if (status === "transcribing") return "transcribing";
-  if (status === "analyzing") return "analyzing";
-  return status;
+  return session?.title?.trim() || session?.id || "untitled session";
 }

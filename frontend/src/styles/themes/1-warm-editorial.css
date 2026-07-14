@@ -1,0 +1,47 @@
+/* Theme 1: Warm Editorial — cream paper, slab serif, ink shadows */
+[data-theme="1"],
+[data-theme="1"] :root {
+  --praxis-bg-app: #EDE9E2;
+  --praxis-bg-canvas: #F5F0E8;
+  --praxis-bg-panel: #FAF7F2;
+  --praxis-bg-panel-raised: #F5F0E8;
+  --praxis-bg-elevated: #EDE9E2;
+  --praxis-glass-chrome: rgba(250, 247, 242, 0.88);
+  --praxis-glass-overlay: rgba(250, 247, 242, 0.94);
+  --praxis-glass-reading: #FAF7F2;
+  --praxis-glass-highlight: rgba(139, 69, 19, 0.06);
+  --praxis-text-primary: #1A1510;
+  --praxis-text-secondary: #3D3832;
+  --praxis-text-muted: #6B645D;
+  --praxis-on-accent: #FFFFFF;
+  --praxis-on-record: #FFFFFF;
+  --praxis-on-warning: #FFFFFF;
+  --praxis-on-success: #FFFFFF;
+  --praxis-video-surface: #000000;
+  --praxis-line-subtle: rgba(26, 21, 16, 0.08);
+  --praxis-line-strong: rgba(26, 21, 16, 0.16);
+  --praxis-accent: #8B4513;
+  --praxis-accent-soft: rgba(139, 69, 19, 0.08);
+  --praxis-accent-muted: rgba(139, 69, 19, 0.04);
+  --praxis-success: #2D5A3F;
+  --praxis-success-soft: rgba(45, 90, 63, 0.08);
+  --praxis-warning: #8B6914;
+  --praxis-warning-soft: rgba(139, 105, 20, 0.08);
+  --praxis-danger: #B22222;
+  --praxis-danger-soft: rgba(178, 34, 34, 0.08);
+  --praxis-record: #B22222;
+  --praxis-focus-ring: rgba(139, 69, 19, 0.5);
+  --praxis-focus: #8B4513;
+  --praxis-hover: rgba(26, 21, 16, 0.04);
+  --praxis-bg-hover: rgba(26, 21, 16, 0.04);
+  --praxis-active: rgba(26, 21, 16, 0.08);
+  --praxis-selected: rgba(139, 69, 19, 0.08);
+  --praxis-disabled: rgba(26, 21, 16, 0.2);
+  --praxis-shadow-overlay: 0 1px 3px rgba(26, 21, 16, 0.06);
+  --praxis-radius-sm: 2px;
+  --praxis-radius-md: 2px;
+  --praxis-radius-lg: 2px;
+  --praxis-radius-modal: 2px;
+  --praxis-font-sans: "Georgia", "Palatino", "Charter", serif;
+  --praxis-font-mono: "SF Mono", "Menlo", monospace;
+}

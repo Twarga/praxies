@@ -1,0 +1,47 @@
+/* Theme 0: Control Room Studio — dark graphite, blue accent [DEFAULT] */
+[data-theme="0"],
+[data-theme="0"] :root {
+  --praxis-bg-app: #0B0E12;
+  --praxis-bg-canvas: #10151C;
+  --praxis-bg-panel: #141B24;
+  --praxis-bg-panel-raised: #1A222D;
+  --praxis-bg-elevated: #222B38;
+  --praxis-glass-chrome: rgba(20, 27, 36, 0.78);
+  --praxis-glass-overlay: rgba(34, 43, 56, 0.88);
+  --praxis-glass-reading: #141B24;
+  --praxis-glass-highlight: rgba(232, 238, 245, 0.06);
+  --praxis-text-primary: #E8EEF5;
+  --praxis-text-secondary: #9AA7B5;
+  --praxis-text-muted: #8290A0;
+  --praxis-on-accent: #07111D;
+  --praxis-on-record: #07111D;
+  --praxis-on-warning: #07111D;
+  --praxis-on-success: #07111D;
+  --praxis-video-surface: #000000;
+  --praxis-line-subtle: rgba(255, 255, 255, 0.08);
+  --praxis-line-strong: rgba(255, 255, 255, 0.14);
+  --praxis-accent: #4EA1FF;
+  --praxis-accent-soft: rgba(78, 161, 255, 0.16);
+  --praxis-accent-muted: rgba(78, 161, 255, 0.08);
+  --praxis-success: #2FBF86;
+  --praxis-success-soft: rgba(47, 191, 134, 0.14);
+  --praxis-warning: #E0A84A;
+  --praxis-warning-soft: rgba(224, 168, 74, 0.14);
+  --praxis-danger: #FF4D4D;
+  --praxis-danger-soft: rgba(255, 77, 77, 0.14);
+  --praxis-record: #FF4D4D;
+  --praxis-focus-ring: rgba(78, 161, 255, 0.6);
+  --praxis-focus: #4EA1FF;
+  --praxis-hover: rgba(255, 255, 255, 0.06);
+  --praxis-bg-hover: rgba(255, 255, 255, 0.06);
+  --praxis-active: rgba(255, 255, 255, 0.1);
+  --praxis-selected: rgba(78, 161, 255, 0.14);
+  --praxis-disabled: rgba(107, 119, 133, 0.35);
+  --praxis-shadow-overlay: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --praxis-radius-sm: 6px;
+  --praxis-radius-md: 8px;
+  --praxis-radius-lg: 8px;
+  --praxis-radius-modal: 10px;
+  --praxis-font-sans: "Inter", "SF Pro Text", system-ui, sans-serif;
+  --praxis-font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+}

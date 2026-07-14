@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from app.services import whisper_service
 from app.services.whisper_service import WhisperService
 
 
@@ -16,7 +17,8 @@ class _FakeWhisperModel:
         return segments, info
 
 
-def test_run_smoke_test_loads_real_transcribe_path(config):
+def test_run_smoke_test_loads_real_transcribe_path(config, app_paths, monkeypatch):
+    monkeypatch.setattr(whisper_service, "PATHS", app_paths)
     fake_model = _FakeWhisperModel()
     service = WhisperService(model_factory=lambda *args, **kwargs: fake_model)
 

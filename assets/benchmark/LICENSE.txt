@@ -1,0 +1,9 @@
+Praxis Transcription Benchmark Clip
+
+The reference script in reference.txt was written for the Praxis project in 2026.
+The accompanying sample.wav is a mechanical speech synthesis of that script produced with eSpeak NG.
+
+To the extent copyright or related rights may apply, the project author dedicates the reference script and generated recording to the public domain under Creative Commons CC0 1.0 Universal:
+https://creativecommons.org/publicdomain/zero/1.0/
+
+The clip contains no recording, likeness, or personal data from a Praxis user.
