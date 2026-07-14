@@ -2,10 +2,6 @@
   <img src="assets/github/praxis-loop.png" width="116" alt="Praxis mark: a continuous coaching loop" />
 </p>
 
-<p align="center">
-  <img src="assets/github/praxis-banner.png" width="100%" alt="Praxis: a private, local-first practice studio" />
-</p>
-
 <h1 align="center">Praxis</h1>
 
 <p align="center">
